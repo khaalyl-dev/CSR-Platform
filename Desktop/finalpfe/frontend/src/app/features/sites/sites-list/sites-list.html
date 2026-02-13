@@ -1,0 +1,53 @@
+<div class="p-6 space-y-6">
+
+  <!-- FILTER BAR -->
+  <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 flex flex-wrap gap-4 items-center justify-end">
+
+    <input
+      type="text"
+      placeholder="Rechercher un site..."
+      class="px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none w-64"
+      (input)="searchTerm.set($any($event.target).value)" />
+
+    <select
+      class="px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500"
+      (change)="selectedStatus.set($any($event.target).value)">
+      <option value="">Tous statuts</option>
+      <option>Active</option>
+      <option>Inactive</option>
+    </select>
+
+  </div>
+
+  <!-- SITES TABLE -->
+  <div class="bg-white shadow rounded-2xl overflow-x-auto">
+    <table class="min-w-full divide-y divide-gray-200">
+      <thead class="bg-gray-50">
+        <tr>
+          <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Nom</th>
+          <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Ville</th>
+          <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Pays</th>
+          <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Manager</th>
+          <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Statut</th>
+        </tr>
+      </thead>
+      <tbody class="bg-white divide-y divide-gray-200">
+        <tr *ngFor="let site of filteredSites()">
+          <td class="px-6 py-4 whitespace-nowrap">{{ site.name }}</td>
+          <td class="px-6 py-4 whitespace-nowrap">{{ site.city }}</td>
+          <td class="px-6 py-4 whitespace-nowrap">{{ site.country }}</td>
+          <td class="px-6 py-4 whitespace-nowrap">{{ site.manager }}</td>
+          <td class="px-6 py-4 whitespace-nowrap">
+            <span
+              [ngClass]="{
+                'bg-green-200 text-green-800': site.status==='Active',
+                'bg-red-200 text-red-800': site.status==='Inactive'
+              }"
+              class="px-2 inline-flex text-xs font-semibold rounded-full"
+            >{{ site.status }}</span>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
