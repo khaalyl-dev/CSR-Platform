@@ -37,7 +37,7 @@ finalpfe/
 
 ```bash
 git clone https://github.com/khaalyl-dev/CSR-Platform.git
-cd CSR-Platform/finalpfe
+cd CSR-Platform/Desktop/finalpfe
 ```
 
 *(Si vous travaillez déjà dans le projet, restez dans le dossier `finalpfe`.)*
@@ -52,11 +52,6 @@ cd CSR-Platform/finalpfe
 CREATE DATABASE csr_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 ```
 
-2. *(Optionnel)* Exécuter la migration pour retirer `access_type` si la table `user_sites` existe déjà :
-
-```bash
-mysql -u root -p csr_db < backend/migrations/drop_access_type.sql
-```
 
 ---
 
@@ -65,7 +60,7 @@ mysql -u root -p csr_db < backend/migrations/drop_access_type.sql
 ```bash
 cd backend
 python3 -m venv .venv
-source .venv/bin/activate    # Windows: .venv\Scripts\activate
+source .venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
