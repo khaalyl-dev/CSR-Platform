@@ -1,0 +1,162 @@
+<!--
+  Profile page template - Mon Profil
+  Sections: header, loading/error states, identity card, personal info, password form, site access
+-->
+<div class="profile-page">
+  <div class="profile-header">
+    <h1>Mon Profil</h1>
+    <p>Consultez les informations de votre compte</p>
+  </div>
+
+  @if (loading()) {
+    <div class="profile-loading">
+      <div class="spinner"></div>
+      <p>Chargement de votre profil...</p>
+    </div>
+  } @else if (errorMessage(); as msg) {
+    <div class="profile-error">
+      <fa-icon [icon]="faCircleXmark" class="profile-error-icon"></fa-icon>
+      <p>{{ msg }}</p>
+      <button class="btn-retry" (click)="loadProfile()">Réessayer</button>
+    </div>
+  } @else if (profile(); as p) {
+    <div class="profile-grid">
+      <!-- Carte principale: identité -->
+      <section class="profile-card profile-card--primary">
+        <div class="profile-card__avatar">
+          <fa-icon [icon]="faUser"></fa-icon>
+        </div>
+        <h2 class="profile-card__name">{{ fullName(p) }}</h2>
+        <p class="profile-card__email">
+          <fa-icon [icon]="faEnvelope" class="profile-card__icon"></fa-icon>
+          {{ p.email }}
+        </p>
+        <div class="profile-card__badges">
+          <span class="badge" [class.badge--corporate]="p.role === 'CORPORATE_USER'"
+            [class.badge--site]="p.role === 'SITE_USER'">
+            {{ roleLabel(p.role) }}
+          </span>
+          <span class="badge" [class.badge--active]="p.is_active" [class.badge--inactive]="!p.is_active">
+            <fa-icon [icon]="p.is_active ? faCircleCheck : faCircleXmark" class="badge-icon"></fa-icon>
+            {{ p.is_active ? 'Actif' : 'Inactif' }}
+          </span>
+        </div>
+      </section>
+
+      <!-- Informations détaillées -->
+      <section class="profile-card">
+        <h3 class="profile-card__title">
+          <fa-icon [icon]="faIdCard" class="profile-card__title-icon"></fa-icon>
+          Informations personnelles
+        </h3>
+        <dl class="profile-dl">
+          <div class="profile-dl__row">
+            <dt>Email</dt>
+            <dd>{{ p.email }}</dd>
+          </div>
+          <div class="profile-dl__row">
+            <dt>Statut</dt>
+            <dd>
+              <span [class.text-success]="p.is_active" [class.text-muted]="!p.is_active">
+                {{ p.is_active ? 'Compte actif' : 'Compte désactivé' }}
+              </span>
+            </dd>
+          </div>
+          <div class="profile-dl__row">
+            <dt>Date de création</dt>
+            <dd>
+              <fa-icon [icon]="faCalendarCheck" class="profile-dl__icon"></fa-icon>
+              {{ formatDate(p.created_at) }}
+            </dd>
+          </div>
+        </dl>
+      </section>
+
+      <!-- Changement de mot de passe -->
+      <section class="profile-card profile-card--password">
+        <h3 class="profile-card__title">
+          <fa-icon [icon]="faKey" class="profile-card__title-icon"></fa-icon>
+          Modifier le mot de passe
+        </h3>
+        @if (passwordSuccess(); as msg) {
+          <div class="profile-password-success">
+            <fa-icon [icon]="faCircleCheck" class="profile-password-success-icon"></fa-icon>
+            {{ msg }}
+          </div>
+        }
+        @if (passwordError(); as msg) {
+          <div class="profile-password-error">{{ msg }}</div>
+        }
+        <form [formGroup]="passwordForm" (ngSubmit)="onSubmitPassword()" class="profile-password-form">
+          <div class="profile-password-field">
+            <label for="current_password">Mot de passe actuel</label>
+            <input id="current_password" type="password" formControlName="current_password"
+              autocomplete="current-password" placeholder="Entrez votre mot de passe actuel"
+              class="profile-input" />
+          </div>
+          <div class="profile-password-field">
+            <label for="new_password">Nouveau mot de passe</label>
+            <input id="new_password" type="password" formControlName="new_password"
+              autocomplete="new-password" placeholder="Min. 8 caractères"
+              class="profile-input" />
+            @if (passwordForm.get('new_password')?.invalid && passwordForm.get('new_password')?.touched) {
+              <span class="profile-input-hint">Minimum 8 caractères</span>
+            }
+          </div>
+          <div class="profile-password-field">
+            <label for="confirm_password">Confirmer le nouveau mot de passe</label>
+            <input id="confirm_password" type="password" formControlName="confirm_password"
+              autocomplete="new-password" placeholder="Répétez le nouveau mot de passe"
+              class="profile-input" />
+          </div>
+          <button type="submit" [disabled]="passwordForm.invalid || changingPassword()"
+            class="profile-password-btn">
+            {{ changingPassword() ? 'Modification...' : 'Modifier le mot de passe' }}
+          </button>
+        </form>
+      </section>
+
+      <!-- Accès aux sites (SITE_USER uniquement) -->
+      @if (p.role === 'SITE_USER') {
+        <section class="profile-card profile-card--sites">
+          <h3 class="profile-card__title">
+            <fa-icon [icon]="faBuilding" class="profile-card__title-icon"></fa-icon>
+            Accès aux sites
+          </h3>
+          @if (p.sites.length > 0) {
+            <ul class="profile-sites">
+              @for (site of p.sites; track site.id) {
+                <li class="profile-site">
+                  <div class="profile-site__dot"></div>
+                  <div class="profile-site__content">
+                    <span class="profile-site__name">{{ site.site_name || site.site_code || 'Site' }}</span>
+                    @if (site.site_code && site.site_name !== site.site_code) {
+                      <span class="profile-site__code">{{ site.site_code }}</span>
+                    }
+                    @if (site.granted_at) {
+                      <span class="profile-site__date">Depuis {{ formatDate(site.granted_at) }}</span>
+                    }
+                  </div>
+                </li>
+              }
+            </ul>
+          } @else {
+            <p class="profile-sites-empty">
+              Aucun site assigné. Contactez un administrateur pour obtenir un accès.
+            </p>
+          }
+        </section>
+      } @else {
+        <section class="profile-card profile-card--sites">
+          <h3 class="profile-card__title">
+            <fa-icon [icon]="faShieldHalved" class="profile-card__title-icon"></fa-icon>
+            Accès
+          </h3>
+          <p class="profile-sites-empty">
+            En tant qu'utilisateur Corporate, vous avez accès à l'ensemble des fonctionnalités et sites.
+          </p>
+        </section>
+      }
+    </div>
+  }
+</div>

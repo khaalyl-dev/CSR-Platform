@@ -1,12 +1,17 @@
+/**
+ * App routing configuration.
+ * /account/profile - Profile page (Mon Profil), accessible to all authenticated users.
+ */
 import { Routes } from '@angular/router';
-import { Login } from './features/auth/login';
-import { Dashboard } from './features/dashboard/dashboard';
-import { MainLayout } from './app/main-layout/main-layout';
-import { authGuard } from './core/auth.guard';
-import { roleGuard } from './core/auth.guard';
-import { AnnualPlansComponent } from './app/features/annual-plans/annual-plans';
-import { SitesListComponent } from './app/features/sites/sites-list/sites-list';
-
+import { Login } from '@features/user-management/login/login';
+import { Dashboard } from '@features/dashboard-analytics/dashboard/dashboard';
+import { MainLayout } from '@shared/layouts/main-layout/main-layout';
+import { authGuard, roleGuard } from '@core/guards/auth.guard';
+import { AnnualPlansComponent } from '@features/csr-plan-management/annual-plans/annual-plans';
+import { SitesListComponent } from '@features/site-management/sites-list/sites-list';
+import { UsersListComponent } from '@features/user-management/users-list/users-list';
+import { UserDetailComponent } from '@features/user-management/user-detail/user-detail';
+import { ProfileComponent } from '@features/user-management/profile/profile';
 
 export const routes: Routes = [
   { path: 'login', component: Login },
@@ -16,14 +21,14 @@ export const routes: Routes = [
     canActivate: [authGuard],
     children: [
       { path: 'dashboard', component: Dashboard },
-      { path: 'annual-plans', component: AnnualPlansComponent },
-      { path: '', redirectTo: 'dashboard', pathMatch: 'full' },
+      { path: 'dashboard/corporate', component: Dashboard, canActivate: [roleGuard(['corporate'])] },
+      { path: 'dashboard/site', component: Dashboard, canActivate: [roleGuard(['site'])] },
+      { path: 'csr-plans', component: AnnualPlansComponent },
       { path: 'sites', component: SitesListComponent },
-
-
-
-
-
+      { path: 'admin/users', component: UsersListComponent, canActivate: [roleGuard(['corporate'])] },
+      { path: 'admin/users/:id', component: UserDetailComponent, canActivate: [roleGuard(['corporate'])] },
+      { path: 'account/profile', component: ProfileComponent },
+      { path: '', redirectTo: 'dashboard', pathMatch: 'full' }
     ]
   },
   { path: '**', redirectTo: 'dashboard' }

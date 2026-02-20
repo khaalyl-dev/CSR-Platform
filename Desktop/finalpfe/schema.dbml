@@ -1,0 +1,398 @@
+Project CSR_Management_System {
+  database_type: "PostgreSQL"
+}
+
+//////////////////////////////////////////////////////
+//////////////////// ENUMS ///////////////////////////
+//////////////////////////////////////////////////////
+
+Enum user_role {
+  SITE_USER
+  CORPORATE_USER
+}
+
+Enum level {
+  "101"
+  "111"
+}
+
+Enum grade {
+  level_0
+  level_1
+  level_2
+}
+
+Enum plan_status {
+  DRAFT
+  SUBMITTED
+  VALIDATED
+  REJECTED
+  LOCKED
+}
+
+Enum activity_status {
+  DRAFT
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+  VALIDATED
+}
+
+Enum validation_status {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+Enum entity_type {
+  PLAN
+  ACTIVITY
+}
+
+Enum partner_type {
+  NGO
+  SCHOOL
+  ASSOCIATION
+  SUPPLIER
+  GOVERNMENT
+  OTHER
+}
+
+Enum organization_type {
+  INTERNAL
+  PARTNERSHIP
+}
+
+Enum contract_type {
+  ONE_SHOT
+  SUCCESSIVE_PERFORMANCE
+}
+
+Enum collaboration_nature {
+  CHARITY_DONATION
+  PARTNERSHIP
+  SPONSORSHIP
+  OTHERS
+}
+
+//////////////////////////////////////////////////////
+//////////////// USERS & SITES ///////////////////////
+//////////////////////////////////////////////////////
+
+Table users {
+  id uuid [pk]
+  first_name varchar
+  last_name varchar
+  email varchar [unique]
+  password_hash varchar
+  role user_role
+  is_active boolean
+  is_corporate_global boolean
+  created_at timestamp
+  updated_at timestamp
+}
+
+Table user_sessions {
+  id uuid [pk]
+  user_id uuid
+  refresh_token varchar
+  ip_address varchar
+  user_agent varchar
+  expires_at timestamp
+  created_at timestamp
+}
+
+Ref: user_sessions.user_id > users.id
+
+Table sites {
+  id uuid [pk]
+  name varchar
+  code varchar [unique]
+  region varchar
+  country varchar
+  location varchar
+  description text
+  is_active boolean
+  created_at timestamp
+  updated_at timestamp
+}
+
+Table user_sites {
+  id uuid [pk]
+  user_id uuid
+  site_id uuid
+  grade grade
+  is_active boolean
+  granted_by uuid
+  granted_at timestamp
+
+  indexes {
+    (user_id, site_id) [unique]
+  }
+}
+
+Ref: user_sites.user_id > users.id
+Ref: user_sites.site_id > sites.id
+Ref: user_sites.granted_by > users.id
+
+//////////////////////////////////////////////////////
+//////////////////// CATEGORIES //////////////////////
+//////////////////////////////////////////////////////
+
+Table categories {
+  id uuid [pk]
+  name varchar
+  description text
+  created_at timestamp
+  updated_at timestamp
+}
+
+//////////////////////////////////////////////////////
+//////////////// EXTERNAL PARTNERS ///////////////////
+//////////////////////////////////////////////////////
+
+Table external_partners {
+  id uuid [pk]
+  name varchar
+  type partner_type
+  contact_person varchar
+  email varchar
+  phone varchar
+  address text
+  website varchar
+  description text
+  is_active boolean
+  created_at timestamp
+  updated_at timestamp
+}
+
+//////////////////////////////////////////////////////
+//////////////////// CSR PLAN ////////////////////////
+//////////////////////////////////////////////////////
+
+Table csr_plans {
+  id uuid [pk]
+  site_id uuid
+  year int
+  validation_mode level
+  status plan_status
+  total_budget decimal
+  submitted_at timestamp
+  validated_at timestamp
+  created_by uuid
+  created_at timestamp
+  updated_at timestamp
+
+  indexes {
+    (site_id, year) [unique]
+  }
+}
+
+Ref: csr_plans.site_id > sites.id
+Ref: csr_plans.created_by > users.id
+
+//////////////////////////////////////////////////////
+//////////////// CSR ACTIVITIES //////////////////////
+//////////////////////////////////////////////////////
+
+Table csr_activities {
+  id uuid [pk]
+  plan_id uuid
+  category_id uuid
+  external_partner_id uuid
+  activity_number varchar
+  title varchar
+  description text
+  activity_type varchar
+  organization organization_type
+  collaboration_nature collaboration_nature
+  contract_type contract_type
+  periodicity varchar
+  is_off_plan boolean
+  planned_budget decimal
+  planned_volunteers int
+  action_impact_target decimal
+  action_impact_unit varchar
+  action_impact_duration varchar
+  sustainability_description text
+  start_year int
+  edition int
+  organizer varchar
+  responsible_user_id uuid
+  start_date date
+  end_date date
+  status activity_status
+  kpi_value decimal
+  kpi_unit varchar
+  created_at timestamp
+  updated_at timestamp
+
+  indexes {
+    (plan_id)
+    (category_id)
+    (plan_id, activity_number) [unique]
+  }
+}
+
+Ref: csr_activities.plan_id > csr_plans.id
+Ref: csr_activities.category_id > categories.id
+Ref: csr_activities.responsible_user_id > users.id
+Ref: csr_activities.external_partner_id > external_partners.id
+
+//////////////////////////////////////////////////////
+//////////////// REALIZED CSR ////////////////////////
+//////////////////////////////////////////////////////
+
+Table realized_csr {
+  id uuid [pk]
+  activity_id uuid
+  year int
+  month int
+  realized_budget decimal
+  participants int
+  total_hc int
+  percentage_employees decimal
+  volunteer_hours decimal
+  action_impact_actual decimal
+  action_impact_unit varchar
+  impact_description text
+  organizer varchar
+  number_external_partners int
+  realization_date date
+  comment text
+  contact_department varchar
+  contact_name varchar
+  contact_email varchar
+  created_by uuid
+  created_at timestamp
+
+  indexes {
+    (year, month)
+  }
+}
+
+Ref: realized_csr.activity_id > csr_activities.id
+Ref: realized_csr.created_by > users.id
+
+//////////////////////////////////////////////////////
+//////////////// VALIDATION WORKFLOW /////////////////
+//////////////////////////////////////////////////////
+
+Table validations {
+  id uuid [pk]
+  entity_type entity_type
+  entity_id uuid
+  site_id uuid
+  grade grade
+  status validation_status
+  validated_by uuid
+  comment text
+  validated_at timestamp
+  created_at timestamp
+
+  indexes {
+    (entity_type, entity_id, grade) [unique]
+  }
+}
+
+Ref: validations.site_id > sites.id
+Ref: validations.validated_by > users.id
+
+//////////////////////////////////////////////////////
+//////////////// CHANGE REQUESTS /////////////////////
+//////////////////////////////////////////////////////
+
+Table change_requests {
+  id uuid [pk]
+  site_id uuid
+  entity_type entity_type
+  entity_id uuid
+  year int
+  reason text
+  status validation_status
+  requested_by uuid
+  requested_duration interval
+  validation_mode level
+  reviewed_by uuid
+  reviewed_at timestamp
+  created_at timestamp
+}
+
+Ref: change_requests.site_id > sites.id
+Ref: change_requests.requested_by > users.id
+Ref: change_requests.reviewed_by > users.id
+
+//////////////////////////////////////////////////////
+//////////////// DOCUMENT MANAGEMENT /////////////////
+//////////////////////////////////////////////////////
+
+Table documents {
+  id uuid [pk]
+  site_id uuid
+  entity_type entity_type
+  entity_id uuid
+  file_name varchar
+  file_path varchar
+  uploaded_by uuid
+  uploaded_at timestamp
+}
+
+Ref: documents.site_id > sites.id
+Ref: documents.uploaded_by > users.id
+
+//////////////////////////////////////////////////////
+//////////////// NOTIFICATIONS ///////////////////////
+//////////////////////////////////////////////////////
+
+Table notifications {
+  id uuid [pk]
+  user_id uuid
+  site_id uuid
+  title varchar
+  message text
+  entity_type entity_type
+  entity_id uuid
+  is_read boolean
+  created_at timestamp
+}
+
+Ref: notifications.user_id > users.id
+Ref: notifications.site_id > sites.id
+
+//////////////////////////////////////////////////////
+//////////////// POWER BI SNAPSHOTS //////////////////
+//////////////////////////////////////////////////////
+
+Table csr_snapshots {
+  id uuid [pk]
+  site_id uuid
+  year int
+  month int
+  total_budget decimal
+  total_realized decimal
+  total_activities int
+  completion_rate decimal
+  created_at timestamp
+
+  indexes {
+    (site_id, year, month) [unique]
+  }
+}
+
+Ref: csr_snapshots.site_id > sites.id
+
+//////////////////////////////////////////////////////
+//////////////// CHATBOT LOG /////////////////////////
+//////////////////////////////////////////////////////
+
+Table chatbot_logs {
+  id uuid [pk]
+  user_id uuid
+  site_id uuid [null]
+  question text
+  answer text
+  created_at timestamp
+}
+
+Ref: chatbot_logs.user_id > users.id
+Ref: chatbot_logs.site_id > sites.id

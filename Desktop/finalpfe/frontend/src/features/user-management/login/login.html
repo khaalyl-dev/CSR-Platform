@@ -1,0 +1,76 @@
+<!--
+  Login page: split layout (form left, image right).
+  Form: email, password, "Se souvenir de moi", submit button.
+  Error messages displayed above form.
+-->
+<div class="flex min-h-screen flex-col lg:flex-row">
+  <!-- Left: form + logo -->
+  <div class="flex flex-1 flex-col justify-center px-6 py-12 lg:w-1/2 lg:px-16">
+    <div class="mx-auto w-full max-w-sm">
+      <!-- Logo above login -->
+      <div class="mb-10 flex justify-center">
+        <img src="/COFICAB-LOGO.png" alt="COFICAB" class="h-20 w-auto object-contain">
+      </div>
+
+      <h1 class="mb-8 text-2xl font-semibold text-slate-800">Connexion</h1>
+
+      @if (errorMessage()) {
+        <ul class="mb-4 list-inside list-disc rounded-md bg-red-50 p-3 text-sm text-red-800">
+          <li>{{ errorMessage() }}</li>
+        </ul>
+      }
+
+      <form [formGroup]="form" (ngSubmit)="onSubmit()" class="space-y-5">
+        <div>
+          <label for="email" class="mb-1.5 block text-sm font-medium text-slate-700">Email</label>
+          <input
+            type="email"
+            id="email"
+            formControlName="email"
+            required
+            autofocus
+            class="w-full rounded-lg border border-slate-300 px-4 py-2.5 text-slate-800 placeholder-slate-400 focus:border-slate-500 focus:outline-none focus:ring-2 focus:ring-slate-500/20">
+        </div>
+        <div>
+          <label for="password" class="mb-1.5 block text-sm font-medium text-slate-700">Mot de passe</label>
+          <input
+            type="password"
+            id="password"
+            formControlName="password"
+            required
+            class="w-full rounded-lg border border-slate-300 px-4 py-2.5 text-slate-800 placeholder-slate-400 focus:border-slate-500 focus:outline-none focus:ring-2 focus:ring-slate-500/20">
+        </div>
+        <div class="flex items-center">
+          <input
+            type="checkbox"
+            id="remember"
+            formControlName="remember"
+            class="h-4 w-4 rounded border-slate-300 text-slate-600 focus:ring-slate-500">
+          <label for="remember" class="ml-2 text-sm text-slate-600">Se souvenir de moi</label>
+        </div>
+        <button
+          type="submit"
+          [disabled]="loading()"
+          class="w-full rounded-lg bg-slate-800 px-4 py-3 font-medium text-white transition hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-offset-2 disabled:opacity-50">
+          {{ loading() ? 'Chargement...' : 'Se connecter' }}
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Right: image -->
+  <div class="hidden lg:block lg:w-1/2">
+    <div class="relative h-full min-h-[50vh] lg:min-h-screen">
+      <img
+        src="https://images.unsplash.com/photo-1522071820081-009f0129c71c?w=800&q=80"
+        alt=""
+        class="absolute inset-0 h-full w-full object-cover">
+      <div class="absolute inset-0 bg-slate-900/30"></div>
+      <div class="absolute inset-0 flex items-end p-10">
+        <p class="max-w-sm text-lg font-medium text-white drop-shadow-md">
+          Gestion des activités de responsabilité sociale au niveau de vos sites.
+        </p>
+      </div>
+    </div>
+  </div>
+</div>

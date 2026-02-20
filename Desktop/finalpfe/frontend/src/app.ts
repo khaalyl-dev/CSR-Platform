@@ -1,5 +1,5 @@
-import { Component, inject } from '@angular/core';
-import { AuthStore } from './core/auth-store';
+import { Component } from '@angular/core';
+import { AuthStore } from '@core/services/auth-store';
 import { RouterOutlet } from '@angular/router';
 
 @Component({

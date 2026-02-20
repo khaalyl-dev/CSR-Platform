@@ -1,0 +1,40 @@
+# CSR Platform - Root .gitignore
+
+# OS
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+.env
+.env.local
+*.db
+*.sqlite
+
+# Node / Angular
+node_modules/
+dist/
+.angular/
+npm-debug.log
+yarn-error.log
+
+# IDE
+.idea/
+.vscode/
+*.sublime-*
+
+# Backend-specific (Flask)
+revoked_tokens.txt
+
+# Logs
+*.log
+
+# Excel temp files
+~$*
