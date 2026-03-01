@@ -1,0 +1,189 @@
+<div class="min-h-screen bg-gray-50 p-6">
+
+  <!-- Header -->
+<div class="mb-6 flex items-center justify-between">
+  <div class="flex items-center gap-4">
+    
+    <!-- Bouton Retour -->
+    <button (click)="cancel()"
+      class="flex items-center justify-center w-10 h-10 rounded-xl bg-white border border-gray-200 text-gray-500 hover:text-blue-600 hover:border-blue-300 hover:bg-blue-50 shadow-sm transition-all duration-200">
+      <i class="fas fa-arrow-left text-sm"></i>
+    </button>
+
+    <!-- Titre -->
+    <div>
+      <h1 class="text-2xl font-bold text-gray-800">
+        <i class="fas fa-pen-to-square mr-2 text-blue-600"></i>
+        Modifier le site
+      </h1>
+      <p class="text-gray-500 text-sm mt-1">Modifier les informations du site sélectionné</p>
+    </div>
+
+  </div>
+</div>
+
+  <!-- Card -->
+  <div class="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+
+    <!-- Card Header -->
+    <div class="bg-gradient-to-r from-blue-900 to-blue-700 px-8 py-5">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 bg-white bg-opacity-20 rounded-xl flex items-center justify-center">
+          <i class="fas fa-building text-white"></i>
+        </div>
+        <div>
+          <h2 class="text-white font-semibold text-lg">Informations du site</h2>
+          <p class="text-blue-200 text-sm">Tous les champs marqués * sont obligatoires</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Form -->
+    <form [formGroup]="siteForm" (ngSubmit)="onSubmit()" class="p-8">
+
+      <!-- Section : Identification -->
+      <div class="mb-8">
+        <div class="flex items-center gap-2 mb-4">
+          <div class="w-1 h-5 bg-blue-600 rounded-full"></div>
+          <h3 class="text-sm font-semibold text-gray-500 uppercase tracking-wider">Identification</h3>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+          <!-- Nom -->
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1.5">
+              Nom du site <span class="text-red-500">*</span>
+            </label>
+            <div class="relative">
+              <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <i class="fas fa-tag text-gray-400 text-sm"></i>
+              </div>
+              <input
+                type="text"
+                formControlName="name"
+                placeholder="Ex: COFICAB TUNISIE"
+                class="w-full pl-10 pr-4 py-2.5 rounded-xl border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none transition text-sm"/>
+            </div>
+          </div>
+
+          <!-- Code -->
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1.5">
+              Code du site <span class="text-red-500">*</span>
+            </label>
+            <div class="relative">
+              <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <i class="fas fa-hashtag text-gray-400 text-sm"></i>
+              </div>
+              <input
+                type="text"
+                formControlName="code"
+                placeholder="Ex: COFTN"
+                class="w-full pl-10 pr-4 py-2.5 rounded-xl border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none transition text-sm uppercase"/>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- Section : Localisation -->
+      <div class="mb-8">
+        <div class="flex items-center gap-2 mb-4">
+          <div class="w-1 h-5 bg-green-500 rounded-full"></div>
+          <h3 class="text-sm font-semibold text-gray-500 uppercase tracking-wider">Localisation</h3>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+          <!-- Région -->
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1.5">Région</label>
+            <div class="relative">
+              <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <i class="fas fa-map text-gray-400 text-sm"></i>
+              </div>
+              <input
+                type="text"
+                formControlName="region"
+                placeholder="Ex: NORTH AFRICA"
+                class="w-full pl-10 pr-4 py-2.5 rounded-xl border border-gray-300 focus:ring-2 focus:ring-green-500 focus:border-green-500 focus:outline-none transition text-sm"/>
+            </div>
+          </div>
+
+          <!-- Pays -->
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1.5">Pays</label>
+            <div class="relative">
+              <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <i class="fas fa-globe text-gray-400 text-sm"></i>
+              </div>
+              <input
+                type="text"
+                formControlName="country"
+                placeholder="Ex: TUNISIA"
+                class="w-full pl-10 pr-4 py-2.5 rounded-xl border border-gray-300 focus:ring-2 focus:ring-green-500 focus:border-green-500 focus:outline-none transition text-sm"/>
+            </div>
+          </div>
+
+          <!-- Localisation -->
+          <div class="md:col-span-2">
+            <label class="block text-sm font-medium text-gray-700 mb-1.5">Adresse / Localisation</label>
+            <div class="relative">
+              <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <i class="fas fa-location-dot text-gray-400 text-sm"></i>
+              </div>
+              <input
+                type="text"
+                formControlName="location"
+                placeholder="Ex: Tunis, Tunisie"
+                class="w-full pl-10 pr-4 py-2.5 rounded-xl border border-gray-300 focus:ring-2 focus:ring-green-500 focus:border-green-500 focus:outline-none transition text-sm"/>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- Section : Description -->
+      <div class="mb-8">
+        <div class="flex items-center gap-2 mb-4">
+          <div class="w-1 h-5 bg-purple-500 rounded-full"></div>
+          <h3 class="text-sm font-semibold text-gray-500 uppercase tracking-wider">Description</h3>
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1.5">Description du site</label>
+          <textarea
+            rows="4"
+            formControlName="description"
+            placeholder="Décrivez le site, ses activités principales..."
+            class="w-full px-4 py-2.5 rounded-xl border border-gray-300 focus:ring-2 focus:ring-purple-500 focus:border-purple-500 focus:outline-none transition text-sm resize-none">
+          </textarea>
+        </div>
+      </div>
+
+      <!-- Divider -->
+      <div class="border-t border-gray-100 pt-6">
+        <div class="flex justify-end gap-3">
+
+          <button
+            type="button"
+            (click)="cancel()"
+            class="px-5 py-2.5 rounded-xl border border-gray-300 text-gray-700 hover:bg-gray-50 transition text-sm font-medium flex items-center gap-2">
+            <i class="fas fa-times"></i>
+            Annuler
+          </button>
+
+          <button
+            type="submit"
+            [disabled]="loading"
+            class="px-6 py-2.5 rounded-xl bg-blue-900 hover:bg-blue-800 disabled:opacity-60 disabled:cursor-not-allowed text-white transition text-sm font-medium flex items-center gap-2">
+            <i *ngIf="!loading" class="fas fa-floppy-disk"></i>
+            <i *ngIf="loading" class="fas fa-spinner fa-spin"></i>
+            <span>{{ loading ? 'Enregistrement...' : 'Enregistrer' }}</span>
+          </button>
+
+        </div>
+      </div>
+
+    </form>
+  </div>
+
+</div>

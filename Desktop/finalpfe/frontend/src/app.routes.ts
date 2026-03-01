@@ -12,6 +12,9 @@ import { SitesListComponent } from '@features/site-management/sites-list/sites-l
 import { UsersListComponent } from '@features/user-management/users-list/users-list';
 import { UserDetailComponent } from '@features/user-management/user-detail/user-detail';
 import { ProfileComponent } from '@features/user-management/profile/profile';
+import { SiteFormComponent } from '@features/site-management/site-form/site-form';
+import { EditSiteComponent } from '@features/site-management/edit-site/edit-site';
+import { SiteUsersComponent } from '@features/site-management/site-users/site-users';
 
 export const routes: Routes = [
   { path: 'login', component: Login },
@@ -25,9 +28,12 @@ export const routes: Routes = [
       { path: 'dashboard/site', component: Dashboard, canActivate: [roleGuard(['site'])] },
       { path: 'csr-plans', component: AnnualPlansComponent },
       { path: 'sites', component: SitesListComponent },
+      { path: 'sites/create', component: SiteFormComponent },
+      { path: 'sites/edit/:id', component: EditSiteComponent },
       { path: 'admin/users', component: UsersListComponent, canActivate: [roleGuard(['corporate'])] },
       { path: 'admin/users/:id', component: UserDetailComponent, canActivate: [roleGuard(['corporate'])] },
       { path: 'account/profile', component: ProfileComponent },
+      {path: 'sites/:id/users', component: SiteUsersComponent},
       { path: '', redirectTo: 'dashboard', pathMatch: 'full' }
     ]
   },

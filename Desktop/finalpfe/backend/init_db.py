@@ -47,11 +47,12 @@ def init_db():
 
         # Sample sites
         sample_sites = [
-            {"name": "Tunis Plant", "code": "COFTN", "region": "North Africa", "country": "Tunisia", "location": "Tunis"},
-            {"name": "Sfax Factory", "code": "COFSF", "region": "North Africa", "country": "Tunisia", "location": "Sfax"},
-            {"name": "Gabes Facility", "code": "COFGB", "region": "North Africa", "country": "Tunisia", "location": "Gabes"},
-            {"name": "Sousse Hub", "code": "COFSS", "region": "North Africa", "country": "Tunisia", "location": "Sousse"},
-            {"name": "Bizerte Unit", "code": "COFBZ", "region": "North Africa", "country": "Tunisia", "location": "Bizerte"},
+            {"name": "COFICAB Tunis (siège)", "code": "COFTN", "region": "North Africa", "country": "Tunisie", "location": "Tunis"},
+    {"name": "COFICAB Medjez El Beb", "code": "COFMD", "region": "North Africa", "country": "Tunisie", "location": "Medjez El Beb"},
+    {"name": "COFICAB Tangier", "code": "COFKT", "region": "North Africa", "country": "Maroc", "location": "Tanger"},
+    {"name": "COFICAB Kenitra", "code": "COFMA", "region": "North Africa", "country": "Maroc", "location": "Kenitra"},
+    {"name": "COFICAB Guarda", "code": "COFPT", "region": "Europe", "country": "Portugal", "location": "Guarda"},
+    {"name": "COFICAB Arad", "code": "COFPL", "region": "Europe", "country": "Roumanie", "location": "Arad"},
         ]
         sites_added = 0
         for s in sample_sites:

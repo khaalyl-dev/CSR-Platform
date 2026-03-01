@@ -44,6 +44,12 @@ class UserSite(db.Model):
         comment="Niveau de validation: level_0, level_1, level_2"
     )
     is_active = db.Column(db.Boolean, nullable=False, default=True, comment="Accès actif ou non")
+    access_type = db.Column(
+        db.Enum("FULL", "READ_ONLY", name="access_type_enum"),
+        nullable=False,
+        default="READ_ONLY",
+        comment="Type d'accès: FULL ou READ_ONLY"
+    )
     granted_by = db.Column(
         CHAR(36, collation="utf8mb4_unicode_ci"), db.ForeignKey("users.id", ondelete="SET NULL"), nullable=True,
         comment="Utilisateur ayant accordé l'accès"

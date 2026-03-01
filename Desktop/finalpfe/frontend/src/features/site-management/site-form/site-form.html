@@ -1,0 +1,184 @@
+<div class="min-h-screen bg-gray-50 flex items-center justify-center px-4 py-10">
+  <div class="w-full max-w-2xl">
+
+    <!-- Header externe -->
+    <div class="flex items-center gap-4 mb-6">
+      <button
+        type="button"
+        title="Retour"
+        (click)="router.navigate(['/sites'])"
+        class="flex items-center justify-center w-10 h-10 rounded-xl bg-white border border-gray-200 text-gray-500 hover:text-blue-700 hover:border-blue-300 hover:bg-blue-50 shadow-sm transition-all duration-200">
+        <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" />
+        </svg>
+      </button>
+      <div>
+        <h1 class="text-xl font-bold text-gray-800">Créer un site</h1>
+        <p class="text-gray-400 text-sm">Nouveau site</p>
+      </div>
+    </div>
+
+    <!-- Card -->
+    <div class="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+
+      <!-- Bande bleue top -->
+      <div class="h-1.5 bg-gradient-to-r from-blue-900 via-blue-600 to-blue-400"></div>
+
+      <!-- Card Header -->
+      <div class="flex items-center gap-4 px-8 py-6 border-b border-gray-100">
+        <div class="w-12 h-12 rounded-2xl bg-blue-900 flex items-center justify-center shadow-md">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6 text-white">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 21h16.5M4.5 3h15M5.25 3v18m13.5-18v18M9 6.75h1.5m-1.5 3h1.5m-1.5 3h1.5m3-6H15m-1.5 3H15m-1.5 3H15M9 21v-3.375c0-.621.504-1.125 1.125-1.125h3.75c.621 0 1.125.504 1.125 1.125V21" />
+          </svg>
+        </div>
+        <div>
+          <h2 class="text-lg font-bold text-gray-800">Informations du site</h2>
+          <p class="text-gray-400 text-sm">Les champs marqués <span class="text-red-500">*</span> sont obligatoires</p>
+        </div>
+      </div>
+
+      <!-- Formulaire -->
+      <form [formGroup]="siteForm" (ngSubmit)="submit()" class="px-8 py-6 space-y-5">
+
+        <!-- Nom + Code -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+
+          <!-- Nom -->
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1.5">
+              Nom du site <span class="text-red-500">*</span>
+            </label>
+            <div class="relative">
+              <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4 text-gray-400">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 21h16.5M4.5 3h15M5.25 3v18m13.5-18v18M9 6.75h1.5m-1.5 3h1.5m-1.5 3h1.5m3-6H15m-1.5 3H15m-1.5 3H15M9 21v-3.375c0-.621.504-1.125 1.125-1.125h3.75c.621 0 1.125.504 1.125 1.125V21" />
+                </svg>
+              </div>
+              <input type="text" formControlName="name"
+                placeholder="Ex: COFICAB Tunisie"
+                class="w-full pl-9 pr-4 py-2.5 rounded-xl border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
+                [class.border-red-400]="siteForm.get('name')?.touched && siteForm.get('name')?.invalid"/>
+            </div>
+            <p class="text-xs text-red-500 mt-1" *ngIf="siteForm.get('name')?.touched && siteForm.get('name')?.invalid">
+              Le nom est obligatoire
+            </p>
+          </div>
+
+          <!-- Code -->
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1.5">
+              Code du site <span class="text-red-500">*</span>
+            </label>
+            <div class="relative">
+              <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor" class="w-4 h-4 text-gray-400">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M5 9h14M5 15h14M9 3L7 21M17 3l-2 18"/>
+                </svg>
+              </div>
+              <input type="text" formControlName="code"
+                placeholder="Ex: COFTN"
+                class="w-full pl-9 pr-4 py-2.5 rounded-xl border border-gray-300 text-sm uppercase focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
+                [class.border-red-400]="siteForm.get('code')?.touched && siteForm.get('code')?.invalid"/>
+            </div>
+            <p class="text-xs text-red-500 mt-1" *ngIf="siteForm.get('code')?.touched && siteForm.get('code')?.invalid">
+              Le code est obligatoire
+            </p>
+          </div>
+
+        </div>
+
+        <!-- Région + Pays -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+
+          <!-- Région -->
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1.5">Région</label>
+            <div class="relative">
+              <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor" class="w-4 h-4 text-gray-400">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M9 6l6-2 6 2v12l-6-2-6 2-6-2V6l6 2z"/>
+                </svg>
+              </div>
+              <input type="text" formControlName="region"
+                placeholder="Ex: North Africa"
+                class="w-full pl-9 pr-4 py-2.5 rounded-xl border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"/>
+            </div>
+          </div>
+
+          <!-- Pays -->
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1.5">Pays</label>
+            <div class="relative">
+              <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor" class="w-4 h-4 text-gray-400">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18Zm0 0c-2.5-2.5-4-6-4-9s1.5-6.5 4-9m0 18c2.5-2.5 4-6 4-9s-1.5-6.5-4-9M3 12h18" />
+                </svg>
+              </div>
+              <input type="text" formControlName="country"
+                placeholder="Ex: Tunisia"
+                class="w-full pl-9 pr-4 py-2.5 rounded-xl border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"/>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Localisation -->
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1.5">Adresse / Localisation</label>
+          <div class="relative">
+            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4 text-gray-400">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
+                <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1 1 15 0Z" />
+              </svg>
+            </div>
+            <input type="text" formControlName="location"
+              placeholder="Ex: Tunis, Tunisia"
+              class="w-full pl-9 pr-4 py-2.5 rounded-xl border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"/>
+          </div>
+        </div>
+
+        <!-- Description -->
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1.5">Description</label>
+          <textarea rows="3" formControlName="description"
+            placeholder="Décrivez le site, ses activités principales..."
+            class="w-full px-4 py-2.5 rounded-xl border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition resize-none">
+          </textarea>
+        </div>
+
+        <!-- Erreur backend -->
+        <div *ngIf="errorMsg"
+          class="flex items-center gap-3 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl text-sm">
+          <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+          </svg>
+          {{ errorMsg }}
+        </div>
+
+        <!-- Boutons -->
+        <div class="flex justify-end gap-3 pt-4 border-t border-gray-100">
+          <button type="button" (click)="router.navigate(['/sites'])"
+            class="px-5 py-2.5 rounded-xl border border-gray-300 text-gray-700 hover:bg-gray-50 transition text-sm font-medium flex items-center gap-2">
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+            Annuler
+          </button>
+          <button type="submit" [disabled]="submitting"
+            class="px-6 py-2.5 rounded-xl bg-blue-900 hover:bg-blue-800 disabled:opacity-60 disabled:cursor-not-allowed text-white transition text-sm font-semibold flex items-center gap-2 shadow-md">
+            <svg *ngIf="!submitting" xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+            </svg>
+            <svg *ngIf="submitting" xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+            {{ submitting ? 'Création...' : 'Créer le site' }}
+          </button>
+        </div>
+
+      </form>
+    </div>
+
+  </div>
+</div>
