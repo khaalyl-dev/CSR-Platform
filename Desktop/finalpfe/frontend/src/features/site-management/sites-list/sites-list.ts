@@ -1,6 +1,7 @@
 import { Component, inject, signal, computed, OnInit } from '@angular/core';
 import { Router, RouterModule } from '@angular/router';
 import { CommonModule } from '@angular/common';
+import { AuthStore } from '@core/services/auth-store';
 import { SitesApi, type Site } from '../api/sites-api';
 
 @Component({
@@ -10,86 +11,99 @@ import { SitesApi, type Site } from '../api/sites-api';
   templateUrl: './sites-list.html'
 })
 export class SitesListComponent implements OnInit {
-  private sitesApi = inject(SitesApi); 
+  private sitesApi = inject(SitesApi);
+  private authStore = inject(AuthStore);
 
   sites = signal<Site[]>([]);
   loading = signal(true);
   searchTerm = signal('');
-  selectedStatus = signal<string | null>(null);
+  selectedRegion = signal<string | null>(null);
 
-  filteredSites = computed(() =>
-    this.sites().filter(site => {
-      const matchesSearch = site.name.toLowerCase().includes(this.searchTerm().toLowerCase()) ||
+  // Tri
+  sortColumn = signal<string>('name');
+  sortDirection = signal<'asc' | 'desc'>('asc');
+
+  // Régions uniques
+  regions = computed(() => {
+    const all = this.sites().map(s => s.region).filter(r => r && r.trim() !== '');
+    return [...new Set(all)].sort();
+  });
+
+  // Filtrage + tri combinés
+  filteredSites = computed(() => {
+    const filtered = this.sites().filter(site => {
+      const matchesSearch =
+        site.name.toLowerCase().includes(this.searchTerm().toLowerCase()) ||
         site.code.toLowerCase().includes(this.searchTerm().toLowerCase());
-      const status = site.is_active ? 'Actif' : 'Inactif';
-      const matchesStatus = this.selectedStatus() ? status === this.selectedStatus() : true;
-      return matchesSearch && matchesStatus;
-    })
-  );
+      const matchesRegion = this.selectedRegion() ? site.region === this.selectedRegion() : true;
+      return matchesSearch && matchesRegion;
+    });
+
+    // Tri
+    const col = this.sortColumn();
+    const dir = this.sortDirection();
+
+    return [...filtered].sort((a, b) => {
+      const valA = (a as any)[col]?.toString().toLowerCase() ?? '';
+      const valB = (b as any)[col]?.toString().toLowerCase() ?? '';
+      if (valA < valB) return dir === 'asc' ? -1 : 1;
+      if (valA > valB) return dir === 'asc' ? 1 : -1;
+      return 0;
+    });
+  });
 
   isCorporate = false;
 
   ngOnInit(): void {
-    const role = localStorage.getItem('role') || '';
-    this.isCorporate = role.toLowerCase() === 'corporate';
-
+    this.isCorporate = this.authStore.userRole() === 'corporate';
     this.sitesApi.list().subscribe({
-      next: (data) => {
-        this.sites.set(data);
-        this.loading.set(false);
-      },
+      next: (data) => { this.sites.set(data); this.loading.set(false); },
       error: () => this.loading.set(false),
     });
   }
 
-  constructor(private router: Router) {}  
+  constructor(private router: Router) {}
 
-  goToAddSite(): void {
-    this.router.navigate(['/sites/create']);
+  sortBy(column: string) {
+    if (this.sortColumn() === column) {
+      this.sortDirection.update(d => d === 'asc' ? 'desc' : 'asc');
+    } else {
+      this.sortColumn.set(column);
+      this.sortDirection.set('asc');
+    }
+    this.currentPage = 1;
   }
 
-  editSite(siteId: string) {
-    this.router.navigate(['/sites/edit', siteId]);
-  }
+  goToAddSite(): void { this.router.navigate(['/sites/create']); }
+  editSite(siteId: string) { this.router.navigate(['/sites/edit', siteId]); }
 
   // Pagination
-  pageSize = 5;
+  pageSize = 8;
   currentPage = 1;
 
-  get totalPages() {
-    return Math.ceil(this.filteredSites().length / this.pageSize);
-  }
+  get totalPages() { return Math.ceil(this.filteredSites().length / this.pageSize); }
 
   get paginatedSites() {
     const start = (this.currentPage - 1) * this.pageSize;
-    const end = start + this.pageSize;
-    return this.filteredSites().slice(start, end);
+    return this.filteredSites().slice(start, start + this.pageSize);
   }
 
   nextPage() { if (this.currentPage < this.totalPages) this.currentPage++; }
   prevPage() { if (this.currentPage > 1) this.currentPage--; }
   goToPage(page: number) { this.currentPage = page; }
 
-  // ✅ Toggle statut avec mise à jour du signal sites
   toggleSiteStatus(site: Site) {
     if (!confirm('Confirmer le changement de statut ?')) return;
-
-    // Optimistic update (UI immédiate)
     const originalStatus = site.is_active;
     site.is_active = !site.is_active;
-
     this.sitesApi.toggleStatus(site.id).subscribe({
       next: (res: any) => {
-        // Mise à jour finale avec la valeur renvoyée par le serveur
         this.sites.update(currentSites =>
-          currentSites.map(s =>
-            s.id === site.id ? { ...s, is_active: res.is_active } : s
-          )
+          currentSites.map(s => s.id === site.id ? { ...s, is_active: res.is_active } : s)
         );
       },
       error: () => {
         alert('Action non autorisée');
-        // rollback si erreur
         site.is_active = originalStatus;
       }
     });

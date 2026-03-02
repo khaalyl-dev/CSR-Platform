@@ -9,12 +9,12 @@
         <span>Retour</span>
       </button>
       <h1 class="text-2xl font-bold text-gray-800">
-        <i class="fas fa-users mr-2 text-blue-800"></i>
+        <i class="fas fa-users mr-2 text-gray-800"></i>
         Utilisateurs du site
       </h1>
     </div>
     <button (click)="openAssignModal()"
-      class="flex items-center gap-2 bg-blue-800 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors">
+      class="flex items-center gap-2 bg-gray-800 hover:bg-gray-600 text-white px-4 py-2 rounded-lg transition-colors">
       <i class="fas fa-user-plus"></i>
       Affecter un utilisateur
     </button>
@@ -115,7 +115,7 @@
   <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md">
     <div class="flex items-center justify-between p-6 border-b border-gray-100">
       <h2 class="text-lg font-bold text-gray-800">
-        <i class="fas fa-user-plus mr-2 text-blue-600"></i>
+        <i class="fas fa-user-plus mr-2 text-gray-600"></i>
         Affecter un utilisateur
       </h2>
       <button (click)="closeAssignModal()" class="text-gray-400 hover:text-gray-600">
@@ -128,7 +128,7 @@
       <div>
         <label class="block text-sm font-medium text-gray-700 mb-1">Utilisateur *</label>
         <select [(ngModel)]="assignForm.user_id"
-          class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+          class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-500">
           <option value="">-- Sélectionner --</option>
           <option *ngFor="let u of unassignedUsers" [value]="u.id">
             {{ u.first_name }} {{ u.last_name }} ({{ u.email }})
@@ -140,7 +140,7 @@
       <div>
         <label class="block text-sm font-medium text-gray-700 mb-1">Type d'accès *</label>
         <select [(ngModel)]="assignForm.access_type"
-          class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+          class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-500">
           <option value="READ_ONLY">Lecture seule</option>
           <option value="FULL">Complet</option>
         </select>
@@ -165,7 +165,7 @@
         Annuler
       </button>
       <button (click)="submitAssign()"
-        class="flex-1 bg-blue-800 hover:bg-blue-700 text-white py-2 rounded-lg transition-colors">
+        class="flex-1 bg-gray-800 hover:bg-gray-700 text-white py-2 rounded-lg transition-colors">
         Affecter
       </button>
     </div>
@@ -228,7 +228,7 @@
         Annuler
       </button>
       <button (click)="submitEdit()"
-        class="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-lg transition-colors">
+        class="flex-1 bg-gray-600 hover:bg-gray-700 text-white py-2 rounded-lg transition-colors">
         Enregistrer
       </button>
     </div>

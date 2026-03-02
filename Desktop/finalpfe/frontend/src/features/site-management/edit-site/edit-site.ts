@@ -2,6 +2,7 @@ import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
+import { SitesApi } from '../api/sites-api';
 
 @Component({
   selector: 'app-edit-site',
@@ -15,16 +16,19 @@ export class EditSiteComponent implements OnInit {
   siteForm!: FormGroup;
   siteId!: string;
   loading = false;
+  errorMsg = '';
 
   constructor(
     private fb: FormBuilder,
     private route: ActivatedRoute,
-    private router: Router
+    private router: Router,
+    private sitesApi: SitesApi  // ← injection API
   ) {}
 
   ngOnInit(): void {
     this.siteId = this.route.snapshot.paramMap.get('id')!;
-    
+
+    // Initialisation du formulaire vide
     this.siteForm = this.fb.group({
       name: ['', Validators.required],
       code: ['', Validators.required],
@@ -34,21 +38,42 @@ export class EditSiteComponent implements OnInit {
       description: ['']
     });
 
-    
+    // Chargement des données du site depuis le backend
+    this.sitesApi.get(this.siteId).subscribe({
+      next: (site) => {
+        // Pré-remplir le formulaire avec les données existantes
+        this.siteForm.patchValue({
+          name: site.name,
+          code: site.code,
+          region: site.region,
+          country: site.country,
+          location: site.location,
+          description: site.description
+        });
+      },
+      error: () => {
+        this.errorMsg = 'Impossible de charger les données du site';
+      }
+    });
   }
 
   onSubmit() {
     if (this.siteForm.invalid) return;
 
     this.loading = true;
+    this.errorMsg = '';
 
-    // 👉 appel API update ici
-    console.log(this.siteForm.value);
-
-    setTimeout(() => {
-      this.loading = false;
-      this.router.navigate(['/sites']);
-    }, 1000);
+    // Appel API update
+    this.sitesApi.updateSite(this.siteId, this.siteForm.value).subscribe({
+      next: () => {
+        this.loading = false;
+        this.router.navigate(['/sites']);
+      },
+      error: (err) => {
+        this.loading = false;
+        this.errorMsg = err?.error?.message || 'Erreur lors de la mise à jour';
+      }
+    });
   }
 
   cancel() {
