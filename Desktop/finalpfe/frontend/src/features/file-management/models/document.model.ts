@@ -1,14 +1,13 @@
-import type { EntityType } from '@core/models/enums';
-
 export interface Document {
   id: string;
   site_id: string;
-  entity_type: EntityType;
-  entity_id: string;
+  site_name: string;
   file_name: string;
   file_path: string;
-  mime_type: string;
-  file_size: number;
+  file_type: string;
+  is_pinned: boolean; 
   uploaded_by: string;
-  uploaded_at: string;
+  uploader_name: string;
+  uploaded_at: string | null;
+  updated_at: string | null;
 }
