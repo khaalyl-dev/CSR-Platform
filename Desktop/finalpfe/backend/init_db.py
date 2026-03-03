@@ -47,13 +47,25 @@ def init_db():
 
         # Sample sites
         sample_sites = [
-            {"name": "COFICAB Tunis (siège)", "code": "COFTN", "region": "North Africa", "country": "Tunisie", "location": "Tunis"},
-    {"name": "COFICAB Medjez El Beb", "code": "COFMD", "region": "North Africa", "country": "Tunisie", "location": "Medjez El Beb"},
-    {"name": "COFICAB Tangier", "code": "COFKT", "region": "North Africa", "country": "Maroc", "location": "Tanger"},
-    {"name": "COFICAB Kenitra", "code": "COFMA", "region": "North Africa", "country": "Maroc", "location": "Kenitra"},
-    {"name": "COFICAB Guarda", "code": "COFPT", "region": "Europe", "country": "Portugal", "location": "Guarda"},
-    {"name": "COFICAB Arad", "code": "COFPL", "region": "Europe", "country": "Roumanie", "location": "Arad"},
-        ]
+  {"name": "COFICAB Arad", "code": "COFPL", "region": "Europe", "country": "Roumanie", "location": "Arad"},
+  {"name": "COFICAB Ploiești", "code": "COFRO", "region": "Europe", "country": "Roumanie", "location": "Ploiești"},
+  {"name": "COFICAB Guarda", "code": "COFPT", "region": "Europe", "country": "Portugal", "location": "Guarda"},
+  {"name": "COFICAB Belgrade", "code": "COFRS", "region": "Europe", "country": "Serbie", "location": "Belgrade"},
+  {"name": "COFICAB Kavadarci", "code": "COFMK", "region": "Europe", "country": "Macédoine du Nord", "location": "Kavadarci"},
+  {"name": "COFICAB Kenitra", "code": "COFMA", "region": "North Africa", "country": "Maroc", "location": "Kénitra"},
+  {"name": "COFICAB Tangier", "code": "COFKT", "region": "North Africa", "country": "Maroc", "location": "Tanger"},
+  {"name": "COFICAB Medjez El Beb", "code": "COFMD", "region": "North Africa", "country": "Tunisie", "location": "Medjez el-Bab"},
+  {"name": "COFICAB Tunis (Siège)", "code": "COFTN", "region": "North Africa", "country": "Tunisie", "location": "Tunis"},
+  {"name": "COFICAB Sousse", "code": "COFSO", "region": "North Africa", "country": "Tunisie", "location": "Sousse"},
+  {"name": "COFICAB Tianjin", "code": "COFCN", "region": "Asia", "country": "Chine", "location": "Tianjin"},
+  {"name": "COFICAB Shanghai", "code": "COFSH", "region": "Asia", "country": "Chine", "location": "Shanghai"},
+  {"name": "COFICAB Durango", "code": "COFMX", "region": "North America", "country": "Mexique", "location": "Durango"},
+  {"name": "COFICAB León", "code": "COFLN", "region": "North America", "country": "Mexique", "location": "León"},
+  {"name": "COFICAB El Paso", "code": "COFUS", "region": "North America", "country": "États-Unis", "location": "El Paso"},
+  {"name": "COFICAB Michigan", "code": "COFMI", "region": "North America", "country": "États-Unis", "location": "Michigan"},
+  {"name": "COFICAB San Pedro Sula", "code": "COFHN", "region": "North America", "country": "Honduras", "location": "San Pedro Sula"},
+  {"name": "COFICAB Nuremberg", "code": "COFDE", "region": "Europe", "country": "Allemagne", "location": "Nuremberg"}
+]
         sites_added = 0
         for s in sample_sites:
             if Site.query.filter_by(code=s["code"]).first():

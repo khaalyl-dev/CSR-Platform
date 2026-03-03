@@ -1,21 +1,51 @@
+/**
+ * Realized CSR - aligned with realized_csr table.
+ */
 export interface RealizedCsr {
   id: string;
   activity_id: string;
-  realized_budget: number;
-  participants: number;
+  activity_title?: string | null;
+  activity_number?: string | null;
+  plan_id?: string | null;
+  site_name?: string | null;
+  year: number;
+  month: number;
+  realized_budget: number | null;
+  participants: number | null;
   total_hc: number | null;
   percentage_employees: number | null;
-  volunteer_hours: number;
+  volunteer_hours: number | null;
   action_impact_actual: number | null;
   action_impact_unit: string | null;
-  impact_description: string;
+  impact_description: string | null;
   organizer: string | null;
   number_external_partners: number | null;
-  realization_date: string;
-  comment: string;
+  realization_date: string | null;
+  comment: string | null;
   contact_department: string | null;
   contact_name: string | null;
   contact_email: string | null;
-  created_by: string;
-  created_at: string;
+  created_by: string | null;
+  created_at: string | null;
+}
+
+export interface CreateRealizedCsrPayload {
+  activity_id: string;
+  year: number;
+  month: number;
+  realized_budget?: number | null;
+  participants?: number | null;
+  total_hc?: number | null;
+  percentage_employees?: number | null;
+  volunteer_hours?: number | null;
+  action_impact_actual?: number | null;
+  action_impact_unit?: string | null;
+  impact_description?: string | null;
+  organizer?: string | null;
+  number_external_partners?: number | null;
+  realization_date?: string | null;
+  comment?: string | null;
+  contact_department?: string | null;
+  contact_name?: string | null;
+  contact_email?: string | null;
 }

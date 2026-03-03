@@ -1,5 +1,8 @@
 """
 RealizedCsr model - aligned with schema.dbml realized_csr table.
+
+Activités RÉALISÉES : une ligne realized_csr = une réalisation d'une activité
+(csr_activities), avec budget réalisé, participants, impact, date, etc.
 """
 import uuid
 

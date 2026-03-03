@@ -39,6 +39,11 @@ class CsrPlan(db.Model):
     )
     total_budget = db.Column(db.Numeric(15, 2), nullable=True, comment="Budget total du plan (€)")
     submitted_at = db.Column(db.DateTime, nullable=True, comment="Date de soumission")
+    rejected_comment = db.Column(db.Text, nullable=True, comment="Motif de rejet si status=REJECTED")
+    validation_step = db.Column(
+        db.Integer, nullable=True,
+        comment="Mode 111: 1=attente Level 1, 2=attente Level 2. Mode 101: 2=attente Level 2"
+    )
     validated_at = db.Column(db.DateTime, nullable=True, comment="Date de validation finale")
     created_by = db.Column(
         CHAR(36, collation="utf8mb4_unicode_ci"), db.ForeignKey("users.id", ondelete="SET NULL"), nullable=True,

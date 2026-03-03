@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { SitesApi } from '../api/sites-api';
+import { PAYS } from '../models/All_countries';
 
 @Component({
   selector: 'app-edit-site',
@@ -17,6 +18,12 @@ export class EditSiteComponent implements OnInit {
   siteId!: string;
   loading = false;
   errorMsg = '';
+
+  /** Liste des noms de pays (français si dispo, sinon anglais), triée. */
+  countries: string[] = (PAYS || [])
+    .map((p: { name?: string; translations?: { fr?: string | null } }) => (p.translations?.fr ?? p.name ?? '').toString())
+    .filter(Boolean)
+    .sort((a, b) => a.localeCompare(b, 'fr'));
 
   constructor(
     private fb: FormBuilder,

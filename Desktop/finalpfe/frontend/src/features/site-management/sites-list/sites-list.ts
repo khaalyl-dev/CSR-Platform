@@ -1,13 +1,14 @@
 import { Component, inject, signal, computed, OnInit } from '@angular/core';
 import { Router, RouterModule } from '@angular/router';
 import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
 import { AuthStore } from '@core/services/auth-store';
 import { SitesApi, type Site } from '../api/sites-api';
 
 @Component({
   selector: 'app-sites-list',
   standalone: true,
-  imports: [CommonModule, RouterModule],
+  imports: [CommonModule, RouterModule, FormsModule],
   templateUrl: './sites-list.html'
 })
 export class SitesListComponent implements OnInit {
@@ -18,25 +19,62 @@ export class SitesListComponent implements OnInit {
   loading = signal(true);
   searchTerm = signal('');
   selectedRegion = signal<string | null>(null);
+  selectedCountry = signal<string | null>(null);
+
+  /** Valeurs pour ngModel (string vide = pas de filtre) */
+  get regionFilterValue(): string {
+    return this.selectedRegion() ?? '';
+  }
+  set regionFilterValue(v: string) {
+    const val = this.norm(v);
+    this.selectedRegion.set(val === '' ? null : val);
+  }
+  get countryFilterValue(): string {
+    return this.selectedCountry() ?? '';
+  }
+  set countryFilterValue(v: string) {
+    const val = this.norm(v);
+    this.selectedCountry.set(val === '' ? null : val);
+  }
 
   // Tri
   sortColumn = signal<string>('name');
   sortDirection = signal<'asc' | 'desc'>('asc');
 
-  // Régions uniques
+  /** Valeur normalisée pour comparaison (trim, unicode NFC, null → '') */
+  private norm(s: string | null | undefined): string {
+    const t = (s ?? '').toString().trim();
+    return t.normalize ? t.normalize('NFC') : t;
+  }
+
+  // Régions uniques (normalisées, sans doublons)
   regions = computed(() => {
-    const all = this.sites().map(s => s.region).filter(r => r && r.trim() !== '');
+    const all = this.sites().map(s => this.norm(s.region)).filter(r => r !== '');
     return [...new Set(all)].sort();
   });
 
-  // Filtrage + tri combinés
+  // Pays uniques (normalisés, sans doublons)
+  countries = computed(() => {
+    const all = this.sites().map(s => this.norm(s.country)).filter(c => c !== '');
+    return [...new Set(all)].sort();
+  });
+
+  // Filtrage + tri combinés (comparaison normalisée pour région et pays)
   filteredSites = computed(() => {
+    const selRegion = this.selectedRegion();
+    const selCountry = this.selectedCountry();
+
+    const term = this.norm(this.searchTerm()).toLowerCase();
     const filtered = this.sites().filter(site => {
-      const matchesSearch =
-        site.name.toLowerCase().includes(this.searchTerm().toLowerCase()) ||
-        site.code.toLowerCase().includes(this.searchTerm().toLowerCase());
-      const matchesRegion = this.selectedRegion() ? site.region === this.selectedRegion() : true;
-      return matchesSearch && matchesRegion;
+      const matchesSearch = !term ||
+        site.name.toLowerCase().includes(term) ||
+        site.code.toLowerCase().includes(term) ||
+        this.norm(site.region).toLowerCase().includes(term) ||
+        this.norm(site.country).toLowerCase().includes(term);
+      const matchesRegion = !selRegion || this.norm(site.region) === this.norm(selRegion);
+      const matchesCountry = !selCountry || this.norm(site.country) === this.norm(selCountry);
+
+      return matchesSearch && matchesRegion && matchesCountry;
     });
 
     // Tri

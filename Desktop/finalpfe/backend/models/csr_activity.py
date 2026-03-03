@@ -1,5 +1,9 @@
 """
 CsrActivity model - aligned with schema.dbml csr_activities table.
+
+Activités NON RÉALISÉES (planifiées) : stockées uniquement dans csr_activities.
+Une fois réalisées, les données de réalisation (budget réel, participants, impact, etc.)
+sont enregistrées dans realized_csr (lié par activity_id).
 """
 import uuid
 
