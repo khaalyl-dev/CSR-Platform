@@ -1,0 +1,364 @@
+<div class="min-h-screen bg-gray-50 p-6">
+
+  <!-- Header -->
+  <div class="mb-6">
+    <h1 class="text-2xl font-bold text-gray-800 flex items-center gap-2">
+      <i class="fas fa-folder-open" style="color: rgb(30,41,59)"></i>
+      Gestion des Documents
+    </h1>
+    <p class="text-gray-400 text-sm mt-1">Consultez et téléchargez les documents des sites</p>
+  </div>
+
+  <!-- Alertes -->
+  <div *ngIf="success()"
+    class="mb-4 flex items-center gap-2 bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-xl">
+    <i class="fas fa-check-circle"></i> {{ success() }}
+  </div>
+  <div *ngIf="error()"
+    class="mb-4 flex items-center gap-2 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl">
+    <i class="fas fa-exclamation-circle"></i> {{ error() }}
+  </div>
+
+  <!-- Loading -->
+  <div *ngIf="loading()" class="flex justify-center items-center py-16">
+    <i class="fas fa-spinner fa-spin text-3xl" style="color: rgb(30,41,59)"></i>
+  </div>
+
+  <div *ngIf="!loading()">
+
+    <!-- Row 1 : Activity Feed + Site Stats -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+
+      <!-- Activity Feed -->
+      <div class="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+        <div class="px-6 py-4 border-b border-gray-100">
+          <h2 class="font-semibold text-gray-700 text-base">Activity Feed</h2>
+        </div>
+        <div class="divide-y divide-gray-50">
+          <div *ngFor="let doc of recentDocuments()"
+            class="flex items-start gap-4 px-6 py-4 hover:bg-gray-50 transition-colors">
+            <div class="mt-1.5 flex-shrink-0 w-3 h-3 rounded-full"
+              [ngClass]="getTypeBadgeClass(doc.file_type).includes('red') ? 'bg-red-400' :
+                         getTypeBadgeClass(doc.file_type).includes('blue') ? 'bg-blue-400' :
+                         getTypeBadgeClass(doc.file_type).includes('green') ? 'bg-green-400' :
+                         getTypeBadgeClass(doc.file_type).includes('purple') ? 'bg-purple-400' :
+                         getTypeBadgeClass(doc.file_type).includes('yellow') ? 'bg-yellow-400' : 'bg-gray-400'">
+            </div>
+            <div class="flex-1 min-w-0">
+              <div class="flex items-center gap-2">
+                <i [class]="getFileIcon(doc.file_type) + ' text-sm ' + getFileIconColor(doc.file_type)"></i>
+                <span class="font-medium text-gray-800 text-sm truncate">{{ doc.file_name }}</span>
+                <i *ngIf="doc.is_pinned" class="fas fa-thumbtack text-xs text-yellow-500 ml-1"></i>
+                <button (click)="toggleMenu(doc, $event)"
+                  class="ml-auto text-gray-300 hover:text-gray-500 transition flex-shrink-0 p-1 rounded hover:bg-gray-100">
+                  <i class="fas fa-ellipsis"></i>
+                </button>
+              </div>
+              <p class="text-xs text-gray-400 truncate mt-0.5">{{ doc.site_name }}</p>
+              <p class="text-xs text-gray-400 mt-0.5">
+                {{ formatDateRelative(doc.uploaded_at) }}
+                <span *ngIf="doc.uploader_name !== '—'"> · {{ doc.uploader_name }}</span>
+              </p>
+            </div>
+          </div>
+          <div *ngIf="recentDocuments().length === 0"
+            class="px-6 py-12 text-center text-gray-400 text-sm">
+            <i class="fas fa-inbox text-3xl mb-2 block"></i>
+            Aucune activité récente
+          </div>
+        </div>
+      </div>
+
+      <!-- Site Stats -->
+      <div class="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+        <div class="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+          <h2 class="font-semibold text-gray-700 text-base">Fichiers par site</h2>
+          <span class="text-sm font-bold text-gray-500">
+            {{ totalDocuments() }} <span class="font-normal text-gray-400">Total</span>
+          </span>
+        </div>
+        <div class="px-6 pt-5 pb-2">
+          <div class="flex rounded-full overflow-hidden h-3 gap-0.5">
+            <div *ngFor="let stat of siteStats(); let i = index"
+              class="h-full rounded-full transition-all"
+              [ngClass]="getColor(i).bar"
+              [style.width.%]="stat.percent">
+            </div>
+          </div>
+        </div>
+        <div class="px-6 py-4 grid grid-cols-2 gap-x-4 gap-y-4">
+          <div *ngFor="let stat of siteStats(); let i = index" class="flex items-center gap-3">
+            <div class="w-3 h-3 rounded-full flex-shrink-0" [ngClass]="getColor(i).dot"></div>
+            <div class="min-w-0">
+              <p class="text-xs text-gray-400 truncate">{{ stat.name }}</p>
+              <p class="text-sm font-bold" [ngClass]="getColor(i).text">
+                {{ stat.count }} <span class="text-xs font-normal text-gray-400">fichier(s)</span>
+              </p>
+            </div>
+          </div>
+        </div>
+        <div *ngIf="siteStats().length === 0"
+          class="px-6 py-12 text-center text-gray-400 text-sm">
+          <i class="fas fa-chart-bar text-3xl mb-2 block"></i>
+          Aucune donnée
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Pinned -->
+    <div *ngIf="pinnedDocuments().length > 0"
+      class="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden mb-6">
+      <div class="px-6 py-4 border-b border-gray-100">
+        <h2 class="font-semibold text-gray-700 text-base flex items-center gap-2">
+          <i class="fas fa-thumbtack text-yellow-500"></i>
+          Épinglés
+          <span class="px-2 py-0.5 bg-yellow-100 text-yellow-700 text-xs font-bold rounded-full">
+            {{ pinnedDocuments().length }}
+          </span>
+        </h2>
+      </div>
+      <div class="p-6 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+        <div *ngFor="let doc of pinnedDocuments()"
+          class="border border-gray-200 rounded-xl p-4 hover:shadow-md transition-shadow">
+          <div class="flex items-center justify-between mb-3">
+            <div class="w-10 h-10 rounded-xl bg-gray-50 border border-gray-200 flex items-center justify-center">
+              <i [class]="getFileIcon(doc.file_type) + ' text-lg ' + getFileIconColor(doc.file_type)"></i>
+            </div>
+            <button (click)="toggleMenu(doc, $event)"
+              class="text-gray-300 hover:text-gray-500 transition p-1.5 rounded-lg hover:bg-gray-100">
+              <i class="fas fa-ellipsis-vertical"></i>
+            </button>
+          </div>
+          <p class="font-medium text-gray-800 text-sm truncate">{{ doc.file_name }}</p>
+          <div class="mt-2">
+            <span [class]="'px-2 py-0.5 rounded-lg text-xs font-bold ' + getTypeBadgeClass(doc.file_type)">
+              {{ doc.file_type }}
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Documents Table -->
+    <div class="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+      <div class="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+        <h2 class="font-semibold text-gray-700 text-base flex items-center gap-2">
+          Documents
+          <span class="px-2 py-0.5 text-xs font-bold rounded-full"
+            style="background-color: rgba(30,41,59,0.1); color: rgb(30,41,59)">
+            {{ totalDocuments() }}
+          </span>
+        </h2>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="w-full">
+          <thead class="bg-gray-50 border-b border-gray-200">
+            <tr>
+              <th class="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Nom du fichier</th>
+              <th class="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Type</th>
+              <th class="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Site</th>
+              <th class="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Upload</th>
+              <th class="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Modifié</th>
+              <th class="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Déposé par</th>
+              <th class="text-center px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Actions</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-gray-100">
+            <tr *ngFor="let doc of documents()" class="hover:bg-gray-50 transition-colors">
+
+              <td class="px-6 py-4">
+                <div class="flex items-center gap-3">
+                  <div class="w-9 h-9 rounded-lg bg-gray-50 border border-gray-200 flex items-center justify-center flex-shrink-0">
+                    <i [class]="getFileIcon(doc.file_type) + ' ' + getFileIconColor(doc.file_type)"></i>
+                  </div>
+                  <div class="flex items-center gap-1.5">
+                    <span class="font-medium text-gray-800 text-sm">{{ doc.file_name }}</span>
+                    <i *ngIf="doc.is_pinned" class="fas fa-thumbtack text-xs text-yellow-500"></i>
+                  </div>
+                </div>
+              </td>
+
+              <td class="px-6 py-4">
+                <span [class]="'px-2.5 py-1 rounded-lg text-xs font-bold ' + getTypeBadgeClass(doc.file_type)">
+                  {{ doc.file_type }}
+                </span>
+              </td>
+
+              <td class="px-6 py-4 text-sm text-gray-500">{{ doc.site_name }}</td>
+              <td class="px-6 py-4 text-sm text-gray-500">{{ formatDate(doc.uploaded_at) }}</td>
+              <td class="px-6 py-4 text-sm text-gray-500">{{ formatDate(doc.updated_at) }}</td>
+
+              <td class="px-6 py-4">
+                <div class="flex items-center gap-2">
+                  <div class="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0"
+                    style="background-color: rgba(30,41,59,0.1)">
+                    <span class="font-semibold text-xs" style="color: rgb(30,41,59)">
+                      {{ doc.uploader_name !== '—' ? doc.uploader_name[0] : '?' }}
+                    </span>
+                  </div>
+                  <span class="text-sm text-gray-600">{{ doc.uploader_name }}</span>
+                </div>
+              </td>
+
+              <td class="px-6 py-4">
+                <div class="flex items-center justify-center gap-1">
+                  <button (click)="downloadFile(doc.file_path)"
+                    class="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                    style="color: rgb(30,41,59)"
+                    title="Télécharger">
+                    <i class="fas fa-download text-sm"></i>
+                  </button>
+                  <button (click)="toggleMenu(doc, $event)"
+                    class="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">
+                    <i class="fas fa-ellipsis-vertical text-sm"></i>
+                  </button>
+                </div>
+              </td>
+
+            </tr>
+            <tr *ngIf="documents().length === 0">
+              <td colspan="7" class="px-6 py-16 text-center text-gray-400">
+                <i class="fas fa-folder-open text-4xl mb-3 block text-gray-300"></i>
+                <p class="font-medium">Aucun document disponible</p>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ── Dropdown Global Fixe ───────────────────────────────────────────────── -->
+<div *ngIf="activeMenuId && activeMenuDoc"
+  class="fixed bg-white border border-gray-200 rounded-xl shadow-xl z-[9999] w-44 py-1 overflow-hidden"
+  [style.top.px]="menuPosition.top"
+  [style.left.px]="menuPosition.left"
+  (click)="$event.stopPropagation()">
+
+  <button (click)="downloadFile(activeMenuDoc!.file_path)"
+    class="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors">
+    <i class="fas fa-download w-4 text-center" style="color: rgb(30,41,59)"></i>
+    Télécharger
+  </button>
+
+  <button (click)="openEditModal(activeMenuDoc!)"
+    class="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors">
+    <i class="fas fa-pen text-green-500 w-4 text-center"></i>
+    Modifier
+  </button>
+
+  <button (click)="togglePin(activeMenuDoc!)"
+    class="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors">
+    <i class="fas fa-thumbtack text-yellow-500 w-4 text-center"></i>
+    {{ activeMenuDoc!.is_pinned ? 'Désépingler' : 'Épingler' }}
+  </button>
+
+  <div class="border-t border-gray-100 my-1"></div>
+
+  <button (click)="openDeleteModal(activeMenuDoc!)"
+    class="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 transition-colors">
+    <i class="fas fa-trash w-4 text-center"></i>
+    Supprimer
+  </button>
+
+</div>
+
+<!-- ── Modal Modifier ──────────────────────────────────────────────────────── -->
+<div *ngIf="showEditModal"
+  class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+  <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md">
+
+    <div class="flex items-center justify-between p-6 border-b border-gray-100">
+      <h2 class="text-lg font-bold text-gray-800">
+        <i class="fas fa-pen mr-2 text-green-600"></i> Modifier le document
+      </h2>
+      <button (click)="closeEditModal()" class="text-gray-400 hover:text-gray-600 p-1">
+        <i class="fas fa-times text-xl"></i>
+      </button>
+    </div>
+
+    <div class="p-6 space-y-4">
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1.5">
+          <i class="fas fa-file mr-1 text-gray-400"></i> Nom du fichier
+        </label>
+        <input type="text" [(ngModel)]="editFileName"
+          class="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2"
+          style="--tw-ring-color: rgb(30,41,59)"/>
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1.5">
+          <i class="fas fa-tag mr-1 text-gray-400"></i> Type de fichier
+        </label>
+        <select [(ngModel)]="editFileType"
+          class="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm focus:outline-none appearance-none bg-white">
+          <option value="PDF">PDF</option>
+          <option value="DOCX">DOCX</option>
+          <option value="DOC">DOC</option>
+          <option value="XLSX">XLSX</option>
+          <option value="XLS">XLS</option>
+          <option value="PNG">PNG</option>
+          <option value="JPG">JPG</option>
+          <option value="JPEG">JPEG</option>
+          <option value="ZIP">ZIP</option>
+          <option value="PPT">PPT</option>
+          <option value="PPTX">PPTX</option>
+        </select>
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1.5">
+          <i class="fas fa-building mr-1 text-gray-400"></i> Site
+        </label>
+        <select [(ngModel)]="editSiteId"
+          class="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm focus:outline-none appearance-none bg-white">
+          <option *ngFor="let site of sites()" [value]="site.id">{{ site.name }}</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="flex gap-3 p-6 pt-0">
+      <button (click)="closeEditModal()"
+        class="flex-1 border border-gray-300 text-gray-700 py-2.5 rounded-xl hover:bg-gray-50 transition text-sm">
+        Annuler
+      </button>
+      <button (click)="submitEdit()"
+        class="flex-1 text-white py-2.5 rounded-xl transition text-sm font-medium"
+        style="background-color: rgb(30,41,59)">
+        Enregistrer
+      </button>
+    </div>
+
+  </div>
+</div>
+
+<!-- ── Modal Supprimer ─────────────────────────────────────────────────────── -->
+<div *ngIf="showDeleteModal"
+  class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+  <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm">
+    <div class="p-6 text-center">
+      <div class="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+        <i class="fas fa-trash text-red-600 text-2xl"></i>
+      </div>
+      <h2 class="text-lg font-bold text-gray-800 mb-2">Supprimer le document</h2>
+      <p class="text-gray-500 text-sm mb-6">
+        Êtes-vous sûr de vouloir supprimer
+        <span class="font-semibold text-gray-700">{{ deletingDoc?.file_name }}</span> ?
+        Cette action est irréversible.
+      </p>
+      <div class="flex gap-3">
+        <button (click)="closeDeleteModal()"
+          class="flex-1 border border-gray-300 text-gray-700 py-2.5 rounded-xl hover:bg-gray-50 transition text-sm">
+          Annuler
+        </button>
+        <button (click)="confirmDelete()"
+          class="flex-1 bg-red-600 hover:bg-red-700 text-white py-2.5 rounded-xl transition text-sm font-medium">
+          Supprimer
+        </button>
+      </div>
+    </div>
+  </div>
+</div>

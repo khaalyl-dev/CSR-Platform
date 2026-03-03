@@ -2,7 +2,7 @@ import {
   faTachometerAlt, faList, faPlusSquare, faCheckSquare, faTasks,
   faPlusCircle, faCheckCircle, faChartPie, faChartLine,
   faEnvelopeOpenText, faHourglassHalf, faHistory, faUser,
-  faBuilding, faCogs, faFolderTree, faLayerGroup, faFileAlt
+  faBuilding, faCogs, faFolderTree, faLayerGroup, faFileAlt, faFolderOpen
 } from '@fortawesome/free-solid-svg-icons';
 import { faMicrosoft } from '@fortawesome/free-brands-svg-icons';
 
@@ -80,6 +80,19 @@ export const navItems: NavSection[] = [
       { label: 'Historique', path: '/changes/history', roles: ['corporate'], icon: faHistory }
     ]
   },
+
+  {
+  section: 'DOCUMENTS',
+  roles: ['site', 'corporate'],
+  items: [
+    { 
+      label: 'Gestion Documents', 
+      path: '/documents', 
+      roles: ['site', 'corporate'], 
+      icon: faFolderOpen 
+    }
+  ]
+},
   {
     section: 'COMPTE',
     roles: ['site', 'corporate'],
@@ -96,4 +109,5 @@ export const navItems: NavSection[] = [
       { label: 'Audit Logs', path: '/admin/audit', roles: ['corporate'], icon: faFolderTree }
     ]
   }
+
 ];
