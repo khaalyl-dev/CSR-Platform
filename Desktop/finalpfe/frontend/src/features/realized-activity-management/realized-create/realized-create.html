@@ -1,0 +1,296 @@
+<div class="min-h-screen bg-gray-50 flex items-center justify-center px-4 py-10">
+  <div class="w-full max-w-2xl">
+
+    <div class="flex items-center gap-4 mb-6">
+      <button type="button" title="Retour" (click)="cancel()"
+        class="flex items-center justify-center w-10 h-10 rounded-xl bg-white border border-gray-200 text-gray-500 hover:text-gray-700 hover:border-gray-300 hover:bg-gray-50 shadow-sm transition-all duration-200">
+        <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" />
+        </svg>
+      </button>
+      <div>
+        <h1 class="text-xl font-bold text-gray-800">Nouvelle activité et réalisation CSR</h1>
+        <p class="text-gray-400 text-sm">Saisir les informations de l'activité (planifiée) et de la réalisation en un seul formulaire</p>
+      </div>
+    </div>
+
+    <!-- Success: add another or back to plan -->
+    <div *ngIf="addAnotherMode" class="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+      <div class="h-1.5 bg-gradient-to-r from-emerald-600 to-emerald-500"></div>
+      <div class="px-8 py-8 text-center">
+        <p class="text-emerald-700 font-medium mb-2">Activité ajoutée au plan avec succès.</p>
+        <p class="text-gray-500 text-sm mb-6">Vous pouvez ajouter une autre activité au même plan ou retourner au plan.</p>
+        <div class="flex flex-wrap items-center justify-center gap-3">
+          <button type="button" (click)="addAnotherActivity()"
+            class="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-medium text-white bg-emerald-700 hover:bg-emerald-800 shadow-sm transition">
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 20 20" fill="currentColor">
+              <path d="M10.75 4.75a.75.75 0 00-1.5 0v4.5h-4.5a.75.75 0 000 1.5h4.5v4.5a.75.75 0 001.5 0v-4.5h4.5a.75.75 0 000-1.5h-4.5v-4.5z" />
+            </svg>
+            Ajouter une autre activité
+          </button>
+          <button type="button" (click)="backToPlan()"
+            class="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-medium border border-gray-300 text-gray-700 hover:bg-gray-50 transition">
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+            </svg>
+            Retour au plan
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div *ngIf="!addAnotherMode" class="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+      <div class="h-1.5 bg-gradient-to-r from-gray-800 via-gray-500 to-gray-400"></div>
+      <div class="flex items-center gap-4 px-8 py-6 border-b border-gray-100">
+        <div class="w-12 h-12 rounded-2xl bg-gray-600 flex items-center justify-center shadow-md">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6 text-white">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+          </svg>
+        </div>
+        <div>
+          <h2 class="text-lg font-bold text-gray-800">Informations de la réalisation</h2>
+          <p class="text-gray-400 text-sm">Les champs marqués <span class="text-red-500">*</span> sont obligatoires</p>
+        </div>
+      </div>
+
+      <form [formGroup]="form" (ngSubmit)="submit()" class="px-8 py-6 space-y-5">
+
+        <div *ngIf="loadingData" class="py-8 text-center text-gray-500 text-sm">Chargement...</div>
+
+        <ng-container *ngIf="!loadingData">
+          <!-- Plan -->
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1.5">Plan <span class="text-red-500">*</span></label>
+            <div class="relative">
+              <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none z-10">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4 text-gray-400">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 21h16.5M4.5 3h15M5.25 3v18m13.5-18v18M9 6.75h1.5m-1.5 3h1.5m-1.5 3h1.5m3-6H15m-1.5 3H15m-1.5 3H15M9 21v-3.375c0-.621.504-1.125 1.125-1.125h3.75c.621 0 1.125.504 1.125 1.125V21" />
+                </svg>
+              </div>
+              <select formControlName="plan_id"
+                class="w-full pl-9 pr-10 py-2.5 bg-gray-100 border-0 rounded-xl text-sm text-gray-700 font-medium focus:ring-2 focus:ring-blue-500 focus:bg-white focus:outline-none transition-all appearance-none cursor-pointer hover:bg-gray-200"
+                [class.border]="form.get('plan_id')?.touched && form.get('plan_id')?.invalid"
+                [class.border-red-400]="form.get('plan_id')?.touched && form.get('plan_id')?.invalid">
+                <option value="">Choisir un plan</option>
+                <option *ngFor="let p of plans" [value]="p.id">{{ p.site_name ?? p.site_code ?? p.site_id }} – {{ p.year }} ({{ isPlanRealized(p.year) ? 'réalisé' : 'nouveau' }})</option>
+              </select>
+              <div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-3.5 h-3.5 text-gray-500">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5"/>
+                </svg>
+              </div>
+            </div>
+            <p class="text-xs text-red-500 mt-1" *ngIf="form.get('plan_id')?.touched && form.get('plan_id')?.invalid">
+              Le plan est obligatoire
+            </p>
+          </div>
+
+          <!-- 1. Activité (csr_activities) – planifiée -->
+          <div class="space-y-4 p-4 bg-gray-50 rounded-xl border border-gray-100">
+            <p class="text-sm font-semibold text-gray-800">1. Activité (planifiée)</p>
+
+            <!-- Catégorie -->
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1.5">Catégorie <span class="text-red-500">*</span></label>
+              <div class="relative">
+                <select formControlName="category_id"
+                  class="w-full pl-4 pr-10 py-2.5 bg-white border border-gray-200 rounded-xl text-sm text-gray-700 font-medium focus:ring-2 focus:ring-blue-500 focus:outline-none transition appearance-none cursor-pointer">
+                  <option value="">Choisir une catégorie</option>
+                  <option *ngFor="let c of categories" [value]="c.id">{{ c.name }}</option>
+                </select>
+                <div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-3.5 h-3.5 text-gray-500">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5"/>
+                  </svg>
+                </div>
+              </div>
+              <p class="text-xs text-red-500 mt-1" *ngIf="form.get('category_id')?.touched && form.get('category_id')?.invalid">La catégorie est obligatoire</p>
+            </div>
+
+            <!-- Numéro activité + Titre -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1.5">Numéro activité <span class="text-red-500">*</span></label>
+                <input type="text" formControlName="activity_number" placeholder="ex. CSR 1"
+                  class="w-full pl-4 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm text-gray-700 font-medium focus:ring-2 focus:ring-blue-500 focus:outline-none transition"/>
+                <p class="text-xs text-red-500 mt-1" *ngIf="form.get('activity_number')?.touched && form.get('activity_number')?.invalid">Le numéro est obligatoire</p>
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1.5">Titre <span class="text-red-500">*</span></label>
+                <input type="text" formControlName="title" placeholder="Intitulé de l'activité"
+                  class="w-full pl-4 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm text-gray-700 font-medium focus:ring-2 focus:ring-blue-500 focus:outline-none transition"/>
+                <p class="text-xs text-red-500 mt-1" *ngIf="form.get('title')?.touched && form.get('title')?.invalid">Le titre est obligatoire</p>
+              </div>
+            </div>
+
+            <!-- Description + Budget prévu (activité) -->
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1.5">Description (activité)</label>
+              <textarea formControlName="description" rows="2" placeholder="Optionnel"
+                class="w-full pl-4 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm text-gray-700 font-medium focus:ring-2 focus:ring-blue-500 focus:outline-none transition resize-none"></textarea>
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1.5">Budget prévu (€)</label>
+              <input type="number" formControlName="planned_budget" min="0" step="0.01" placeholder="Optionnel"
+                class="w-full pl-4 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm text-gray-700 font-medium focus:ring-2 focus:ring-blue-500 focus:outline-none transition"/>
+            </div>
+          </div>
+
+          <!-- 2. Réalisation (realized_csr) – optionnel, toujours visible -->
+          <div class="space-y-4 p-4 bg-amber-50/80 rounded-xl border border-amber-100">
+            <p class="text-sm font-semibold text-amber-800">2. Réalisation (optionnel)</p>
+            <p class="text-xs text-amber-700">Renseignez si l'activité a déjà été réalisée (budget réel, participants, impact, date).</p>
+
+          <!-- Année + Mois -->
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1.5">Année <span class="text-red-500">*</span></label>
+              <div class="relative">
+                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor" class="w-4 h-4 text-gray-400">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5" />
+                  </svg>
+                </div>
+                <input type="number" formControlName="year" min="2000" max="2100"
+                  class="w-full pl-9 pr-4 py-2.5 bg-gray-100 border-0 rounded-xl text-sm text-gray-700 font-medium focus:ring-2 focus:ring-blue-500 focus:bg-white focus:outline-none transition hover:bg-gray-200"
+                  [class.border]="form.get('year')?.touched && form.get('year')?.invalid"
+                  [class.border-red-400]="form.get('year')?.touched && form.get('year')?.invalid"/>
+              </div>
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1.5">Mois <span class="text-red-500">*</span></label>
+              <div class="relative">
+                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor" class="w-4 h-4 text-gray-400">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5" />
+                  </svg>
+                </div>
+                <select formControlName="month"
+                  class="w-full pl-9 pr-10 py-2.5 bg-gray-100 border-0 rounded-xl text-sm text-gray-700 font-medium focus:ring-2 focus:ring-blue-500 focus:bg-white focus:outline-none transition-all appearance-none cursor-pointer hover:bg-gray-200">
+                  <option *ngFor="let m of months" [value]="m">{{ monthLabel(m) }}</option>
+                </select>
+                <div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-3.5 h-3.5 text-gray-500">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5"/>
+                  </svg>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Budget réalisé + Participants (realized only) -->
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1.5">Budget réalisé (€)</label>
+              <div class="relative">
+                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor" class="w-4 h-4 text-gray-400">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v12m-3-2.818.879.659 1.409 1.409 2.818 2.818 1.409-1.409 2.818-2.818-1.409-1.409L12 15.341M12 6v12m-3-2.818-2.818 2.818 1.409 1.409L12 15.341m0 0 2.818 2.818 1.409-1.409L12 15.341m-2.818-2.818 1.409-1.409L12 8.659" />
+                  </svg>
+                </div>
+                <input type="number" formControlName="realized_budget" min="0" step="0.01" placeholder="Optionnel"
+                  class="w-full pl-9 pr-4 py-2.5 bg-gray-100 border-0 rounded-xl text-sm text-gray-700 font-medium focus:ring-2 focus:ring-blue-500 focus:bg-white focus:outline-none transition hover:bg-gray-200"/>
+              </div>
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1.5">Participants</label>
+              <input type="number" formControlName="participants" min="0" placeholder="Optionnel"
+                class="w-full pl-4 pr-4 py-2.5 bg-gray-100 border-0 rounded-xl text-sm text-gray-700 font-medium focus:ring-2 focus:ring-blue-500 focus:bg-white focus:outline-none transition hover:bg-gray-200"/>
+            </div>
+          </div>
+
+          <!-- Heures volontariat + Effectif (realized only) -->
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1.5">Heures volontariat</label>
+              <input type="number" formControlName="volunteer_hours" min="0" step="0.01" placeholder="Optionnel"
+                class="w-full pl-4 pr-4 py-2.5 bg-gray-100 border-0 rounded-xl text-sm text-gray-700 font-medium focus:ring-2 focus:ring-blue-500 focus:bg-white focus:outline-none transition hover:bg-gray-200"/>
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1.5">Effectif total (HC)</label>
+              <input type="number" formControlName="total_hc" min="0" placeholder="Optionnel"
+                class="w-full pl-4 pr-4 py-2.5 bg-gray-100 border-0 rounded-xl text-sm text-gray-700 font-medium focus:ring-2 focus:ring-blue-500 focus:bg-white focus:outline-none transition hover:bg-gray-200"/>
+            </div>
+          </div>
+
+          <!-- Date de réalisation (realized only) -->
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1.5">Date de réalisation</label>
+            <input type="date" formControlName="realization_date"
+              class="w-full pl-4 pr-4 py-2.5 bg-gray-100 border-0 rounded-xl text-sm text-gray-700 font-medium focus:ring-2 focus:ring-blue-500 focus:bg-white focus:outline-none transition hover:bg-gray-200"/>
+          </div>
+
+          <!-- Organisateur + Partenaires externes (realized only) -->
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1.5">Organisateur</label>
+              <input type="text" formControlName="organizer" placeholder="Département"
+                class="w-full pl-4 pr-4 py-2.5 bg-gray-100 border-0 rounded-xl text-sm text-gray-700 font-medium focus:ring-2 focus:ring-blue-500 focus:bg-white focus:outline-none transition hover:bg-gray-200"/>
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1.5">Nb partenaires externes</label>
+              <input type="number" formControlName="number_external_partners" min="0" placeholder="Optionnel"
+                class="w-full pl-4 pr-4 py-2.5 bg-gray-100 border-0 rounded-xl text-sm text-gray-700 font-medium focus:ring-2 focus:ring-blue-500 focus:bg-white focus:outline-none transition hover:bg-gray-200"/>
+            </div>
+          </div>
+
+          <!-- Description impact (realized only) -->
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1.5">Description de l'impact</label>
+            <textarea formControlName="impact_description" rows="2" placeholder="Optionnel"
+              class="w-full pl-4 pr-4 py-2.5 bg-gray-100 border-0 rounded-xl text-sm text-gray-700 font-medium focus:ring-2 focus:ring-blue-500 focus:bg-white focus:outline-none transition hover:bg-gray-200 resize-none"></textarea>
+          </div>
+
+          <!-- Commentaire (realized only) -->
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1.5">Commentaire</label>
+            <textarea formControlName="comment" rows="2" placeholder="Optionnel"
+              class="w-full pl-4 pr-4 py-2.5 bg-gray-100 border-0 rounded-xl text-sm text-gray-700 font-medium focus:ring-2 focus:ring-blue-500 focus:bg-white focus:outline-none transition hover:bg-gray-200 resize-none"></textarea>
+          </div>
+
+          <!-- Contact (réalisation) -->
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1.5">Département du contact</label>
+              <input type="text" formControlName="contact_department" placeholder="Optionnel"
+                class="w-full pl-4 pr-4 py-2.5 bg-gray-100 border-0 rounded-xl text-sm text-gray-700 font-medium focus:ring-2 focus:ring-blue-500 focus:bg-white focus:outline-none transition hover:bg-gray-200"/>
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1.5">Nom du contact</label>
+              <input type="text" formControlName="contact_name" placeholder="Optionnel"
+                class="w-full pl-4 pr-4 py-2.5 bg-gray-100 border-0 rounded-xl text-sm text-gray-700 font-medium focus:ring-2 focus:ring-blue-500 focus:bg-white focus:outline-none transition hover:bg-gray-200"/>
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1.5">Email du contact</label>
+              <input type="email" formControlName="contact_email" placeholder="Optionnel"
+                class="w-full pl-4 pr-4 py-2.5 bg-gray-100 border-0 rounded-xl text-sm text-gray-700 font-medium focus:ring-2 focus:ring-blue-500 focus:bg-white focus:outline-none transition hover:bg-gray-200"/>
+            </div>
+          </div>
+          </div>
+        </ng-container>
+
+        <div *ngIf="errorMsg"
+          class="flex items-center gap-3 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl text-sm">
+          {{ errorMsg }}
+        </div>
+        <div *ngIf="errorMsg && (plans.length === 0 || categories.length === 0)" class="flex justify-end">
+          <button type="button" (click)="retryLoadData()"
+            class="px-4 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 text-sm">
+            Recharger
+          </button>
+        </div>
+
+        <div class="flex justify-end gap-3 pt-4 border-t border-gray-100">
+          <button type="button" (click)="cancel()"
+            class="px-5 py-2.5 rounded-xl border border-gray-300 text-gray-700 hover:bg-gray-50 transition text-sm font-medium">
+            Annuler
+          </button>
+          <button type="submit" [disabled]="loading || loadingData || form.invalid"
+            class="px-6 py-2.5 rounded-xl bg-gray-800 hover:bg-gray-700 disabled:opacity-60 disabled:cursor-not-allowed text-white transition text-sm font-semibold">
+            {{ loading ? 'Création...' : 'Créer la réalisation' }}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>

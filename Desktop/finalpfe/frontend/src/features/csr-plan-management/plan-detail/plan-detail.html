@@ -1,0 +1,86 @@
+<div class="p-8 bg-gray-50 min-h-screen">
+  <div class="flex items-center justify-between mb-6">
+    <button type="button" (click)="back()"
+      class="flex items-center gap-2 text-gray-600 hover:text-gray-800 font-medium">
+      <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+      </svg>
+      Retour
+    </button>
+  </div>
+
+  <div *ngIf="loading()" class="text-center py-12 text-gray-500">Chargement...</div>
+  <div *ngIf="errorMsg()" class="text-center py-12 text-red-600">{{ errorMsg() }}</div>
+
+  <div *ngIf="plan() && !loading()" class="space-y-6">
+    <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+      <div class="flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <h1 class="text-2xl font-bold text-gray-800">{{ plan()!.site_name ?? plan()!.site_code }} – {{ plan()!.year }}</h1>
+          <p class="text-gray-500 mt-1">Mode {{ plan()!.validation_mode }} – {{ statusLabel(plan()!.status) }}</p>
+          <p *ngIf="validationStepLabel()" class="text-amber-600 text-sm font-medium mt-1">{{ validationStepLabel() }}</p>
+        </div>
+        <div class="flex items-center gap-3">
+          <button *ngIf="plan()!.status === 'DRAFT'" type="button" (click)="submitForValidation()" [disabled]="actionLoading()"
+            class="bg-[rgb(30,41,59)] text-white px-4 py-2 rounded-xl hover:opacity-90 disabled:opacity-60">
+            Soumettre pour validation
+          </button>
+          <button *ngIf="plan()!.status === 'SUBMITTED' && canApprove" type="button" (click)="approve()" [disabled]="actionLoading()"
+            class="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-medium text-white bg-emerald-700 hover:bg-emerald-800 active:bg-emerald-900 shadow-sm hover:shadow transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:shadow-sm">
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 20 20" fill="currentColor">
+              <path fill-rule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z" clip-rule="evenodd" />
+            </svg>
+            Approuver
+          </button>
+          <button *ngIf="plan()!.status === 'SUBMITTED' && canReject" type="button" (click)="reject()" [disabled]="actionLoading()"
+            class="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-medium text-white bg-rose-700 hover:bg-rose-800 active:bg-rose-900 shadow-sm hover:shadow transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:shadow-sm">
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 20 20" fill="currentColor">
+              <path d="M6.28 5.22a.75.75 0 00-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 101.06 1.06L10 11.06l3.72 3.72a.75.75 0 101.06-1.06L11.06 10l3.72-3.72a.75.75 0 00-1.06-1.06L10 8.94 6.28 5.22z" />
+            </svg>
+            Rejeter
+          </button>
+          <button *ngIf="plan()!.status === 'DRAFT' || plan()!.status === 'VALIDATED'"
+            type="button" (click)="addActivity()"
+            class="bg-green-600 text-white px-4 py-2 rounded-xl hover:bg-green-700">
+            + Ajouter une activité
+          </button>
+        </div>
+      </div>
+      <div *ngIf="plan()!.rejected_comment" class="mt-4 p-4 bg-red-50 rounded-xl text-red-700 text-sm">
+        <strong>Motif de rejet :</strong> {{ plan()!.rejected_comment }}
+      </div>
+    </div>
+
+    <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+      <h2 class="p-4 font-semibold text-gray-800 border-b border-gray-100">Activités ({{ plan()!.activities?.length ?? 0 }})</h2>
+      <table class="w-full text-sm">
+        <thead class="bg-gray-50 text-gray-600 uppercase text-xs">
+          <tr>
+            <th class="p-4 text-left">N°</th>
+            <th class="p-4 text-left">Titre</th>
+            <th class="p-4 text-right">Budget prévu</th>
+            <th class="p-4 text-center">Statut</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let a of plan()!.activities" class="border-t hover:bg-gray-50">
+            <td class="p-4 font-medium">{{ a.activity_number }}</td>
+            <td class="p-4">{{ a.title }}</td>
+            <td class="p-4 text-right">{{ a.planned_budget != null ? (a.planned_budget | number:'1.0-0') + ' €' : '–' }}</td>
+            <td class="p-4 text-center">
+              <span class="px-2 py-1 rounded text-xs" [ngClass]="{
+                'bg-gray-200': a.status === 'DRAFT',
+                'bg-green-100 text-green-700': a.status === 'VALIDATED'
+              }">{{ a.status ?? 'DRAFT' }}</span>
+            </td>
+          </tr>
+          <tr *ngIf="!plan()!.activities?.length" class="border-t">
+            <td colspan="4" class="p-8 text-center text-gray-500">
+              Aucune activité. <button type="button" (click)="addActivity()" class="text-blue-600 hover:underline">Ajouter une activité</button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
