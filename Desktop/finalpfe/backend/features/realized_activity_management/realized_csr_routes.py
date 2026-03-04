@@ -5,6 +5,7 @@ List and create realized CSR records (saisie réalisations).
 from typing import Optional
 
 from flask import Blueprint, request, jsonify
+from features.notification_management.notification_helper import notify_corporate
 
 from core import db, token_required
 from models import RealizedCsr, CsrActivity, CsrPlan, UserSite
@@ -169,4 +170,14 @@ def create_realized():
     )
     db.session.add(r)
     db.session.commit()
+
+    # ── Notification corporate ────────────────────────────────────────────
+    site_name = r.activity.plan.site.name if r.activity and r.activity.plan and r.activity.plan.site else "Site inconnu"
+    activity_title = r.activity.title if r.activity else "Activité inconnue"
+    notify_corporate(
+        title="Activité réalisée soumise",
+        message=f"Le site {site_name} a soumis une réalisation pour l'activité '{activity_title}' ({month}/{year}).",
+        type="success",
+        site_id=r.activity.plan.site_id if r.activity and r.activity.plan else None
+    )
     return jsonify(_realized_to_json(r)), 201

@@ -91,22 +91,24 @@ export class DocumentsListComponent implements OnInit {
       .slice(0, 5)
   );
 
-  // ── Menu 3 points ─────────────────────────────────────────────────────────
   toggleMenu(doc: Document, event: MouseEvent) {
-    event.stopPropagation();
-    if (this.activeMenuId === doc.id) {
-      this.closeMenu();
-      return;
-    }
-    const btn = event.currentTarget as HTMLElement;
-    const rect = btn.getBoundingClientRect();
-    this.menuPosition = {
-      top: rect.bottom + 4,
-      left: rect.right - 176
-    };
-    this.activeMenuId = doc.id;
-    this.activeMenuDoc = doc;
+  event.stopPropagation();
+  if (this.activeMenuId === doc.id) {
+    this.closeMenu();
+    return;
   }
+  const btn = event.currentTarget as HTMLElement;
+  const rect = btn.getBoundingClientRect();
+  const menuHeight = 165;
+  const spaceBelow = window.innerHeight - rect.bottom;
+
+  this.menuPosition = {
+    top: spaceBelow < menuHeight ? rect.top - menuHeight : rect.bottom + 4,
+    left: rect.right - 176
+  };
+  this.activeMenuId = doc.id;
+  this.activeMenuDoc = doc;
+}
 
   closeMenu() {
     this.activeMenuId = null;
@@ -120,10 +122,9 @@ export class DocumentsListComponent implements OnInit {
         this.documents.update(docs =>
           docs.map(d => d.id === doc.id ? { ...d, is_pinned: res.is_pinned } : d)
         );
-        this.success.set(res.is_pinned ? 'Document épinglé ✓' : 'Document désépinglé ✓');
-        setTimeout(() => this.success.set(''), 3000);
+       
       },
-      error: () => this.error.set('Erreur lors de l\'épinglage')
+     
     });
     this.closeMenu();
   }

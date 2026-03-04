@@ -1,13 +1,10 @@
-import type { EntityType } from '@core/models/enums';
-
 export interface Notification {
   id: string;
-  site_id: string;
+  user_id: string;
+  site_id: string | null;
   title: string;
   message: string;
-  type: string;
-  entity_type: EntityType;
-  entity_id: string;
-  created_by: string;
-  created_at: string;
+  type: 'info' | 'success' | 'warning' | 'error';
+  is_read: boolean;
+  created_at: string | null;
 }

@@ -4,6 +4,7 @@ List and create plans; enforce site access for SITE_USER.
 """
 from datetime import datetime
 import logging
+from features.notification_management.notification_helper import notify_corporate
 
 from flask import Blueprint, request, jsonify
 
@@ -207,6 +208,14 @@ def submit_plan(plan_id):
     # Mode 101: Level 2 valide directement (step 2)
     plan.validation_step = 1 if (plan.validation_mode or "101") == "111" else 2
     db.session.commit()
+     # ── Notification corporate ────────────────────────────────────────────
+    site_name = plan.site.name if plan.site else "Site inconnu"
+    notify_corporate(
+        title="Nouveau plan soumis",
+        message=f"Le site {site_name} a soumis son plan annuel CSR {plan.year} pour validation.",
+        type="info",
+        site_id=plan.site_id
+    )
     return jsonify(_plan_to_json(plan)), 200
 
 
@@ -284,3 +293,6 @@ def reject_plan(plan_id):
     plan.validation_step = None
     db.session.commit()
     return jsonify(_plan_to_json(plan)), 200
+
+
+

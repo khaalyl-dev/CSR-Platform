@@ -3,7 +3,15 @@
   <app-sidebar></app-sidebar>
 
   <!-- Main content -->
-  <div class="flex-1 bg-gray-100 p-4 overflow-auto">
-    <router-outlet></router-outlet>
+  <div class="flex-1 flex flex-col overflow-hidden">
+
+    <!-- Header -->
+    <div class="bg-gray-100 border-gray-200 px-6 py-3 flex items-center justify-end shadow-sm">
+  <app-notification-bell></app-notification-bell>
+</div>
+    <!-- Page content -->
+    <div class="flex-1 bg-gray-100 p-4 overflow-auto">
+      <router-outlet></router-outlet>
+    </div>
   </div>
 </div>
