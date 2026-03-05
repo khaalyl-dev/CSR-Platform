@@ -42,10 +42,9 @@ export class SiteUsersComponent implements OnInit {
   /** Contrôle l'affichage du modal d'affectation */
   showAssignModal = false;
 
-  /** Formulaire d'affectation — contient user_id, access_type, grade */
+  /** Formulaire d'affectation — contient user_id, grade */
   assignForm: AssignUserPayload = {
     user_id: '',           // ID du user sélectionné
-    access_type: 'READ_ONLY', // Type d'accès par défaut
     grade: null,           // Grade optionnel
   };
 
@@ -57,9 +56,8 @@ export class SiteUsersComponent implements OnInit {
   /** Utilisateur en cours de modification */
   editingUser: UserSite | null = null;
 
-  /** Formulaire de modification — contient access_type et grade */
+  /** Formulaire de modification — contient grade */
   editForm: UpdateUserSitePayload = {
-    access_type: 'READ_ONLY',
     grade: null,
   };
 
@@ -141,7 +139,7 @@ export class SiteUsersComponent implements OnInit {
 
   /** Ouvre le modal d'affectation et réinitialise le formulaire */
   openAssignModal() {
-    this.assignForm = { user_id: '', access_type: 'READ_ONLY', grade: null };
+    this.assignForm = { user_id: '', grade: null };
     this.showAssignModal = true;
   }
 
@@ -153,7 +151,7 @@ export class SiteUsersComponent implements OnInit {
   /**
    * Soumet le formulaire d'affectation.
    * POST /api/sites/:siteId/users
-   * Body: { user_id, access_type, grade }
+   * Body: { user_id, grade }
    */
   submitAssign() {
     // Validation côté frontend avant l'appel HTTP
@@ -184,9 +182,7 @@ export class SiteUsersComponent implements OnInit {
    */
   openEditModal(user: UserSite) {
     this.editingUser = user;
-    // Pré-remplir le formulaire avec les valeurs actuelles du user
     this.editForm = {
-      access_type: user.access_type as 'FULL' | 'READ_ONLY',
       grade: user.grade as any,
     };
     this.showEditModal = true;
@@ -201,7 +197,7 @@ export class SiteUsersComponent implements OnInit {
   /**
    * Soumet le formulaire de modification.
    * PUT /api/sites/:siteId/users/:userId
-   * Body: { access_type, grade }
+   * Body: { grade }
    */
   submitEdit() {
     if (!this.editingUser) return;
@@ -267,14 +263,6 @@ export class SiteUsersComponent implements OnInit {
       level_2: 'Niveau 2',
     };
     return labels[grade] || '—'; // '—' si grade vide ou inconnu
-  }
-
-  /**
-   * Convertit le type d'accès technique en label lisible.
-   * ex: "FULL" → "Complet", "READ_ONLY" → "Lecture seule"
-   */
-  getAccessLabel(access: string): string {
-    return access === 'FULL' ? 'Complet' : 'Lecture seule';
   }
 
   /** Navigue vers la liste des sites */

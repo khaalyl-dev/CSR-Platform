@@ -35,6 +35,14 @@ class Document(db.Model):
     file_type = db.Column(db.String(20), nullable=True, comment="Type: PDF, DOCX, PNG, XLS...")
     is_pinned = db.Column(db.Boolean, default=False, comment="Document épinglé")
 
+    # ── Lien demande de modification (optionnel) ───────────────────────────────
+    change_request_id = db.Column(
+        CHAR(36, collation="utf8mb4_unicode_ci"),
+        db.ForeignKey("change_requests.id", ondelete="CASCADE"),
+        nullable=True,
+        comment="Demande de modification à laquelle ce document est joint"
+    )
+
     # ── Métadonnées ───────────────────────────────────────────────────────────
     uploaded_by = db.Column(
         CHAR(36, collation="utf8mb4_unicode_ci"),

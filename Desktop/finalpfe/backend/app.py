@@ -14,7 +14,7 @@ from models import User  # noqa: F401 - needed for db.create_all
 from features.user_management import auth_bp, users_bp
 from features.dashboard_analytics import dashboard_bp
 from features.site_management import sites_bp, categories_bp, external_partners_bp
-from features.csr_plan_management import csr_plans_bp, csr_activities_bp
+from features.csr_plan_management import csr_plans_bp, csr_activities_bp, csr_import_bp
 from features.realized_activity_management import realized_csr_bp
 from features.validation_workflow_management import validations_bp
 from features.change_request_management import change_requests_bp
@@ -52,6 +52,7 @@ def create_app(config_class=Config) -> Flask:
     app.register_blueprint(categories_bp)
     app.register_blueprint(external_partners_bp)
     app.register_blueprint(csr_plans_bp)
+    app.register_blueprint(csr_import_bp)  # /api/csr-plans/import-excel
     app.register_blueprint(csr_activities_bp)
     app.register_blueprint(realized_csr_bp)
     app.register_blueprint(validations_bp)

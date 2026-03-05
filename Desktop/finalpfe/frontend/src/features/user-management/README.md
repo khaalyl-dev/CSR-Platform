@@ -1,6 +1,6 @@
 # User Management – Gestion des utilisateurs
 
-Module frontend de gestion des utilisateurs, authentification et profil pour la plateforme CSR.
+Module frontend de gestion des utilisateurs, authentification et profil pour CSR Insight.
 
 ---
 

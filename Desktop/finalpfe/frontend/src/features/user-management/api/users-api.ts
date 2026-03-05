@@ -15,6 +15,8 @@ export interface User {
   role: string;
   is_active: boolean;
   created_at: string | null;
+  /** level_0 | level_1 from site assignments (SITE_USER only) */
+  level?: string | null;
 }
 
 /** User with site assignments (from GET /api/users/:id) */
@@ -27,6 +29,7 @@ export interface UserSiteAccess {
   id: string;
   site_id: string;
   site_name: string;
+  grade?: string | null;
   granted_at: string | null;
 }
 
@@ -41,6 +44,8 @@ export interface CreateUserPayload {
 /** Payload for POST /api/users/:id/sites - replaces site assignment */
 export interface AssignSitesPayload {
   site_ids: string[];
+  /** Optional: level_0 | level_1 applied to all assigned sites */
+  default_grade?: 'level_0' | 'level_1' | null;
 }
 
 @Injectable({ providedIn: 'root' })

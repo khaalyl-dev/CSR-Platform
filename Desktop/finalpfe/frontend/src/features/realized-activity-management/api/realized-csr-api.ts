@@ -14,6 +14,13 @@ export class RealizedCsrApi {
   constructor(private http: HttpClient) {}
 
   /**
+   * Get a single realized CSR by id.
+   */
+  get(id: string): Observable<RealizedCsr> {
+    return this.http.get<RealizedCsr>(`${this.apiUrl}/realized-csr/${id}`);
+  }
+
+  /**
    * List realized CSR. Optional filters: activity_id, year, month.
    * SITE_USER only receives realized for their assigned sites' activities.
    */
@@ -30,5 +37,13 @@ export class RealizedCsrApi {
    */
   create(payload: CreateRealizedCsrPayload): Observable<RealizedCsr> {
     return this.http.post<RealizedCsr>(`${this.apiUrl}/realized-csr`, payload);
+  }
+
+  update(id: string, payload: Partial<CreateRealizedCsrPayload>): Observable<RealizedCsr> {
+    return this.http.put<RealizedCsr>(`${this.apiUrl}/realized-csr/${id}`, payload);
+  }
+
+  delete(id: string): Observable<void> {
+    return this.http.delete<void>(`${this.apiUrl}/realized-csr/${id}`);
   }
 }

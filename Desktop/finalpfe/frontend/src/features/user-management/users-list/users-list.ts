@@ -46,6 +46,7 @@ export class UsersListComponent implements OnInit {
     email: ['', [Validators.required, Validators.email]],
     password: ['', [Validators.required, Validators.minLength(6)]],
     site_ids: [[] as string[]],
+    default_grade: ['level_0' as 'level_0' | 'level_1'],
   });
 
   ngOnInit(): void {
@@ -87,6 +88,7 @@ export class UsersListComponent implements OnInit {
         email: '',
         password: '',
         site_ids: [],
+        default_grade: 'level_0',
       });
       this.errorMessage.set(null);
     }
@@ -115,6 +117,7 @@ export class UsersListComponent implements OnInit {
         if (raw.site_ids.length > 0) {
           this.usersApi.assignSites(user.id, {
             site_ids: raw.site_ids,
+            default_grade: raw.default_grade ?? undefined,
           }).subscribe({
             next: () => this.loadUsers(),
           });
@@ -200,5 +203,11 @@ export class UsersListComponent implements OnInit {
   /** Map role to display label */
   roleLabel(role: string): string {
     return role === 'CORPORATE_USER' ? 'Corporate' : 'Site';
+  }
+
+  /** Map level to display label */
+  levelLabel(level: string | null | undefined): string {
+    if (!level) return '—';
+    return level === 'level_1' ? 'Level 1' : level === 'level_0' ? 'Level 0' : level;
   }
 }

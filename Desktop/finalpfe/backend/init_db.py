@@ -4,6 +4,9 @@ Initialize MySQL database with sample users and sites.
 
 Run once to set up tables and add test data:
     python init_db.py
+
+Schema reference: ../bd/TABLES_ET_COLONNES.md, ../bd/schema.dbml
+Migrations (existing DB): see ../bd/MIGRATIONS.md and run_migration_*.py scripts.
 """
 from datetime import datetime
 
@@ -45,27 +48,23 @@ def init_db():
         for u in sample_users:
             print(f"  - {u['email']} / {u['password']} ({u['role']})")
 
-        # Sample sites
+        # Sample sites — aligned with "2024 CSR Consolidated Report Form (1).xlsx". Plant = site name (for Excel import matching).
         sample_sites = [
-  {"name": "COFICAB Arad", "code": "COFPL", "region": "Europe", "country": "Roumanie", "location": "Arad"},
-  {"name": "COFICAB Ploiești", "code": "COFRO", "region": "Europe", "country": "Roumanie", "location": "Ploiești"},
-  {"name": "COFICAB Guarda", "code": "COFPT", "region": "Europe", "country": "Portugal", "location": "Guarda"},
-  {"name": "COFICAB Belgrade", "code": "COFRS", "region": "Europe", "country": "Serbie", "location": "Belgrade"},
-  {"name": "COFICAB Kavadarci", "code": "COFMK", "region": "Europe", "country": "Macédoine du Nord", "location": "Kavadarci"},
-  {"name": "COFICAB Kenitra", "code": "COFMA", "region": "North Africa", "country": "Maroc", "location": "Kénitra"},
-  {"name": "COFICAB Tangier", "code": "COFKT", "region": "North Africa", "country": "Maroc", "location": "Tanger"},
-  {"name": "COFICAB Medjez El Beb", "code": "COFMD", "region": "North Africa", "country": "Tunisie", "location": "Medjez el-Bab"},
-  {"name": "COFICAB Tunis (Siège)", "code": "COFTN", "region": "North Africa", "country": "Tunisie", "location": "Tunis"},
-  {"name": "COFICAB Sousse", "code": "COFSO", "region": "North Africa", "country": "Tunisie", "location": "Sousse"},
-  {"name": "COFICAB Tianjin", "code": "COFCN", "region": "Asia", "country": "Chine", "location": "Tianjin"},
-  {"name": "COFICAB Shanghai", "code": "COFSH", "region": "Asia", "country": "Chine", "location": "Shanghai"},
-  {"name": "COFICAB Durango", "code": "COFMX", "region": "North America", "country": "Mexique", "location": "Durango"},
-  {"name": "COFICAB León", "code": "COFLN", "region": "North America", "country": "Mexique", "location": "León"},
-  {"name": "COFICAB El Paso", "code": "COFUS", "region": "North America", "country": "États-Unis", "location": "El Paso"},
-  {"name": "COFICAB Michigan", "code": "COFMI", "region": "North America", "country": "États-Unis", "location": "Michigan"},
-  {"name": "COFICAB San Pedro Sula", "code": "COFHN", "region": "North America", "country": "Honduras", "location": "San Pedro Sula"},
-  {"name": "COFICAB Nuremberg", "code": "COFDE", "region": "Europe", "country": "Allemagne", "location": "Nuremberg"}
-]
+            {"name": "Tianjin", "code": "COFCN", "region": "ASIA", "country": "China", "location": "Tianjin"},
+            {"name": "Durrango", "code": "COFMX", "region": "America", "country": "Mexico", "location": "Durrango"},
+            {"name": "Honduras", "code": "COFHN", "region": "America", "country": "Mexico", "location": "Honduras"},
+            {"name": "Juarez", "code": "COFJU", "region": "America", "country": "Mexico", "location": "Juarez"},
+            {"name": "Léon", "code": "COFLN", "region": "America", "country": "Mexico", "location": "Léon"},
+            {"name": "Ploeisti", "code": "COFRO", "region": "EE", "country": "Romania", "location": "Ploeisti"},
+            {"name": "Romania", "code": "COFRO2", "region": "EE", "country": "Romania", "location": "Romania"},
+            {"name": "Serbia", "code": "COFRS", "region": "EE", "country": "Serbia", "location": "Serbia"},
+            {"name": "Kenitra", "code": "COFMA", "region": "North Africa", "country": "Morocco", "location": "Kenitra"},
+            {"name": "Tangier", "code": "COFKT", "region": "North Africa", "country": "Morocco", "location": "Tangier"},
+            {"name": "Mdjez el beb", "code": "COFMD", "region": "North Africa", "country": "Tunisia", "location": "Mdjez el beb"},
+            {"name": "Tunis", "code": "COFTN", "region": "North Africa", "country": "Tunisia", "location": "Tunis"},
+            {"name": "Guarda", "code": "COFPT", "region": "western Europe", "country": "Portugal", "location": "Guarda"},
+            {"name": "Guarda 2", "code": "COFPT2", "region": "western Europe", "country": "Portugal", "location": "Guarda 2"},
+        ]
         sites_added = 0
         for s in sample_sites:
             if Site.query.filter_by(code=s["code"]).first():
@@ -84,14 +83,14 @@ def init_db():
         if sites_added:
             print(f"✓ Added {sites_added} site(s)")
 
-        # Assign sites to site users (user@test.com, john@example.com)
+        # Assign sites to site users (user@test.com, john@example.com) with level_1
         site_user_emails = ["user@test.com", "john@example.com"]
         admin_user = User.query.filter_by(email="admin@test.com").first()
         for email in site_user_emails:
             u = User.query.filter_by(email=email).first()
             if not u or u.role != "SITE_USER":
                 continue
-            # Assign first 2 sites to user@test.com, first 3 to john@example.com
+            # Assign first 2 sites to user@test.com, first 3 to john@example.com; grade = level_1
             site_limit = 2 if email == "user@test.com" else 3
             sites = Site.query.order_by(Site.code).limit(site_limit).all()
             for site in sites:
@@ -101,12 +100,34 @@ def init_db():
                         user_id=u.id,
                         site_id=site.id,
                         is_active=True,
+                        grade="level_1",
                         granted_by=admin_user.id if admin_user else None,
                         granted_at=datetime.utcnow(),
                     )
                     db.session.add(us)
+                else:
+                    existing.grade = "level_1"
+
+        # Assign admin (corporate) to first site with level_2 for validation reference
+        if admin_user:
+            first_site = Site.query.order_by(Site.code).first()
+            if first_site:
+                admin_us = UserSite.query.filter_by(user_id=admin_user.id, site_id=first_site.id).first()
+                if not admin_us:
+                    us = UserSite(
+                        user_id=admin_user.id,
+                        site_id=first_site.id,
+                        is_active=True,
+                        grade="level_2",
+                        granted_by=admin_user.id,
+                        granted_at=datetime.utcnow(),
+                    )
+                    db.session.add(us)
+                else:
+                    admin_us.grade = "level_2"
+
         db.session.commit()
-        print("✓ Site access assigned to sample users")
+        print("✓ Site access assigned (level_1 for site users, level_2 for admin)")
 
 
 if __name__ == "__main__":

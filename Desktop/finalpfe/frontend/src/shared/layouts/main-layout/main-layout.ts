@@ -3,11 +3,12 @@ import { CommonModule } from '@angular/common';
 import { RouterModule, RouterOutlet } from '@angular/router';
 import { Sidebar } from '@shared/components/sidebar/sidebar';
 import { AuthStore } from '@core/services/auth-store';
+import { NotificationBellComponent } from '@features/notification-management/notification-bell/notification-bell';
 
 @Component({
   selector: 'app-main-layout',
   standalone: true,
-  imports: [CommonModule, RouterModule, Sidebar],
+  imports: [CommonModule, RouterModule, Sidebar, NotificationBellComponent],
   templateUrl: './main-layout.html'
 })
 export class MainLayout {

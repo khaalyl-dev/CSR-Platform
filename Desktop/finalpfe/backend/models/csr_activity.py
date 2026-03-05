@@ -87,5 +87,9 @@ class CsrActivity(db.Model):
         comment="Dernière mise à jour"
     )
 
-    plan = db.relationship("CsrPlan", backref=db.backref("csr_activities", lazy="dynamic"))
+    plan = db.relationship(
+        "CsrPlan",
+        backref=db.backref("csr_activities", lazy="dynamic"),
+        foreign_keys=[plan_id],
+    )
     category = db.relationship("Category", backref=db.backref("csr_activities", lazy="dynamic"))

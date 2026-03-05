@@ -1,15 +1,24 @@
-<div class="sidebar relative flex flex-col h-full bg-gray-800 text-white transition-all duration-300"
+<div class="sidebar relative flex flex-col h-full bg-[rgb(30,41,59)] text-white transition-all duration-300"
   [ngClass]="isCollapsed() ? 'w-16 collapsed' : 'w-64'">
   <div class="relative flex items-center justify-between p-4">
-    <div class="flex items-center space-x-2">
-      <div class="logo-mark text-2xl"></div>
-      <div class="brand-name text-xl font-bold transition-opacity duration-300"
-        [ngClass]="isCollapsed() ? 'opacity-0 w-0 h-0 overflow-hidden' : 'opacity-100'">
-        CSR Platform
+    <div class="flex min-w-0 items-center">
+      <img
+        src="/logo/csr-insight-high-resolution-logo-only-transparent-inverse.png"
+        alt="CSR Insight"
+        class="h-8 w-8 flex-shrink-0 object-contain"
+      />
+      <div
+        class="brand-name ml-3 min-w-0 transition-opacity duration-300"
+        [ngClass]="isCollapsed() ? 'opacity-0 w-0 h-0 overflow-hidden m-0' : 'opacity-100'"
+      >
+        <div class="truncate text-lg font-extrabold uppercase tracking-[0.05em] text-white [font-family:'Lora',serif]">
+          CSR Insight.
+        </div>
+        
       </div>
     </div>
     <button (click)="toggleSidebar()"
-      class="flex h-6 w-6 items-center justify-center rounded-full bg-gray-700 hover:bg-gray-600 border-2 border-gray-800 transition-all duration-300">
+      class="flex h-6 w-6 items-center justify-center rounded-full bg-white/10 hover:bg-white/15 border-2 border-white/20 transition-all duration-300">
       <svg class="h-4 w-4 transition-transform duration-300" [ngClass]="isCollapsed() ? 'rotate-180' : ''" fill="none"
         stroke="currentColor" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
@@ -24,8 +33,8 @@
       </div>
       <ul>
         <li *ngFor="let item of section.items; trackBy: trackByItem">
-          <a [routerLink]="item.path" routerLinkActive="bg-gray-700"
-            class="flex items-center transition-all duration-300 py-2 px-2 rounded hover:bg-gray-700"
+          <a [routerLink]="item.path" routerLinkActive="bg-white/10"
+            class="flex items-center transition-all duration-300 py-2 px-2 rounded hover:bg-white/10"
             [ngClass]="isCollapsed() ? 'justify-center' : 'justify-start'">
             <span class="flex-shrink-0 w-6 h-6 flex justify-center text-gray-200">
               <fa-icon [icon]="item.icon" class="w-5 h-5"></fa-icon>
@@ -39,7 +48,7 @@
       </ul>
     </div>
   </nav>
-  <div class="mt-auto p-4 border-t border-gray-700 flex flex-col space-y-2">
+  <div class="mt-auto p-4 border-t border-white/10 flex flex-col space-y-2">
     <div *ngIf="user()" class="transition-opacity duration-300"
       [ngClass]="isCollapsed() ? 'opacity-0 h-0 overflow-hidden' : 'opacity-100'">
       <div class="text-white text-sm truncate">{{ user()?.email }}</div>

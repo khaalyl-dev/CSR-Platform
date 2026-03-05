@@ -102,7 +102,6 @@ def _user_site_to_json(us: UserSite):
         "id": us.id,
         "user_id": us.user_id,
         "site_id": us.site_id,
-        "access_type": us.access_type,
         "grade": us.grade or "",
         "is_active": us.is_active,
         "granted_by": us.granted_by or "",
@@ -165,16 +164,11 @@ def assign_user_to_site(site_id):
         else:
             # Réactiver si révoqué précédemment
             existing.is_active = True
-            existing.access_type = data.get("access_type", "READ_ONLY")
             existing.grade = data.get("grade")
             existing.granted_by = request.user_id
             existing.granted_at = datetime.utcnow()
             db.session.commit()
             return jsonify(_user_site_to_json(existing)), 200
-
-    access_type = data.get("access_type", "READ_ONLY")
-    if access_type not in ("FULL", "READ_ONLY"):
-        return jsonify({"message": "access_type invalide (FULL ou READ_ONLY)"}), 400
 
     grade = data.get("grade")
     if grade and grade not in ("level_0", "level_1", "level_2"):
@@ -183,7 +177,6 @@ def assign_user_to_site(site_id):
     user_site = UserSite(
         user_id=data["user_id"],
         site_id=site_id,
-        access_type=access_type,
         grade=grade,
         granted_by=request.user_id,
         granted_at=datetime.utcnow(),
@@ -197,7 +190,7 @@ def assign_user_to_site(site_id):
 @bp.put("/<string:site_id>/users/<string:user_id>")
 @token_required
 def update_user_site(site_id, user_id):
-    """Modifier le grade ou access_type d'un user sur un site."""
+    """Modifier le grade d'un user sur un site."""
     if request.role.upper() != "CORPORATE_USER":
         return jsonify({"message": "Accès interdit"}), 403
 
@@ -208,11 +201,6 @@ def update_user_site(site_id, user_id):
         return jsonify({"message": "Affectation introuvable"}), 404
 
     data = request.get_json()
-
-    if "access_type" in data:
-        if data["access_type"] not in ("FULL", "READ_ONLY"):
-            return jsonify({"message": "access_type invalide"}), 400
-        user_site.access_type = data["access_type"]
 
     if "grade" in data:
         if data["grade"] and data["grade"] not in ("level_0", "level_1", "level_2"):

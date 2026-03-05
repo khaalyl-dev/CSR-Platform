@@ -1,0 +1,113 @@
+<div class="p-8 bg-gray-50 min-h-screen">
+  <div class="flex items-center justify-between mb-6">
+    <button type="button" (click)="back()"
+      class="flex items-center gap-2 text-gray-600 hover:text-gray-800 font-medium">
+      <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+      </svg>
+      Retour à la liste
+    </button>
+  </div>
+
+  <div *ngIf="loading()" class="text-center py-12 text-gray-500">Chargement...</div>
+  <div *ngIf="errorMsg()" class="text-center py-12 text-red-600">{{ errorMsg() }}</div>
+
+  <div *ngIf="realized() && !loading()" class="space-y-6">
+    <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+      <div class="flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <h1 class="text-2xl font-bold text-gray-800">{{ realized()!.activity_title ?? realized()!.activity_number ?? 'Réalisation' }}</h1>
+          <p class="text-gray-500 mt-1" *ngIf="realized()!.activity_number">{{ realized()!.activity_number }}</p>
+          <p class="text-gray-500 mt-1">{{ realized()!.site_name ?? '–' }} – {{ realized()!.year }} {{ realized()!.month ? '(' + monthLabel(realized()!.month) + ')' : '' }}</p>
+        </div>
+        <div class="flex items-center gap-2">
+        <a *ngIf="realized()!.plan_id" [routerLink]="['/csr-plans', realized()!.plan_id]"
+          class="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-brand-900 text-white hover:opacity-90 text-sm font-medium">
+          Voir le plan
+        </a>
+        <a *ngIf="realized()!.plan_editable" [routerLink]="['/realized-csr', realized()!.id, 'edit']"
+          class="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-gray-300 text-gray-700 hover:bg-gray-50 text-sm font-medium">
+          Modifier
+        </a>
+        <span *ngIf="realized()!.plan_editable === false" class="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-gray-100 text-gray-500 text-sm" title="Plan verrouillé">
+          <i class="fas fa-lock"></i> Modification non disponible
+        </span>
+      </div>
+      </div>
+    </div>
+
+    <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+      <h2 class="p-4 font-semibold text-gray-800 border-b border-gray-100">Informations de la réalisation</h2>
+      <div class="p-6 grid grid-cols-1 md:grid-cols-2 gap-6 text-sm">
+        <div class="space-y-4">
+          <div>
+            <p class="text-gray-500 text-xs uppercase tracking-wider">Budget réalisé</p>
+            <p class="font-semibold text-gray-800 mt-0.5">{{ realized()!.realized_budget != null ? (realized()!.realized_budget | number:'1.0-0') + ' €' : '–' }}</p>
+          </div>
+          <div>
+            <p class="text-gray-500 text-xs uppercase tracking-wider">Participants</p>
+            <p class="text-gray-800 mt-0.5">{{ realized()!.participants ?? '–' }}</p>
+          </div>
+          <div>
+            <p class="text-gray-500 text-xs uppercase tracking-wider">Effectif total (HC)</p>
+            <p class="text-gray-800 mt-0.5">{{ realized()!.total_hc ?? '–' }}</p>
+          </div>
+          <div>
+            <p class="text-gray-500 text-xs uppercase tracking-wider">% employés participants</p>
+            <p class="text-gray-800 mt-0.5">{{ realized()!.percentage_employees != null ? (realized()!.percentage_employees | number:'1.1-1') + ' %' : '–' }}</p>
+          </div>
+          <div>
+            <p class="text-gray-500 text-xs uppercase tracking-wider">Heures volontariat</p>
+            <p class="text-gray-800 mt-0.5">{{ realized()!.volunteer_hours ?? '–' }}</p>
+          </div>
+          <div>
+            <p class="text-gray-500 text-xs uppercase tracking-wider">Impact réalisé</p>
+            <p class="text-gray-800 mt-0.5">
+              <span *ngIf="realized()!.action_impact_actual != null">{{ realized()!.action_impact_actual | number:'1.0-0' }}</span>
+              <span *ngIf="realized()!.action_impact_unit"> {{ realized()!.action_impact_unit }}</span>
+              <span *ngIf="realized()!.action_impact_actual == null && !realized()!.action_impact_unit">–</span>
+            </p>
+          </div>
+          <div>
+            <p class="text-gray-500 text-xs uppercase tracking-wider">Date de réalisation</p>
+            <p class="text-gray-800 mt-0.5">{{ realized()!.realization_date ? (realized()!.realization_date | date:'dd/MM/yyyy') : '–' }}</p>
+          </div>
+          <div>
+            <p class="text-gray-500 text-xs uppercase tracking-wider">Organisateur</p>
+            <p class="text-gray-800 mt-0.5">{{ realized()!.organizer ?? '–' }}</p>
+          </div>
+          <div>
+            <p class="text-gray-500 text-xs uppercase tracking-wider">Partenaires externes</p>
+            <p class="text-gray-800 mt-0.5">{{ realized()!.number_external_partners ?? '–' }}</p>
+          </div>
+        </div>
+        <div class="space-y-4">
+          <div *ngIf="realized()!.impact_description" class="md:col-span-2">
+            <p class="text-gray-500 text-xs uppercase tracking-wider">Description de l'impact</p>
+            <p class="text-gray-800 mt-0.5 whitespace-pre-wrap">{{ realized()!.impact_description }}</p>
+          </div>
+          <div *ngIf="realized()!.comment" class="md:col-span-2">
+            <p class="text-gray-500 text-xs uppercase tracking-wider">Commentaire</p>
+            <p class="text-gray-800 mt-0.5 whitespace-pre-wrap">{{ realized()!.comment }}</p>
+          </div>
+          <div>
+            <p class="text-gray-500 text-xs uppercase tracking-wider">Contact – Département</p>
+            <p class="text-gray-800 mt-0.5">{{ realized()!.contact_department ?? '–' }}</p>
+          </div>
+          <div>
+            <p class="text-gray-500 text-xs uppercase tracking-wider">Contact – Nom</p>
+            <p class="text-gray-800 mt-0.5">{{ realized()!.contact_name ?? '–' }}</p>
+          </div>
+          <div>
+            <p class="text-gray-500 text-xs uppercase tracking-wider">Contact – Email</p>
+            <p class="text-gray-800 mt-0.5">{{ realized()!.contact_email ?? '–' }}</p>
+          </div>
+          <div>
+            <p class="text-gray-500 text-xs uppercase tracking-wider">Saisi le</p>
+            <p class="text-gray-800 mt-0.5">{{ realized()!.created_at ? (realized()!.created_at | date:'dd/MM/yyyy HH:mm') : '–' }}</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

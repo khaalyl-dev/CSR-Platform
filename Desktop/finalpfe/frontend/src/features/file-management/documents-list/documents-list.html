@@ -3,7 +3,7 @@
   <!-- Header -->
   <div class="mb-6">
     <h1 class="text-2xl font-bold text-gray-800 flex items-center gap-2">
-      <i class="fas fa-folder-open" style="color: rgb(30,41,59)"></i>
+      <i class="fas fa-folder-open" class="text-brand-900"></i>
       Gestion des Documents
     </h1>
     <p class="text-gray-400 text-sm mt-1">Consultez et téléchargez les documents des sites</p>
@@ -21,7 +21,7 @@
 
   <!-- Loading -->
   <div *ngIf="loading()" class="flex justify-center items-center py-16">
-    <i class="fas fa-spinner fa-spin text-3xl" style="color: rgb(30,41,59)"></i>
+    <i class="fas fa-spinner fa-spin text-3xl" class="text-brand-900"></i>
   </div>
 
   <div *ngIf="!loading()">
@@ -39,7 +39,7 @@
             class="flex items-start gap-4 px-6 py-4 hover:bg-gray-50 transition-colors">
             <div class="mt-1.5 flex-shrink-0 w-3 h-3 rounded-full"
               [ngClass]="getTypeBadgeClass(doc.file_type).includes('red') ? 'bg-red-400' :
-                         getTypeBadgeClass(doc.file_type).includes('blue') ? 'bg-blue-400' :
+                         getTypeBadgeClass(doc.file_type).includes('brand') ? 'bg-brand-700' :
                          getTypeBadgeClass(doc.file_type).includes('green') ? 'bg-green-400' :
                          getTypeBadgeClass(doc.file_type).includes('purple') ? 'bg-purple-400' :
                          getTypeBadgeClass(doc.file_type).includes('yellow') ? 'bg-yellow-400' : 'bg-gray-400'">
@@ -146,7 +146,7 @@
         <h2 class="font-semibold text-gray-700 text-base flex items-center gap-2">
           Documents
           <span class="px-2 py-0.5 text-xs font-bold rounded-full"
-            style="background-color: rgba(30,41,59,0.1); color: rgb(30,41,59)">
+            class="bg-brand-900/10 text-brand-900">
             {{ totalDocuments() }}
           </span>
         </h2>
@@ -191,9 +191,8 @@
 
               <td class="px-6 py-4">
                 <div class="flex items-center gap-2">
-                  <div class="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0"
-                    style="background-color: rgba(30,41,59,0.1)">
-                    <span class="font-semibold text-xs" style="color: rgb(30,41,59)">
+                  <div class="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 bg-brand-900/10">
+                    <span class="font-semibold text-xs text-brand-900">
                       {{ doc.uploader_name !== '—' ? doc.uploader_name[0] : '?' }}
                     </span>
                   </div>
@@ -204,8 +203,7 @@
               <td class="px-6 py-4">
                 <div class="flex items-center justify-center gap-1">
                   <button (click)="downloadFile(doc.file_path)"
-                    class="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-                    style="color: rgb(30,41,59)"
+                    class="p-2 hover:bg-gray-100 rounded-lg transition-colors text-brand-900"
                     title="Télécharger">
                     <i class="fas fa-download text-sm"></i>
                   </button>
@@ -241,7 +239,7 @@
 
   <button (click)="downloadFile(activeMenuDoc!.file_path)"
     class="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors">
-    <i class="fas fa-download w-4 text-center" style="color: rgb(30,41,59)"></i>
+    <i class="fas fa-download w-4 text-center" class="text-brand-900"></i>
     Télécharger
   </button>
 
@@ -287,8 +285,7 @@
           <i class="fas fa-file mr-1 text-gray-400"></i> Nom du fichier
         </label>
         <input type="text" [(ngModel)]="editFileName"
-          class="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2"
-          style="--tw-ring-color: rgb(30,41,59)"/>
+          class="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-900"/>
       </div>
       <div>
         <label class="block text-sm font-medium text-gray-700 mb-1.5">
@@ -327,7 +324,7 @@
       </button>
       <button (click)="submitEdit()"
         class="flex-1 text-white py-2.5 rounded-xl transition text-sm font-medium"
-        style="background-color: rgb(30,41,59)">
+        class="bg-brand-900">
         Enregistrer
       </button>
     </div>

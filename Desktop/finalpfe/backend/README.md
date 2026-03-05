@@ -1,6 +1,6 @@
-# Backend (Flask) – CSR Platform
+# Backend (Flask) – CSR Insight
 
-API REST Flask pour la plateforme CSR, organisée en modules métier (features).
+API REST Flask pour CSR Insight, organisée en modules métier (features).
 
 ## Structure
 

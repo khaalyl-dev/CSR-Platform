@@ -17,11 +17,23 @@ import { SiteFormComponent } from '@features/site-management/site-form/site-form
 import { EditSiteComponent } from '@features/site-management/edit-site/edit-site';
 import { SiteUsersComponent } from '@features/site-management/site-users/site-users';
 import { RealizedListComponent } from '@features/realized-activity-management/realized-list/realized-list';
+import { RealizedDetailComponent } from '@features/realized-activity-management/realized-detail/realized-detail';
 import { RealizedCreateComponent } from '@features/realized-activity-management/realized-create/realized-create';
 import { PlanDetailComponent } from '@features/csr-plan-management/plan-detail/plan-detail';
+import { PlanEditComponent } from '@features/csr-plan-management/plan-edit/plan-edit';
 import { PlanValidationComponent } from '@features/csr-plan-management/plan-validation/plan-validation';
+import { PlannedActivityCreateComponent } from '@features/csr-plan-management/planned-activity-create/planned-activity-create';
+import { PlannedActivityDetailComponent } from '@features/csr-plan-management/planned-activity-detail/planned-activity-detail';
+import { PlannedActivityEditComponent } from '@features/csr-plan-management/planned-activity-edit/planned-activity-edit';
+import { PlannedActivitiesListComponent } from '@features/csr-plan-management/planned-activities-list/planned-activities-list';
+import { RealizedEditComponent } from '@features/realized-activity-management/realized-edit/realized-edit';
 import { DocumentsListComponent } from '@features/file-management/documents-list/documents-list';
-
+import { CategoriesListComponent } from '@features/site-management/categories-list/categories-list';
+import { ChangeRequestCreateComponent } from '@features/change-request-management/change-request-create/change-request-create';
+import { ChangeRequestsListComponent } from '@features/change-request-management/change-requests-list/change-requests-list';
+import { ChangeRequestsPendingComponent } from '@features/change-request-management/change-requests-pending/change-requests-pending';
+import { ChangeRequestsHistoryComponent } from '@features/change-request-management/change-requests-history/change-requests-history';
+import { ChangeRequestDetailComponent } from '@features/change-request-management/change-request-detail/change-request-detail';
 
 export const routes: Routes = [
   { path: 'login', component: Login },
@@ -36,10 +48,18 @@ export const routes: Routes = [
       { path: 'csr-plans', component: AnnualPlansComponent },
       { path: 'csr-plans/create', component: PlanCreateComponent },
       { path: 'csr-plans/:id', component: PlanDetailComponent },
+      { path: 'csr-plans/:id/edit', component: PlanEditComponent },
       { path: 'annual-plans/validation', component: PlanValidationComponent },
+      { path: 'planned-activities', component: PlannedActivitiesListComponent },
+      { path: 'planned-activity/create', component: PlannedActivityCreateComponent },
+      { path: 'planned-activity/:id/edit', component: PlannedActivityEditComponent },
+      { path: 'planned-activity/:id', component: PlannedActivityDetailComponent },
       { path: 'realized-csr', component: RealizedListComponent },
       { path: 'realized-csr/create', component: RealizedCreateComponent },
+      { path: 'realized-csr/:id/edit', component: RealizedEditComponent },
+      { path: 'realized-csr/:id', component: RealizedDetailComponent },
       { path: 'sites', component: SitesListComponent, canActivate: [roleGuard(['corporate'])] },
+      { path: 'categories', component: CategoriesListComponent, canActivate: [roleGuard(['corporate'])] },
       { path: 'sites/create', component: SiteFormComponent, canActivate: [roleGuard(['corporate'])] },
       { path: 'sites/edit/:id', component: EditSiteComponent, canActivate: [roleGuard(['corporate'])] },
       { path: 'admin/users', component: UsersListComponent, canActivate: [roleGuard(['corporate'])] },
@@ -47,6 +67,11 @@ export const routes: Routes = [
       { path: 'account/profile', component: ProfileComponent },
       {path: 'sites/:id/users', component: SiteUsersComponent},
       { path: 'documents', component: DocumentsListComponent },
+      { path: 'changes', component: ChangeRequestsListComponent },
+      { path: 'changes/create', component: ChangeRequestCreateComponent },
+      { path: 'changes/pending', component: ChangeRequestsPendingComponent, canActivate: [roleGuard(['corporate'])] },
+      { path: 'changes/history', component: ChangeRequestsHistoryComponent, canActivate: [roleGuard(['corporate'])] },
+      { path: 'changes/:id', component: ChangeRequestDetailComponent },
 
       { path: '', redirectTo: 'dashboard', pathMatch: 'full' }
     ]

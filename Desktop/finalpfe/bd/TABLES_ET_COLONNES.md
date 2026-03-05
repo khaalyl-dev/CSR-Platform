@@ -1,4 +1,4 @@
-# Tables et description des colonnes – CSR Management System
+# Tables et description des colonnes – CSR Insight
 
 Documentation de chaque table et de chaque colonne du schéma PostgreSQL.
 
@@ -9,7 +9,6 @@ Documentation de chaque table et de chaque colonne du schéma PostgreSQL.
 | Enum | Valeurs | Description |
 |------|---------|-------------|
 | **user_role** | SITE_USER, CORPORATE_USER | Rôle de l'utilisateur (site ou corporate). |
-| **access_type** | FULL, READ_ONLY | Type d'accès d'un utilisateur à un site. |
 | **plan_status** | DRAFT, SUBMITTED, VALIDATED, REJECTED, LOCKED | Statut du plan annuel CSR. |
 | **activity_status** | DRAFT, IN_PROGRESS, COMPLETED, CANCELLED, VALIDATED | Statut d'une activité CSR. |
 | **validation_status** | PENDING, APPROVED, REJECTED | Statut d'une validation. |
@@ -83,7 +82,6 @@ Association utilisateur–site : droits d'accès par site (contrôle d'accès pa
 | **id** | uuid (PK) | Identifiant de l'association. |
 | **user_id** | uuid (FK → users) | Utilisateur. |
 | **site_id** | uuid (FK → sites) | Site auquel l'accès est accordé. |
-| **access_type** | access_type | FULL ou READ_ONLY. |
 | **granted_by** | uuid (FK → users) | Utilisateur ayant accordé l'accès. |
 | **granted_at** | timestamp | Date d'attribution. |
 
@@ -133,11 +131,15 @@ Plans annuels CSR par site (création, édition, workflow de validation).
 | **id** | uuid (PK) | Identifiant du plan. |
 | **site_id** | uuid (FK → sites) | Site concerné. |
 | **year** | int | Année du plan. |
+| **validation_mode** | varchar(10) | Mode de validation : `101` (corporate seul) ou `111` (Level 1 puis Level 2). |
 | **status** | plan_status | DRAFT, SUBMITTED, VALIDATED, REJECTED, LOCKED. |
-| **total_budget** | decimal | Budget total du plan (€). |
+| **total_budget** | decimal (null) | Budget total du plan (€). |
 | **submitted_at** | timestamp (null) | Date de soumission. |
+| **rejected_comment** | text (null) | Motif de rejet si status = REJECTED. |
+| **rejected_activity_ids** | text (null) | IDs des activités à modifier (tableau JSON), ex. `["uuid1", "uuid2"]`. |
+| **validation_step** | int (null) | Mode 111 : 1 = attente Level 1, 2 = attente Level 2. Mode 101 : 2 = attente Level 2. |
 | **validated_at** | timestamp (null) | Date de validation finale. |
-| **created_by** | uuid (FK → users) | Créateur du plan. |
+| **created_by** | uuid (FK → users, null) | Créateur du plan. |
 | **created_at** | timestamp | Date de création. |
 | **updated_at** | timestamp | Dernière mise à jour. |
 
@@ -230,7 +232,7 @@ Activités réalisées (saisie des réalisations, coûts, participants, impact).
 
 ## validations
 
-Enregistrement des validations (plans ou activités) – workflow site → corporate.
+Enregistrement des validations (plans ou activités) – workflow site → corporate. Chaque approbation ou rejet est enregistré ici (une ligne par étape de validation : level_1, level_2).
 
 | Colonne | Type | Description |
 |---------|------|-------------|
@@ -238,11 +240,15 @@ Enregistrement des validations (plans ou activités) – workflow site → corpo
 | **entity_type** | entity_type | PLAN ou ACTIVITY. |
 | **entity_id** | uuid | ID du plan ou de l'activité. |
 | **site_id** | uuid (FK → sites) | Site concerné. |
+| **grade** | varchar(20) (null) | Niveau : level_1 (manager), level_2 (corporate). |
 | **status** | validation_status | PENDING, APPROVED, REJECTED. |
-| **validated_by** | uuid (FK → users, null) | Validateur. |
-| **comment** | text | Commentaire (rejet / remarque). |
-| **validated_at** | timestamp (null) | Date de décision. |
+| **validated_by** | uuid (FK → users, null) | Validateur (en cas d'approbation ou rejet). |
+| **comment** | text (null) | Motif de rejet ou remarque. |
+| **rejected_activity_ids** | text (null) | IDs des activités à modifier (JSON array) en cas de rejet. |
+| **validated_at** | timestamp (null) | Date de décision (approbation ou rejet). |
 | **created_at** | timestamp | Date de création de la demande de validation. |
+
+**Contrainte :** (entity_type, entity_id, grade) unique.
 
 ---
 
@@ -337,18 +343,19 @@ Historique des modifications (anciennes et nouvelles valeurs) pour plans et acti
 
 ## notifications
 
-Notifications système (alertes email, rappels, validation/rejet).
+Notifications système affichées dans l'application (validation/rejet, demandes de modification, rappels).
 
 | Colonne | Type | Description |
 |---------|------|-------------|
 | **id** | uuid (PK) | Identifiant de la notification. |
+| **user_id** | uuid (FK → users) | Utilisateur destinataire. |
 | **site_id** | uuid (FK → sites) | Site concerné. |
 | **title** | varchar | Titre. |
 | **message** | text | Contenu du message. |
 | **type** | varchar | Type (soumission, validation, rappel, etc.). |
-| **entity_type** | entity_type | PLAN ou ACTIVITY. |
-| **entity_id** | uuid | Entité liée. |
-| **created_by** | uuid (FK → users) | Créateur (système ou utilisateur). |
+| **entity_type** | varchar(50) (null) | Type d'entité liée pour la navigation (`PLAN`, `CHANGE_REQUEST`, etc.). |
+| **entity_id** | uuid (null) | Identifiant de l'entité liée. |
+| **is_read** | boolean | Notification lue ou non. |
 | **created_at** | timestamp | Date de création. |
 
 ---

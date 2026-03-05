@@ -160,11 +160,15 @@ Table csr_plans {
   id uuid [pk]
   site_id uuid
   year int
+  validation_mode varchar [default: '101', note: '101 ou 111']
   status plan_status
-  total_budget decimal
+  total_budget decimal [null]
   submitted_at timestamp [null]
+  rejected_comment text [null]
+  rejected_activity_ids text [null, note: 'JSON array of activity UUIDs']
+  validation_step int [null]
   validated_at timestamp [null]
-  created_by uuid
+  created_by uuid [null]
   created_at timestamp
   updated_at timestamp
 
@@ -275,11 +279,17 @@ Table validations {
   entity_type entity_type
   entity_id uuid
   site_id uuid
+  grade varchar [null, note: 'level_1, level_2']
   status validation_status
   validated_by uuid [null]
-  comment text
+  comment text [null]
+  rejected_activity_ids text [null, note: 'JSON array of activity UUIDs']
   validated_at timestamp [null]
   created_at timestamp
+
+  indexes {
+    (entity_type, entity_id, grade) [unique]
+  }
 }
 
 Ref: validations.site_id > sites.id
@@ -378,18 +388,19 @@ Ref: entity_history.modified_by > users.id
 
 Table notifications {
   id uuid [pk]
+  user_id uuid
   site_id uuid
   title varchar
   message text
   type varchar
-  entity_type entity_type
-  entity_id uuid
-  created_by uuid
+  entity_type varchar [note: 'PLAN, CHANGE_REQUEST, etc.']
+  entity_id uuid [null]
+  is_read boolean
   created_at timestamp
 }
 
+Ref: notifications.user_id > users.id
 Ref: notifications.site_id > sites.id
-Ref: notifications.created_by > users.id
 
 Table user_notifications {
   id uuid [pk]

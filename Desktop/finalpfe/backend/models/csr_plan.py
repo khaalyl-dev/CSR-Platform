@@ -40,11 +40,23 @@ class CsrPlan(db.Model):
     total_budget = db.Column(db.Numeric(15, 2), nullable=True, comment="Budget total du plan (€)")
     submitted_at = db.Column(db.DateTime, nullable=True, comment="Date de soumission")
     rejected_comment = db.Column(db.Text, nullable=True, comment="Motif de rejet si status=REJECTED")
+    rejected_activity_ids = db.Column(
+        db.Text, nullable=True,
+        comment="IDs des activités à modifier (JSON array), ex. [\"uuid1\", \"uuid2\"]"
+    )
     validation_step = db.Column(
         db.Integer, nullable=True,
         comment="Mode 111: 1=attente Level 1, 2=attente Level 2. Mode 101: 2=attente Level 2"
     )
     validated_at = db.Column(db.DateTime, nullable=True, comment="Date de validation finale")
+    unlock_until = db.Column(
+        db.DateTime, nullable=True,
+        comment="Date limite de modification (après approbation d'une demande de modification); au-delà le plan redevient verrouillé"
+    )
+    unlock_since = db.Column(
+        db.DateTime, nullable=True,
+        comment="Date de début de la dernière ouverture (approbation demande de modification); sert à marquer activités ajoutées/modifiées"
+    )
     created_by = db.Column(
         CHAR(36, collation="utf8mb4_unicode_ci"), db.ForeignKey("users.id", ondelete="SET NULL"), nullable=True,
         comment="Créateur du plan"

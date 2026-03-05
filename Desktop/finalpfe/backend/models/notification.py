@@ -31,7 +31,12 @@ class Notification(db.Model):
     )
     title = db.Column(db.String(255), nullable=False, comment="Titre")
     message = db.Column(db.Text, nullable=True, comment="Contenu du message")
-    entity_type = db.Column(db.String(20), nullable=True, comment="Type: PLAN ou ACTIVITY")
-    entity_id = db.Column(CHAR(36, collation="utf8mb4_unicode_ci"), nullable=True, comment="Entité liée")
+    type = db.Column(db.Enum('info', 'success', 'warning', 'error'), default='info', comment="Type de notification")
+    entity_type = db.Column(db.String(50), nullable=True, comment="Type d'entité liée (PLAN, CHANGE_REQUEST, etc.)")
+    entity_id = db.Column(
+        CHAR(36, collation="utf8mb4_unicode_ci"),
+        nullable=True,
+        comment="Identifiant de l'entité liée"
+    )
     is_read = db.Column(db.Boolean, nullable=False, default=False, comment="Notification lue ou non")
     created_at = db.Column(db.DateTime, default=db.func.now(), comment="Date de création")

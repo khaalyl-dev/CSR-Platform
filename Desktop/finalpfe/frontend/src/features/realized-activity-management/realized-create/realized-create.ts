@@ -6,7 +6,7 @@ import { catchError, of, switchMap, timeout } from 'rxjs';
 import { RealizedCsrApi } from '../api/realized-csr-api';
 import { CsrActivitiesApi } from '../api/csr-activities-api';
 import { CsrPlansApi } from '@features/csr-plan-management/api/csr-plans-api';
-import { CategoriesApi } from '../api/categories-api';
+import { CategoriesApi, CATEGORY_OTHER_VALUE } from '../api/categories-api';
 import type { CreateRealizedCsrPayload } from '../models/realized-csr.model';
 import type { CsrPlan } from '@features/csr-plan-management/models/csr-plan.model';
 import type { Category } from '../api/categories-api';
@@ -45,10 +45,26 @@ export class RealizedCreateComponent implements OnInit {
   months = MONTHS;
   monthLabel = (m: number) => MONTH_LABELS[m] ?? String(m);
   currentYear = new Date().getFullYear();
+  readonly categoryOtherValue = CATEGORY_OTHER_VALUE;
 
   /** Plan year >= current year = new/planned → csr_activities only. Else = realized → csr_activities + realized_csr */
   isPlanRealized(planYear: number): boolean {
     return planYear < this.currentYear;
+  }
+
+  /** Plans that can be edited (user can add activities/realizations). Includes VALIDATED with unlock_until in the future. */
+  get editablePlans(): CsrPlan[] {
+    const now = new Date();
+    return this.plans.filter((p) => {
+      const u = p.unlock_until;
+      const unlockFuture = u ? new Date(u) > now : false;
+      if (p.status === 'DRAFT' || p.status === 'REJECTED') {
+        if (!u) return true;
+        return unlockFuture;
+      }
+      if (p.status === 'VALIDATED' && unlockFuture) return true;
+      return false;
+    });
   }
 
   selectedPlanIsRealized(): boolean {
@@ -78,6 +94,7 @@ export class RealizedCreateComponent implements OnInit {
     this.form = this.fb.group({
       plan_id: ['', Validators.required],
       category_id: ['', Validators.required],
+      new_category_name: [''],
       activity_number: ['', Validators.required],
       title: ['', Validators.required],
       description: [''],
@@ -103,8 +120,25 @@ export class RealizedCreateComponent implements OnInit {
     }
 
     this.form.get('plan_id')?.valueChanges.subscribe(() => this.updateRealizationValidators());
+    this.form.get('category_id')?.valueChanges.subscribe(() => this.updateNewCategoryValidators());
 
     this.loadData();
+  }
+
+  isOtherCategorySelected(): boolean {
+    return this.form.get('category_id')?.value === CATEGORY_OTHER_VALUE;
+  }
+
+  private updateNewCategoryValidators(): void {
+    const ctrl = this.form.get('new_category_name');
+    if (this.isOtherCategorySelected()) {
+      ctrl?.setValidators([Validators.required, Validators.minLength(2)]);
+    } else {
+      ctrl?.clearValidators();
+      ctrl?.setValue('');
+    }
+    ctrl?.updateValueAndValidity();
+    this.cdr.markForCheck();
   }
 
   private loadData(): void {
@@ -128,10 +162,13 @@ export class RealizedCreateComponent implements OnInit {
         this.loadingData = false;
         if (this.plans.length === 0) {
           this.errorMsg = 'Aucun plan CSR disponible. Créez d\'abord un plan.';
+        } else if (this.editablePlans.length === 0) {
+          this.errorMsg = 'Aucun plan n\'est ouvert à la modification. Soumettez une demande de modification (cadenas sur un plan validé) pour pouvoir ajouter des activités ou réalisations.';
         } else if (this.categories.length === 0) {
           this.errorMsg = 'Aucune catégorie CSR disponible.';
         }
         this.updateRealizationValidators();
+        this.updateNewCategoryValidators();
         this.cdr.markForCheck();
       },
       error: () => {
@@ -158,38 +195,48 @@ export class RealizedCreateComponent implements OnInit {
     const plan = this.plans.find((p) => p.id === raw.plan_id);
     const planYear = plan?.year ?? this.currentYear;
     const addRealized = this.isPlanRealized(planYear);
-
     const plannedBudget = raw.planned_budget != null && raw.planned_budget !== '' ? Number(raw.planned_budget) : null;
-    this.activitiesApi.create({
-      plan_id: raw.plan_id,
-      category_id: raw.category_id,
-      activity_number: raw.activity_number.trim(),
-      title: raw.title.trim(),
-      description: raw.description?.trim() || raw.impact_description?.trim() || null,
-      planned_budget: plannedBudget,
-    }).pipe(
-      switchMap((activity) => {
-        if (!addRealized) {
-          return of(activity);
-        }
-        const payload: CreateRealizedCsrPayload = {
-          activity_id: activity.id,
-          year: Number(raw.year),
-          month: Number(raw.month),
-          realized_budget: raw.realized_budget != null && raw.realized_budget !== '' ? Number(raw.realized_budget) : null,
-          participants: raw.participants != null && raw.participants !== '' ? Number(raw.participants) : null,
-          total_hc: raw.total_hc != null && raw.total_hc !== '' ? Number(raw.total_hc) : null,
-          volunteer_hours: raw.volunteer_hours != null && raw.volunteer_hours !== '' ? Number(raw.volunteer_hours) : null,
-          impact_description: raw.impact_description?.trim() || null,
-          organizer: raw.organizer?.trim() || null,
-          number_external_partners: raw.number_external_partners != null && raw.number_external_partners !== '' ? Number(raw.number_external_partners) : null,
-          realization_date: raw.realization_date?.trim() ? raw.realization_date.substring(0, 10) : null,
-          comment: raw.comment?.trim() || null,
-          contact_name: raw.contact_name?.trim() || null,
-          contact_email: raw.contact_email?.trim() || null,
-        };
-        return this.realizedApi.create(payload).pipe(switchMap(() => of(activity)));
-      })
+
+    const categoryId$ = raw.category_id === CATEGORY_OTHER_VALUE && raw.new_category_name?.trim()
+      ? this.categoriesApi.create(raw.new_category_name.trim()).pipe(
+          switchMap((cat) => of(cat.id))
+        )
+      : of(raw.category_id);
+
+    categoryId$.pipe(
+      switchMap((categoryId) =>
+        this.activitiesApi.create({
+          plan_id: raw.plan_id,
+          category_id: categoryId,
+          activity_number: raw.activity_number.trim(),
+          title: raw.title.trim(),
+          description: raw.description?.trim() || raw.impact_description?.trim() || null,
+          planned_budget: plannedBudget,
+        }).pipe(
+          switchMap((activity) => {
+            if (!addRealized) {
+              return of(activity);
+            }
+            const payload: CreateRealizedCsrPayload = {
+              activity_id: activity.id,
+              year: Number(raw.year),
+              month: Number(raw.month),
+              realized_budget: raw.realized_budget != null && raw.realized_budget !== '' ? Number(raw.realized_budget) : null,
+              participants: raw.participants != null && raw.participants !== '' ? Number(raw.participants) : null,
+              total_hc: raw.total_hc != null && raw.total_hc !== '' ? Number(raw.total_hc) : null,
+              volunteer_hours: raw.volunteer_hours != null && raw.volunteer_hours !== '' ? Number(raw.volunteer_hours) : null,
+              impact_description: raw.impact_description?.trim() || null,
+              organizer: raw.organizer?.trim() || null,
+              number_external_partners: raw.number_external_partners != null && raw.number_external_partners !== '' ? Number(raw.number_external_partners) : null,
+              realization_date: raw.realization_date?.trim() ? raw.realization_date.substring(0, 10) : null,
+              comment: raw.comment?.trim() || null,
+              contact_name: raw.contact_name?.trim() || null,
+              contact_email: raw.contact_email?.trim() || null,
+            };
+            return this.realizedApi.create(payload).pipe(switchMap(() => of(activity)));
+          })
+        )
+      )
     ).subscribe({
       next: () => {
         this.loading = false;
@@ -215,6 +262,7 @@ export class RealizedCreateComponent implements OnInit {
     const planId = this.form.get('plan_id')?.value;
     this.form.patchValue({
       category_id: '',
+      new_category_name: '',
       activity_number: '',
       title: '',
       description: '',

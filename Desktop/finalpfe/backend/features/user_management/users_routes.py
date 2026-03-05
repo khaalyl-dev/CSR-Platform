@@ -25,7 +25,8 @@ bp = Blueprint("users", __name__, url_prefix="/api/users")
 def _user_to_json(user: User, with_sites: bool = False):
     """
     Convert User model to JSON dict.
-    If with_sites=True, includes active site assignments (id, site_id, site_name, granted_at).
+    If with_sites=True, includes active site assignments (id, site_id, site_name, grade, granted_at).
+    level: level_1 if any site has grade level_1, else level_0 if any has level_0, else None (for list display).
     """
     data = {
         "id": user.id,
@@ -36,13 +37,19 @@ def _user_to_json(user: User, with_sites: bool = False):
         "is_active": user.is_active,
         "created_at": user.created_at.isoformat() if user.created_at else None,
     }
+    sites = UserSite.query.filter_by(user_id=user.id, is_active=True).all()
+    if sites:
+        grades = [us.grade for us in sites if us.grade]
+        data["level"] = "level_1" if "level_1" in grades else ("level_0" if grades else None)
+    else:
+        data["level"] = None
     if with_sites:
-        sites = UserSite.query.filter_by(user_id=user.id, is_active=True).all()
         data["sites"] = [
             {
                 "id": us.id,
                 "site_id": us.site_id,
                 "site_name": Site.query.get(us.site_id).name if Site.query.get(us.site_id) else None,
+                "grade": us.grade or None,
                 "granted_at": us.granted_at.isoformat() if us.granted_at else None,
             }
             for us in sites
@@ -155,6 +162,9 @@ def assign_sites(user_id: str):
 
     data = request.get_json(silent=True) or {}
     site_ids = data.get("site_ids") or []
+    default_grade = (data.get("default_grade") or "").strip() or None
+    if default_grade and default_grade not in ("level_0", "level_1", "level_2"):
+        default_grade = None
 
     if not isinstance(site_ids, list):
         return jsonify({"message": "site_ids doit être une liste"}), 400
@@ -183,11 +193,14 @@ def assign_sites(user_id: str):
             existing.is_active = True
             existing.granted_by = granted_by
             existing.granted_at = datetime.utcnow()
+            if default_grade is not None:
+                existing.grade = default_grade
         else:
             us = UserSite(
                 user_id=user_id,
                 site_id=sid,
                 is_active=True,
+                grade=default_grade,
                 granted_by=granted_by,
                 granted_at=datetime.utcnow(),
             )

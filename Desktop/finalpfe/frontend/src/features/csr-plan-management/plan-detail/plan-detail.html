@@ -17,70 +17,251 @@
       <div class="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 class="text-2xl font-bold text-gray-800">{{ plan()!.site_name ?? plan()!.site_code }} – {{ plan()!.year }}</h1>
-          <p class="text-gray-500 mt-1">Mode {{ plan()!.validation_mode }} – {{ statusLabel(plan()!.status) }}</p>
+          <p class="text-gray-500 mt-1">Mode {{ validationModeLabel(plan()!.validation_mode) }} – {{ statusLabel(plan()!.status) }}</p>
           <p *ngIf="validationStepLabel()" class="text-amber-600 text-sm font-medium mt-1">{{ validationStepLabel() }}</p>
+          <p *ngIf="plan()!.unlock_until && isUnlockUntilFuture()" class="text-sm text-green-700 font-medium mt-1">
+            <i class="fas fa-unlock-alt mr-1"></i>Ouvert pour modification jusqu'au {{ plan()!.unlock_until | date:'longDate' }} (puis verrouillage automatique)
+          </p>
         </div>
         <div class="flex items-center gap-3">
-          <button *ngIf="plan()!.status === 'DRAFT'" type="button" (click)="submitForValidation()" [disabled]="actionLoading()"
-            class="bg-[rgb(30,41,59)] text-white px-4 py-2 rounded-xl hover:opacity-90 disabled:opacity-60">
-            Soumettre pour validation
+          <button *ngIf="plan()!.status === 'VALIDATED' && !isUnlockUntilFuture()" type="button" (click)="goToChangeRequest(plan()!.id)"
+            class="inline-flex items-center justify-center p-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors cursor-pointer" title="Demande de modification">
+            <i class="fas fa-lock-open text-lg"></i>
           </button>
-          <button *ngIf="plan()!.status === 'SUBMITTED' && canApprove" type="button" (click)="approve()" [disabled]="actionLoading()"
-            class="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-medium text-white bg-emerald-700 hover:bg-emerald-800 active:bg-emerald-900 shadow-sm hover:shadow transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:shadow-sm">
-            <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 20 20" fill="currentColor">
-              <path fill-rule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z" clip-rule="evenodd" />
-            </svg>
-            Approuver
+          <button *ngIf="canSubmitForValidation()" type="button" (click)="submitForValidation()" [disabled]="actionLoading()"
+            class="bg-brand-900 text-white px-4 py-2 rounded-xl hover:opacity-90 disabled:opacity-60">
+            {{ submitButtonLabel() }}
           </button>
-          <button *ngIf="plan()!.status === 'SUBMITTED' && canReject" type="button" (click)="reject()" [disabled]="actionLoading()"
-            class="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-medium text-white bg-rose-700 hover:bg-rose-800 active:bg-rose-900 shadow-sm hover:shadow transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:shadow-sm">
-            <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 20 20" fill="currentColor">
-              <path d="M6.28 5.22a.75.75 0 00-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 101.06 1.06L10 11.06l3.72 3.72a.75.75 0 101.06-1.06L11.06 10l3.72-3.72a.75.75 0 00-1.06-1.06L10 8.94 6.28 5.22z" />
-            </svg>
-            Rejeter
-          </button>
-          <button *ngIf="plan()!.status === 'DRAFT' || plan()!.status === 'VALIDATED'"
+          <div *ngIf="plan()!.status === 'SUBMITTED' && (canApprove || canReject)" class="flex items-center gap-2">
+            <button *ngIf="canApprove" type="button" (click)="approve()" [disabled]="actionLoading()"
+              class="inline-flex items-center justify-center min-w-[130px] px-5 py-2.5 rounded-xl text-sm font-semibold text-white bg-brand-900 hover:opacity-90 active:opacity-95 shadow-sm hover:shadow transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-brand-900 focus:ring-offset-2">
+              Approuver
+            </button>
+            <button *ngIf="canReject" type="button" (click)="openRejectModal()" [disabled]="actionLoading()"
+              class="inline-flex items-center justify-center min-w-[130px] px-5 py-2.5 rounded-xl text-sm font-semibold bg-white text-brand-900 border-2 border-brand-900 hover:bg-gray-50 active:bg-gray-100 shadow-sm hover:shadow transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-brand-900 focus:ring-offset-2">
+              Rejeter
+            </button>
+          </div>
+          <button *ngIf="canEditPlan()"
             type="button" (click)="addActivity()"
             class="bg-green-600 text-white px-4 py-2 rounded-xl hover:bg-green-700">
             + Ajouter une activité
           </button>
         </div>
       </div>
-      <div *ngIf="plan()!.rejected_comment" class="mt-4 p-4 bg-red-50 rounded-xl text-red-700 text-sm">
-        <strong>Motif de rejet :</strong> {{ plan()!.rejected_comment }}
+      <div *ngIf="plan()!.rejected_comment" class="mt-4 p-4 bg-red-50 rounded-xl text-red-700 text-sm space-y-1">
+        <p><strong>Motif de rejet :</strong> {{ plan()!.rejected_comment }}</p>
+        <div *ngIf="rejectedActivitiesList().length" class="mt-2">
+          <strong>Activités à modifier :</strong>
+          <ul class="list-disc list-inside mt-1 space-y-0.5">
+            <li *ngFor="let item of rejectedActivitiesList()">
+              <a [routerLink]="['/planned-activity', item.id]" class="underline hover:no-underline">{{ item.label }}</a>
+            </li>
+          </ul>
+        </div>
       </div>
     </div>
 
+    <!-- Reject modal -->
+    <div *ngIf="showRejectModal()" class="fixed inset-0 z-[9998] flex items-center justify-center p-4 bg-black/50" (click)="closeRejectModal()" role="dialog" aria-modal="true" aria-labelledby="reject-modal-title">
+      <div class="relative z-[9999] bg-white rounded-2xl shadow-xl border border-gray-200 w-full max-w-md overflow-hidden" (click)="$event.stopPropagation()">
+        <div class="p-6 border-b border-gray-100">
+          <h2 id="reject-modal-title" class="text-lg font-semibold text-gray-800">Rejeter le plan</h2>
+          <p class="text-gray-500 text-sm mt-1">Indiquez le motif de rejet et, si besoin, les activités à modifier.</p>
+        </div>
+        <div class="p-6 space-y-4">
+          <div>
+            <label for="reject-comment" class="block text-sm font-medium text-gray-700 mb-1">Motif de rejet <span class="text-red-500">*</span></label>
+            <textarea id="reject-comment" rows="3" [value]="rejectComment()" (input)="rejectComment.set($any($event.target).value)"
+              class="w-full px-3 py-2 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-rose-500 focus:border-rose-500"
+              placeholder="Ex. Budget non justifié, description incomplète..."></textarea>
+          </div>
+          <div>
+            <span class="block text-sm font-medium text-gray-700 mb-2">Activités à modifier (optionnel)</span>
+            <div class="border border-gray-200 rounded-xl p-3 max-h-48 overflow-y-auto space-y-2 bg-gray-50/50">
+              <label *ngFor="let a of plan()!.activities" class="flex items-start gap-3 cursor-pointer hover:bg-white/80 p-2 rounded-lg">
+                <input type="checkbox" [checked]="isRejectActivitySelected(a.id)" (change)="toggleRejectActivity(a.id)"
+                  class="mt-1 rounded border-gray-300 text-rose-600 focus:ring-rose-500">
+                <span class="text-sm text-gray-700">{{ a.activity_number }} – {{ a.title }}</span>
+              </label>
+              <p *ngIf="!plan()!.activities?.length" class="text-gray-500 text-sm">Aucune activité dans ce plan.</p>
+            </div>
+          </div>
+          <p *ngIf="rejectModalError()" class="text-sm text-red-600">{{ rejectModalError() }}</p>
+        </div>
+        <div class="p-6 pt-0 flex justify-end gap-3">
+          <button type="button" (click)="closeRejectModal()"
+            class="px-4 py-2 rounded-xl text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 transition-colors">
+            Annuler
+          </button>
+          <button type="button" (click)="submitReject()" [disabled]="actionLoading()"
+            class="px-4 py-2 rounded-xl text-sm font-semibold bg-white text-brand-900 border-2 border-brand-900 hover:bg-gray-50 disabled:opacity-50 transition-colors">
+            Rejeter le plan
+          </button>
+        </div>
+      </div>
+    </div>
+
+
+
+    <!-- Activity row 3-point dropdown (same style as plan list dropdown) -->
+    <div *ngIf="activityMenuId()"
+      class="fixed bg-white border border-gray-200 rounded-xl shadow-xl z-[9999] w-44 py-1 overflow-hidden"
+      [style.top.px]="activityMenuPosition.top"
+      [style.left.px]="activityMenuPosition.left"
+      (click)="$event.stopPropagation()">
+
+      <button (click)="goToActivityDetail(activityMenuId()!)"
+        class="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors">
+        <i class="fas fa-eye w-4 text-center"></i>
+        Détails
+      </button>
+
+      <button *ngIf="canEditPlan()" (click)="goToEditActivity(activityMenuId()!)"
+        class="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors">
+        <i class="fas fa-pen w-4 text-center"></i>
+        Modifier
+      </button>
+
+      <div class="border-t border-gray-100 my-1"></div>
+
+      <button *ngIf="canEditPlan()" (click)="deleteActivity(activityMenuId()!)"
+        class="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 transition-colors">
+        <i class="fas fa-trash w-4 text-center"></i>
+        Supprimer
+      </button>
+    </div>
+
     <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-      <h2 class="p-4 font-semibold text-gray-800 border-b border-gray-100">Activités ({{ plan()!.activities?.length ?? 0 }})</h2>
-      <table class="w-full text-sm">
-        <thead class="bg-gray-50 text-gray-600 uppercase text-xs">
-          <tr>
-            <th class="p-4 text-left">N°</th>
-            <th class="p-4 text-left">Titre</th>
-            <th class="p-4 text-right">Budget prévu</th>
-            <th class="p-4 text-center">Statut</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr *ngFor="let a of plan()!.activities" class="border-t hover:bg-gray-50">
-            <td class="p-4 font-medium">{{ a.activity_number }}</td>
-            <td class="p-4">{{ a.title }}</td>
-            <td class="p-4 text-right">{{ a.planned_budget != null ? (a.planned_budget | number:'1.0-0') + ' €' : '–' }}</td>
-            <td class="p-4 text-center">
-              <span class="px-2 py-1 rounded text-xs" [ngClass]="{
-                'bg-gray-200': a.status === 'DRAFT',
-                'bg-green-100 text-green-700': a.status === 'VALIDATED'
-              }">{{ a.status ?? 'DRAFT' }}</span>
-            </td>
-          </tr>
-          <tr *ngIf="!plan()!.activities?.length" class="border-t">
-            <td colspan="4" class="p-8 text-center text-gray-500">
-              Aucune activité. <button type="button" (click)="addActivity()" class="text-blue-600 hover:underline">Ajouter une activité</button>
-            </td>
-          </tr>
-        </tbody>
-      </table>
+      <div class="p-4 border-b border-gray-100 flex flex-wrap items-center gap-4">
+        <h2 class="font-semibold text-gray-800">Activités ({{ plan()!.activities?.length ?? 0 }})</h2>
+        <ng-container *ngIf="hasUnlockHighlights()">
+          <span class="text-xs text-gray-500 flex items-center gap-2">
+            <span class="inline-block w-4 h-4 rounded bg-brand-100"></span> Ajouté lors de la dernière ouverture
+            <span class="inline-block w-4 h-4 rounded bg-amber-100 ml-2"></span> Modifié lors de la dernière ouverture
+          </span>
+        </ng-container>
+      </div>
+      <div class="overflow-x-auto">
+        <!-- Plan planifié (année en cours ou future) : colonnes activité planifiée uniquement -->
+        <table *ngIf="isPlanPlanned" class="w-full text-sm">
+          <thead class="bg-gray-50 text-gray-600 uppercase text-xs whitespace-nowrap">
+            <tr>
+              <th class="p-3 text-left min-w-[7rem] w-28">N°</th>
+              <th class="p-3 text-left">Titre</th>
+              <th class="p-3 text-left max-w-[200px]">Description</th>
+              <th class="p-3 text-left">Catégorie</th>
+              <th class="p-3 text-right">Budget prévu</th>
+              <th class="p-3 text-center w-48">Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let a of plan()!.activities"
+              class="border-t"
+              [class.hover:bg-gray-100]="!a.added_during_unlock && !a.modified_during_unlock"
+              [class.bg-brand-100]="a.added_during_unlock"
+              [class.bg-amber-100]="a.modified_during_unlock && !a.added_during_unlock"
+              [attr.title]="(a.added_during_unlock ? 'Ajouté lors de la dernière ouverture pour modification' : a.modified_during_unlock ? 'Modifié lors de la dernière ouverture pour modification' : null)">
+              <td class="p-3 font-medium min-w-[7rem] w-28">
+                <span *ngIf="a.modified_during_unlock && !a.added_during_unlock" class="text-xs text-amber-700 mr-1" title="Modifié">✎</span>
+                {{ a.activity_number }}
+              </td>
+              <td class="p-3">{{ a.title }}</td>
+              <td class="p-3 text-gray-600 max-w-[200px] truncate" [title]="a.description">{{ a.description || '–' }}</td>
+              <td class="p-3">{{ a.category_name || '–' }}</td>
+              <td class="p-3 text-right">{{ a.planned_budget != null ? (a.planned_budget | number:'1.0-0') + ' €' : '–' }}</td>
+              <td class="p-3 text-center">
+                <div class="relative flex items-center justify-center">
+                  <button type="button" (click)="toggleActivityMenu($event, a.id)"
+                    class="inline-flex items-center justify-center p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                    title="Actions">
+                    <i class="fas fa-ellipsis-vertical text-lg"></i>
+                  </button>
+                </div>
+              </td>
+            </tr>
+            <tr *ngIf="!plan()!.activities?.length" class="border-t">
+              <td colspan="6" class="p-8 text-center text-gray-500">
+                Aucune activité.
+                <ng-container *ngIf="canEditPlan()">
+                  <button type="button" (click)="addActivity()" class="text-brand-700 hover:underline">Ajouter une activité</button>
+                </ng-container>
+                <span *ngIf="!canEditPlan() && plan()!.status !== 'SUBMITTED'">Plan verrouillé ou période d'ouverture expirée. Utilisez une demande de modification (cadenas) pour demander des changements.</span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+        <!-- Plan réalisé (année passée) : toutes les colonnes -->
+        <table *ngIf="!isPlanPlanned" class="w-full text-sm min-w-[1200px]">
+          <thead class="bg-gray-50 text-gray-600 uppercase text-xs whitespace-nowrap">
+            <tr>
+              <th class="p-3 text-left min-w-[7rem] w-28">N°</th>
+              <th class="p-3 text-left">Titre</th>
+              <th class="p-3 text-left max-w-[200px]">Description</th>
+              <th class="p-3 text-left">Catégorie</th>
+              <th class="p-3 text-left">Nature collab.</th>
+              <th class="p-3 text-left">Organisation</th>
+              <th class="p-3 text-left">Organisateur</th>
+              <th class="p-3 text-right">Budget prévu</th>
+              <th class="p-3 text-right">Volontaires prévus</th>
+              <th class="p-3 text-right">Impact cible</th>
+              <th class="p-3 text-left">Unité impact</th>
+              <th class="p-3 text-right">Budget réalisé</th>
+              <th class="p-3 text-right">Participants</th>
+              <th class="p-3 text-right">Impact réalisé</th>
+              <th class="p-3 text-left">Unité (réalisé)</th>
+              <th class="p-3 text-center">Réalisations</th>
+              <th class="p-3 text-center w-48">Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let a of plan()!.activities"
+              class="border-t"
+              [class.hover:bg-gray-100]="!a.added_during_unlock && !a.modified_during_unlock"
+              [class.bg-brand-100]="a.added_during_unlock"
+              [class.bg-amber-100]="a.modified_during_unlock && !a.added_during_unlock"
+              [attr.title]="(a.added_during_unlock ? 'Ajouté lors de la dernière ouverture pour modification' : a.modified_during_unlock ? 'Modifié lors de la dernière ouverture pour modification' : null)">
+              <td class="p-3 font-medium min-w-[7rem] w-28">
+                <span *ngIf="a.modified_during_unlock && !a.added_during_unlock" class="text-xs text-amber-700 mr-1" title="Modifié">✎</span>
+                {{ a.activity_number }}
+              </td>
+              <td class="p-3">{{ a.title }}</td>
+              <td class="p-3 text-gray-600 max-w-[200px] truncate" [title]="a.description">{{ a.description || '–' }}</td>
+              <td class="p-3">{{ a.category_name || '–' }}</td>
+              <td class="p-3">{{ a.collaboration_nature || '–' }}</td>
+              <td class="p-3">{{ a.organization || '–' }}</td>
+              <td class="p-3">{{ a.organizer || '–' }}</td>
+              <td class="p-3 text-right">{{ a.planned_budget != null ? (a.planned_budget | number:'1.0-0') + ' €' : '–' }}</td>
+              <td class="p-3 text-right">{{ a.planned_volunteers != null ? a.planned_volunteers : '–' }}</td>
+              <td class="p-3 text-right">{{ a.action_impact_target != null ? a.action_impact_target : '–' }}</td>
+              <td class="p-3">{{ a.action_impact_unit || '–' }}</td>
+              <td class="p-3 text-right">{{ a.realized_budget != null ? (a.realized_budget | number:'1.0-0') + ' €' : '–' }}</td>
+              <td class="p-3 text-right">{{ a.participants != null ? a.participants : '–' }}</td>
+              <td class="p-3 text-right">{{ a.action_impact_actual != null ? a.action_impact_actual : '–' }}</td>
+              <td class="p-3">{{ a.action_impact_unit_realized || '–' }}</td>
+              <td class="p-3 text-center">{{ a.realization_count ?? 0 }}</td>
+              <td class="p-3 text-center">
+                <div class="relative flex items-center justify-center">
+                  <button type="button" (click)="toggleActivityMenu($event, a.id)"
+                    class="inline-flex items-center justify-center p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                    title="Actions">
+                    <i class="fas fa-ellipsis-vertical text-lg"></i>
+                  </button>
+                </div>
+              </td>
+            </tr>
+            <tr *ngIf="!plan()!.activities?.length" class="border-t">
+              <td colspan="17" class="p-8 text-center text-gray-500">
+                Aucune activité.
+                <ng-container *ngIf="canEditPlan()">
+                  <button type="button" (click)="addActivity()" class="text-brand-700 hover:underline">Ajouter une activité</button>
+                </ng-container>
+                <span *ngIf="!canEditPlan() && plan()!.status !== 'SUBMITTED'">Plan verrouillé ou période d'ouverture expirée. Utilisez une demande de modification (cadenas) pour demander des changements.</span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
     </div>
   </div>
 </div>

@@ -78,11 +78,9 @@
               <p class="text-xs text-red-500 mt-1" *ngIf="planForm.get('year')?.touched && planForm.get('year')?.invalid">
                 Année invalide (2000–2100)
               </p>
-              <p class="text-xs text-gray-500 mt-1">Année {{ currentYear }} ou plus = plan nouveau. Année passée = plan réalisé (saisie réalisations).</p>
             </div>
             <div>
               <label class="block text-sm font-medium text-gray-700 mb-1.5">Mode de validation</label>
-              <p class="text-xs text-gray-500 mb-1">101 : Level 2 valide. 111 : Level 1 (site) valide d'abord, puis Level 2 valide. Rejet = plan rejeté avec motif.</p>
               <div class="relative">
                 <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                   <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor" class="w-4 h-4 text-gray-400">
@@ -91,8 +89,8 @@
                 </div>
                 <select formControlName="validation_mode"
                   class="w-full pl-9 pr-10 py-2.5 bg-gray-100 border-0 rounded-xl text-sm text-gray-700 font-medium focus:ring-2 focus:ring-blue-500 focus:bg-white focus:outline-none transition-all appearance-none cursor-pointer hover:bg-gray-200">
-                  <option value="101">101</option>
-                  <option value="111">111</option>
+                  <option value="101">Corporate only</option>
+                  <option value="111">ALL</option>
                 </select>
                 <div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
                   <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-3.5 h-3.5 text-gray-500">

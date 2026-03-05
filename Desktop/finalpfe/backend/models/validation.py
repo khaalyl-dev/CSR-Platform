@@ -42,6 +42,10 @@ class Validation(db.Model):
         CHAR(36, collation="utf8mb4_unicode_ci"), db.ForeignKey("users.id", ondelete="SET NULL"), nullable=True,
         comment="Validateur"
     )
-    comment = db.Column(db.Text, nullable=True, comment="Commentaire (rejet / remarque)")
+    comment = db.Column(db.Text, nullable=True, comment="Commentaire (motif de rejet ou remarque)")
+    rejected_activity_ids = db.Column(
+        db.Text, nullable=True,
+        comment="IDs des activités à modifier (JSON array) en cas de rejet"
+    )
     validated_at = db.Column(db.DateTime, nullable=True, comment="Date de décision")
     created_at = db.Column(db.DateTime, default=db.func.now(), comment="Date de création de la demande")

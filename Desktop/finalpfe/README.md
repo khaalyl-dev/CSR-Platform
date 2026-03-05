@@ -1,4 +1,4 @@
-# CSR Platform – Gestion des activités RSE
+# CSR Insight – Gestion des activités RSE
 
 Plateforme de gestion des activités de responsabilité sociétale des entreprises (CSR), développée avec **Angular 21** (frontend) et **Flask** (backend), connectée à **MySQL**.
 
@@ -202,11 +202,6 @@ Les routes protégées nécessitent le header :
 ### Le frontend affiche des erreurs 404 sur `/api/*`
 - Vérifier que le backend écoute sur le port 5001
 - Vérifier que `proxy.conf.json` pointe vers `http://localhost:5001`
-
-### Erreur "Field 'access_type' doesn't have a default value"
-- Exécuter :  
-  `mysql -u root -p csr_db < backend/migrations/drop_access_type.sql`  
-- Puis : `python3 create_tables.py` et `python3 init_db.py`
 
 ---
 

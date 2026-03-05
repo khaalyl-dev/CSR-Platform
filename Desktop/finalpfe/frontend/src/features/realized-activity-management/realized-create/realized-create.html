@@ -22,7 +22,7 @@
         <p class="text-gray-500 text-sm mb-6">Vous pouvez ajouter une autre activité au même plan ou retourner au plan.</p>
         <div class="flex flex-wrap items-center justify-center gap-3">
           <button type="button" (click)="addAnotherActivity()"
-            class="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-medium text-white bg-emerald-700 hover:bg-emerald-800 shadow-sm transition">
+            class="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-medium text-white bg-brand-900 hover:bg-brand-800 shadow-sm transition">
             <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 20 20" fill="currentColor">
               <path d="M10.75 4.75a.75.75 0 00-1.5 0v4.5h-4.5a.75.75 0 000 1.5h4.5v4.5a.75.75 0 001.5 0v-4.5h4.5a.75.75 0 000-1.5h-4.5v-4.5z" />
             </svg>
@@ -48,8 +48,8 @@
           </svg>
         </div>
         <div>
-          <h2 class="text-lg font-bold text-gray-800">Activité et réalisation CSR</h2>
-          <p class="text-gray-400 text-sm">Saisir les informations pour l'activité (planifiée) et pour la réalisation. Champs <span class="text-red-500">*</span> obligatoires.</p>
+          <h2 class="text-lg font-bold text-gray-800">Activité réalisée (année passée)</h2>
+          <p class="text-gray-400 text-sm">Plan déjà réalisé : saisir les <strong>données estimées</strong> (partie 1) et les <strong>données réalisées</strong> (partie 2) pour comparer. Champs <span class="text-red-500">*</span> obligatoires.</p>
         </div>
       </div>
 
@@ -72,7 +72,7 @@
                 [class.border]="form.get('plan_id')?.touched && form.get('plan_id')?.invalid"
                 [class.border-red-400]="form.get('plan_id')?.touched && form.get('plan_id')?.invalid">
                 <option value="">Choisir un plan</option>
-                <option *ngFor="let p of plans" [value]="p.id">{{ p.site_name ?? p.site_code ?? p.site_id }} – {{ p.year }} ({{ isPlanRealized(p.year) ? 'réalisé' : 'nouveau' }})</option>
+                <option *ngFor="let p of editablePlans" [value]="p.id">{{ p.site_name ?? p.site_code ?? p.site_id }} – {{ p.year }} ({{ isPlanRealized(p.year) ? 'réalisé' : 'nouveau' }})</option>
               </select>
               <div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-3.5 h-3.5 text-gray-500">
@@ -86,12 +86,12 @@
           </div>
 
           <!-- Partie 1: Activité (planifiée) - csr_activities -->
-          <div class="space-y-4 p-5 bg-slate-50 rounded-xl border border-slate-200">
+          <div class="space-y-4 p-5 bg-brand-100 rounded-xl border border-brand-700/30">
             <div class="flex items-center gap-2 border-b border-slate-200 pb-2">
-              <span class="flex items-center justify-center w-8 h-8 rounded-lg bg-slate-600 text-white text-sm font-bold">1</span>
-              <h3 class="text-base font-bold text-slate-800">Activité (planifiée)</h3>
+              <span class="flex items-center justify-center w-8 h-8 rounded-lg bg-brand-900 text-white text-sm font-bold">1</span>
+              <h3 class="text-base font-bold text-slate-800">Données estimées (planifiées)</h3>
             </div>
-            <p class="text-xs text-slate-500">Données enregistrées dans l’activité (table csr_activities).</p>
+            <p class="text-xs text-slate-500">Ce qui avait été prévu : l’activité + budget estimé. Permet la comparaison avec le réalisé (partie 2).</p>
 
             <!-- Catégorie -->
             <div>
@@ -101,6 +101,7 @@
                   class="w-full pl-4 pr-10 py-2.5 bg-white border border-gray-200 rounded-xl text-sm text-gray-700 font-medium focus:ring-2 focus:ring-blue-500 focus:outline-none transition appearance-none cursor-pointer">
                   <option value="">Choisir une catégorie</option>
                   <option *ngFor="let c of categories" [value]="c.id">{{ c.name }}</option>
+                  <option [value]="categoryOtherValue">Autre (créer une nouvelle catégorie)</option>
                 </select>
                 <div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
                   <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-3.5 h-3.5 text-gray-500">
@@ -109,6 +110,14 @@
                 </div>
               </div>
               <p class="text-xs text-red-500 mt-1" *ngIf="form.get('category_id')?.touched && form.get('category_id')?.invalid">La catégorie est obligatoire</p>
+              <div *ngIf="isOtherCategorySelected()" class="mt-3">
+                <label class="block text-sm font-medium text-gray-700 mb-1.5">Nom de la nouvelle catégorie <span class="text-red-500">*</span></label>
+                <input type="text" formControlName="new_category_name" placeholder="ex. Biodiversité, Santé..."
+                  class="w-full pl-4 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm text-gray-700 font-medium focus:ring-2 focus:ring-blue-500 focus:outline-none transition"/>
+                <p class="text-xs text-red-500 mt-1" *ngIf="form.get('new_category_name')?.touched && form.get('new_category_name')?.invalid">
+                  Saisissez le nom de la nouvelle catégorie (min. 2 caractères)
+                </p>
+              </div>
             </div>
 
             <!-- Numéro activité + Titre -->
@@ -154,9 +163,9 @@
                 [class.bg-gray-500]="!selectedPlanIsRealized()">2</span>
               <h3 class="text-base font-bold"
                 [class.text-amber-900]="selectedPlanIsRealized()"
-                [class.text-gray-800]="!selectedPlanIsRealized()">Réalisation</h3>
+                [class.text-gray-800]="!selectedPlanIsRealized()">Données réalisées</h3>
             </div>
-            <p *ngIf="selectedPlanIsRealized()" class="text-xs text-amber-800">Données enregistrées dans la réalisation (table realized_csr). À renseigner pour un plan déjà réalisé.</p>
+            <p *ngIf="selectedPlanIsRealized()" class="text-xs text-amber-800">Renseignez tous les champs nécessaires (budget réalisé, participants, impact, etc.) pour comparer avec l'estimé (partie 1).</p>
             <p *ngIf="!selectedPlanIsRealized()" class="text-xs text-gray-500">Plan futur : seule l’activité sera enregistrée. La réalisation pourra être ajoutée plus tard.</p>
 
           <!-- Année + Mois -->

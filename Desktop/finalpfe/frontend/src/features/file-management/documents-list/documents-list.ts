@@ -205,9 +205,9 @@ export class DocumentsListComponent implements OnInit {
 
   // ── Couleurs ──────────────────────────────────────────────────────────────
   siteColors = [
-    { bar: 'bg-blue-500',   dot: 'bg-blue-500',   text: 'text-blue-600' },
+    { bar: 'bg-brand-700',  dot: 'bg-brand-700',  text: 'text-brand-800' },
     { bar: 'bg-orange-500', dot: 'bg-orange-500', text: 'text-orange-600' },
-    { bar: 'bg-indigo-500', dot: 'bg-indigo-500', text: 'text-indigo-600' },
+    { bar: 'bg-brand-800',  dot: 'bg-brand-800',  text: 'text-brand-900' },
     { bar: 'bg-purple-500', dot: 'bg-purple-500', text: 'text-purple-600' },
     { bar: 'bg-cyan-500',   dot: 'bg-cyan-500',   text: 'text-cyan-600' },
     { bar: 'bg-yellow-500', dot: 'bg-yellow-500', text: 'text-yellow-600' },
@@ -238,8 +238,8 @@ export class DocumentsListComponent implements OnInit {
   getTypeBadgeClass(fileType: string): string {
     const classes: Record<string, string> = {
       'PDF':  'bg-red-100 text-red-700',
-      'DOCX': 'bg-blue-100 text-blue-700',
-      'DOC':  'bg-blue-100 text-blue-700',
+      'DOCX': 'bg-brand-100 text-brand-800',
+      'DOC':  'bg-brand-100 text-brand-800',
       'XLSX': 'bg-green-100 text-green-700',
       'XLS':  'bg-green-100 text-green-700',
       'PNG':  'bg-purple-100 text-purple-700',
@@ -255,8 +255,8 @@ export class DocumentsListComponent implements OnInit {
   getFileIconColor(fileType: string): string {
     const colors: Record<string, string> = {
       'PDF':  'text-red-500',
-      'DOCX': 'text-blue-500',
-      'DOC':  'text-blue-500',
+      'DOCX': 'text-brand-700',
+      'DOC':  'text-brand-700',
       'XLSX': 'text-green-500',
       'XLS':  'text-green-500',
       'PNG':  'text-purple-500',

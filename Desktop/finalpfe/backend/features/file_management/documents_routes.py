@@ -12,19 +12,22 @@ MEDIA_FOLDER = os.path.join(
 )
 
 def _document_to_json(doc: Document):
-    return {
+    out = {
         "id": doc.id,
         "site_id": doc.site_id,
         "site_name": doc.site.name if doc.site else "",
         "file_name": doc.file_name,
         "file_path": doc.file_path,
         "file_type": doc.file_type_upper,
-        "is_pinned": doc.is_pinned,  # ← manquait
+        "is_pinned": doc.is_pinned,
         "uploaded_by": doc.uploaded_by or "",
         "uploader_name": f"{doc.uploader.first_name} {doc.uploader.last_name}" if doc.uploader else "—",
         "uploaded_at": doc.uploaded_at.isoformat() if doc.uploaded_at else None,
         "updated_at": doc.updated_at.isoformat() if doc.updated_at else None,
     }
+    if hasattr(doc, "change_request_id"):
+        out["change_request_id"] = doc.change_request_id
+    return out
 
 @bp.post("")
 @token_required
@@ -61,10 +64,77 @@ def create_document():
         file_type=file_type,
         is_pinned=bool(data.get("is_pinned")),
         uploaded_by=getattr(request, "user_id", None),
+        change_request_id=data.get("change_request_id") or None,
     )
     db.session.add(doc)
     db.session.commit()
     return jsonify(_document_to_json(doc)), 201
+
+
+UPLOAD_SUBFOLDER = "change_requests"
+ALLOWED_EXTENSIONS = {"pdf", "doc", "docx", "xls", "xlsx", "png", "jpg", "jpeg", "gif", "webp"}
+
+
+def _allowed_file(filename):
+    if not filename or "." not in filename:
+        return False
+    ext = filename.rsplit(".", 1)[-1].lower()
+    return ext in ALLOWED_EXTENSIONS
+
+
+@bp.post("/upload")
+@token_required
+def upload_document():
+    """Upload a file (multipart): file (required), site_id (required), change_request_id (optional). Saves to media/change_requests/ and creates a Document row."""
+    if "file" not in request.files:
+        return jsonify({"message": "Aucun fichier fourni"}), 400
+    f = request.files["file"]
+    if not f or f.filename == "":
+        return jsonify({"message": "Fichier vide ou nom manquant"}), 400
+    if not _allowed_file(f.filename):
+        return jsonify({"message": "Type de fichier non autorisé"}), 400
+    site_id = (request.form.get("site_id") or "").strip()
+    change_request_id = (request.form.get("change_request_id") or "").strip() or None
+    if not site_id:
+        return jsonify({"message": "site_id obligatoire"}), 400
+    role = (getattr(request, "role", "") or "").upper()
+    if role not in ("CORPORATE_USER", "CORPORATE"):
+        user_sites = UserSite.query.filter_by(user_id=request.user_id, is_active=True).all()
+        site_ids = [us.site_id for us in user_sites]
+        if site_id not in site_ids:
+            return jsonify({"message": "Vous n'avez pas accès à ce site"}), 403
+    from models import Site
+    if not Site.query.get(site_id):
+        return jsonify({"message": "Site introuvable"}), 404
+    from datetime import datetime
+    import uuid
+    original = (f.filename or "file").strip()
+    safe = "".join(c for c in original if c.isalnum() or c in "._- ").strip() or "file"
+    ts = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    uid = str(uuid.uuid4())[:8]
+    ext = safe.rsplit(".", 1)[-1].lower() if "." in safe else "bin"
+    filename = f"{ts}_{uid}.{ext}"
+    subdir = os.path.join(MEDIA_FOLDER, UPLOAD_SUBFOLDER)
+    os.makedirs(subdir, exist_ok=True)
+    relative_path = f"{UPLOAD_SUBFOLDER}/{filename}"
+    full_path = os.path.join(MEDIA_FOLDER, relative_path)
+    f.save(full_path)
+    file_size = os.path.getsize(full_path)
+    file_type = ext.upper() if ext in ALLOWED_EXTENSIONS else "BIN"
+    doc = Document(
+        site_id=site_id,
+        file_name=original,
+        file_path=relative_path,
+        file_type=file_type,
+        is_pinned=False,
+        uploaded_by=getattr(request, "user_id", None),
+        change_request_id=change_request_id,
+    )
+    db.session.add(doc)
+    db.session.commit()
+    out = _document_to_json(doc)
+    out["file_size"] = file_size
+    return jsonify(out), 201
 
 
 @bp.get("")

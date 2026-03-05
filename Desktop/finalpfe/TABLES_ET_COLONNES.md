@@ -1,4 +1,4 @@
-# Tables et description des colonnes – CSR Management System
+# Tables et description des colonnes – CSR Insight
 
 Documentation de chaque table et de chaque colonne du schéma (aligné avec schema.dbml).
 Le projet utilise MySQL avec `CHAR(36)` pour les UUID.

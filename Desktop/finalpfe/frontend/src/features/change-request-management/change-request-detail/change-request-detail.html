@@ -1,0 +1,90 @@
+<div class="p-8 bg-gray-50 min-h-screen">
+  <div class="flex items-center justify-between mb-6">
+    <button type="button" (click)="back()"
+      class="flex items-center gap-2 text-gray-600 hover:text-gray-800 font-medium">
+      <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+      </svg>
+      Retour
+    </button>
+  </div>
+
+  <div *ngIf="loading()" class="text-center py-12 text-gray-500">Chargement...</div>
+  <p *ngIf="error()" class="text-red-600 mb-4">{{ error() }}</p>
+
+  <div *ngIf="request() && !loading()" class="max-w-3xl space-y-6">
+    <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+      <h1 class="text-xl font-bold text-gray-800">Détail de la demande de modification</h1>
+      <div class="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
+        <div>
+          <p class="text-gray-500 uppercase tracking-wider text-xs">Plan concerné</p>
+          <a *ngIf="request()!.entity_id" [routerLink]="['/csr-plans', request()!.entity_id]"
+            class="text-brand-700 hover:underline font-medium">
+            {{ request()!.plan_site_name ?? request()!.site_name ?? request()!.site_id }} – {{ request()!.plan_year ?? request()!.year }}
+          </a>
+        </div>
+        <div>
+          <p class="text-gray-500 uppercase tracking-wider text-xs">Demandeur</p>
+          <p class="text-gray-800">{{ request()!.requested_by_name ?? '–' }}</p>
+        </div>
+        <div>
+          <p class="text-gray-500 uppercase tracking-wider text-xs">Date de demande</p>
+          <p class="text-gray-800">{{ request()!.created_at | date:'medium' }}</p>
+        </div>
+        <div *ngIf="request()!.requested_duration">
+          <p class="text-gray-500 uppercase tracking-wider text-xs">Durée d'ouverture demandée</p>
+          <p class="text-gray-800">{{ request()!.requested_duration }}</p>
+        </div>
+        <div>
+          <p class="text-gray-500 uppercase tracking-wider text-xs">Statut</p>
+          <span [class]="request()!.status === 'PENDING' ? 'text-amber-600' : request()!.status === 'APPROVED' ? 'text-green-600' : 'text-red-600'"
+            class="font-medium">{{ statusLabel(request()!.status) }}</span>
+        </div>
+        <ng-container *ngIf="request()!.status !== 'PENDING'">
+          <div>
+            <p class="text-gray-500 uppercase tracking-wider text-xs">Décision par</p>
+            <p class="text-gray-800">{{ request()!.reviewed_by_name ?? '–' }}</p>
+          </div>
+          <div>
+            <p class="text-gray-500 uppercase tracking-wider text-xs">Date de décision</p>
+            <p class="text-gray-800">{{ request()!.reviewed_at | date:'medium' }}</p>
+          </div>
+        </ng-container>
+      </div>
+    </div>
+
+    <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+      <h2 class="text-lg font-semibold text-gray-800 mb-3">Justification</h2>
+      <p class="text-gray-700 whitespace-pre-wrap">{{ request()!.reason || '–' }}</p>
+    </div>
+
+    <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+      <h2 class="text-lg font-semibold text-gray-800 mb-3">Documents joints</h2>
+      <ul *ngIf="request()!.documents?.length" class="space-y-2">
+        <li *ngFor="let d of request()!.documents"
+          class="flex items-center justify-between py-2 px-3 bg-gray-50 rounded-lg">
+          <span class="text-gray-700">
+            <i class="fas fa-file-alt text-gray-400 mr-2"></i>{{ d.file_name }}
+            <span *ngIf="d.uploaded_at" class="text-gray-400 text-xs ml-2">{{ d.uploaded_at | date:'short' }}</span>
+          </span>
+          <button type="button" (click)="downloadDocument(d.file_path, d.file_name)"
+            class="text-sm font-medium text-brand-900 hover:underline">
+            <i class="fas fa-download mr-1"></i>Télécharger
+          </button>
+        </li>
+      </ul>
+      <p *ngIf="!request()!.documents?.length" class="text-gray-500">Aucun document joint.</p>
+    </div>
+
+    <div *ngIf="isCorporate && request()!.status === 'PENDING'" class="flex gap-3">
+      <button type="button" (click)="approve()" [disabled]="actionLoading()"
+        class="px-4 py-2 rounded-xl text-sm font-semibold text-white bg-brand-900 hover:opacity-90 disabled:opacity-50">
+        Approuver la demande
+      </button>
+      <button type="button" (click)="reject()" [disabled]="actionLoading()"
+        class="px-4 py-2 rounded-xl text-sm font-semibold bg-white text-brand-900 border-2 border-brand-900 hover:bg-gray-50 disabled:opacity-50">
+        Rejeter la demande
+      </button>
+    </div>
+  </div>
+</div>

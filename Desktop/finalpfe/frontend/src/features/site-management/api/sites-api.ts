@@ -23,7 +23,6 @@ export interface UserSite {
   user_last_name: string;
   user_email: string;
   user_role: string;
-  access_type: string;
   grade: string;
   is_active: boolean;
   granted_at: string | null;
@@ -39,12 +38,10 @@ export interface AvailableUser {
 
 export interface AssignUserPayload {
   user_id: string;
-  access_type: 'FULL' | 'READ_ONLY';
   grade?: 'level_0' | 'level_1' | 'level_2' | null;
 }
 
 export interface UpdateUserSitePayload {
-  access_type?: 'FULL' | 'READ_ONLY';
   grade?: 'level_0' | 'level_1' | 'level_2' | null;
 }
 
@@ -86,7 +83,7 @@ assignUser(siteId: string, payload: AssignUserPayload): Observable<UserSite> {
   return this.http.post<UserSite>(`${this.apiUrl}/sites/${siteId}/users`, payload);
 }
 
-/** Modifier grade/access_type d'un user sur un site */
+/** Modifier le grade d'un user sur un site */
 updateUserSite(siteId: string, userId: string, payload: UpdateUserSitePayload): Observable<UserSite> {
   return this.http.put<UserSite>(`${this.apiUrl}/sites/${siteId}/users/${userId}`, payload);
 }

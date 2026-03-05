@@ -51,3 +51,7 @@ class ChangeRequest(db.Model):
     )
     reviewed_at = db.Column(db.DateTime, nullable=True, comment="Date de décision")
     created_at = db.Column(db.DateTime, default=db.func.now(), comment="Date de soumission")
+
+    site = db.relationship("Site", backref="change_requests", lazy="joined")
+    requester = db.relationship("User", foreign_keys=[requested_by], lazy="joined")
+    reviewer = db.relationship("User", foreign_keys=[reviewed_by], lazy="joined")

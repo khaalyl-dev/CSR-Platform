@@ -42,6 +42,7 @@ export class UserDetailComponent implements OnInit {
 
   form = this.fb.group({
     site_ids: [[] as string[]],
+    default_grade: ['level_0' as 'level_0' | 'level_1'],
   });
 
   ngOnInit(): void {
@@ -99,6 +100,7 @@ export class UserDetailComponent implements OnInit {
     const raw = this.form.getRawValue();
     this.usersApi.assignSites(u.id, {
       site_ids: raw.site_ids ?? [],
+      default_grade: raw.default_grade ?? undefined,
     }).subscribe({
       next: () => {
         this.loadUser(u.id);
@@ -171,5 +173,11 @@ export class UserDetailComponent implements OnInit {
   /** Map role to display label */
   roleLabel(role: string): string {
     return role === 'CORPORATE_USER' ? 'Corporate' : 'Site';
+  }
+
+  /** Map grade to display label */
+  gradeLabel(grade: string | null | undefined): string {
+    if (!grade) return '—';
+    return grade === 'level_1' ? 'Level 1' : grade === 'level_0' ? 'Level 0' : grade;
   }
 }

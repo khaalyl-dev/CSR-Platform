@@ -2,12 +2,12 @@
   <h1 class="mb-2 text-2xl font-semibold text-slate-800">Interface site</h1>
   @if (summary(); as s) {
     <p class="mb-6 text-slate-600">
-      Bienvenue sur la plateforme CSR de votre site.
+      Bienvenue sur CSR Insight pour votre site.
       <span class="font-medium">Site ID :</span>
       <span class="font-mono">{{ s.siteId ?? '—' }}</span>
     </p>
   } @else {
-    <p class="mb-6 text-slate-600">Bienvenue sur la plateforme CSR de votre site.</p>
+    <p class="mb-6 text-slate-600">Bienvenue sur CSR Insight pour votre site.</p>
   }
   @if (errorMessage()) {
     <p class="mb-4 rounded-md bg-red-50 p-3 text-sm text-red-800">{{ errorMessage() }}</p>
@@ -33,10 +33,10 @@
         </div>
       </div>
       <div class="mt-4 flex flex-wrap items-center gap-3">
-        <button type="button" class="inline-flex items-center rounded-lg bg-slate-800 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700 disabled:opacity-50" disabled>
+        <button type="button" class="inline-flex items-center rounded-lg bg-brand-900 px-4 py-2 text-sm font-medium text-white hover:bg-brand-800 disabled:opacity-50" disabled>
           Plans annuels (bientôt)
         </button>
-        <button type="button" class="inline-flex items-center rounded-lg bg-slate-700 px-4 py-2 text-sm font-medium text-white hover:bg-slate-600 disabled:opacity-50" disabled>
+        <button type="button" class="inline-flex items-center rounded-lg bg-brand-800 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-50" disabled>
           Activités réalisées (bientôt)
         </button>
       </div>

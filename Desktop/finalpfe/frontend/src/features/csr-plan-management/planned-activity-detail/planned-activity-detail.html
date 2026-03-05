@@ -1,0 +1,57 @@
+<div class="p-8 bg-gray-50 min-h-screen">
+  <div class="flex items-center justify-between mb-6">
+    <button type="button" (click)="back()"
+      class="flex items-center gap-2 text-gray-600 hover:text-gray-800 font-medium">
+      <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+      </svg>
+      Retour à la liste
+    </button>
+  </div>
+
+  <div *ngIf="loading()" class="text-center py-12 text-gray-500">Chargement...</div>
+  <div *ngIf="errorMsg()" class="text-center py-12 text-red-600">{{ errorMsg() }}</div>
+
+  <div *ngIf="activity() && !loading()" class="space-y-6">
+    <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+      <div class="flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <h1 class="text-2xl font-bold text-gray-800">{{ activityTitle() }}</h1>
+          <p class="text-gray-500 mt-1" *ngIf="activity()!.activity_number">{{ activity()!.activity_number }}</p>
+          <p class="text-gray-500 mt-1">{{ activity()!.site_name ?? activity()!.site_code ?? '–' }} – {{ activity()!.year }}</p>
+        </div>
+        <div class="flex items-center gap-3">
+          <a *ngIf="activity()!.plan_id" [routerLink]="['/csr-plans', activity()!.plan_id]"
+            class="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-brand-900 text-white hover:opacity-90 text-sm font-medium">
+            Voir le plan
+          </a>
+          <a *ngIf="activity()!.plan_editable !== false" [routerLink]="['/planned-activity', activity()!.id, 'edit']"
+            class="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-gray-300 text-gray-700 hover:bg-gray-50 text-sm font-medium">
+            Modifier
+          </a>
+          <span *ngIf="activity()!.plan_editable === false" class="text-sm text-gray-500" title="Plan verrouillé : soumettre une demande de modification">
+            <i class="fas fa-lock-open mr-1"></i>Verrouillé
+          </span>
+        </div>
+      </div>
+    </div>
+
+    <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+      <h2 class="p-4 font-semibold text-gray-800 border-b border-gray-100">{{ sectionTitle() }}</h2>
+      <div class="p-6 grid grid-cols-1 md:grid-cols-2 gap-6 text-sm">
+        <div>
+          <p class="text-gray-500 text-xs uppercase tracking-wider">Catégorie</p>
+          <p class="text-gray-800 mt-0.5">{{ activity()!.category_name ?? '–' }}</p>
+        </div>
+        <div>
+          <p class="text-gray-500 text-xs uppercase tracking-wider">Budget prévu (€)</p>
+          <p class="font-semibold text-gray-800 mt-0.5">{{ activity()!.planned_budget != null ? (activity()!.planned_budget | number:'1.0-0') + ' €' : '–' }}</p>
+        </div>
+        <div *ngIf="activity()!.description" class="md:col-span-2">
+          <p class="text-gray-500 text-xs uppercase tracking-wider">Description</p>
+          <p class="text-gray-800 mt-0.5 whitespace-pre-wrap">{{ activity()!.description }}</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

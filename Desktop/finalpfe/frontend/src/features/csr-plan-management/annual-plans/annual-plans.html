@@ -4,10 +4,91 @@
       <h1 class="text-3xl font-bold tracking-tight text-gray-800">Plans annuels CSR</h1>
       <p class="text-gray-500 mt-1">Création et suivi des plans CSR par site</p>
     </div>
-    <a routerLink="/csr-plans/create"
-      class="bg-[rgb(30,41,59)] text-white px-5 py-2.5 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 inline-flex items-center gap-2">
-      + Nouveau plan
-    </a>
+    <div class="flex items-center gap-3 flex-wrap">
+      <label class="bg-brand-900 text-white px-5 py-2.5 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 inline-flex items-center gap-2 cursor-pointer">
+        <input type="file" accept=".xlsx" class="hidden" (change)="onImportFile($event)" [disabled]="importLoading()" />
+        <span *ngIf="!importLoading()"><i class="fas fa-file-excel mr-1"></i> Importer Excel</span>
+        <span *ngIf="importLoading()"><i class="fas fa-spinner fa-spin mr-1"></i> Import...</span>
+      </label>
+      <a routerLink="/csr-plans/create"
+        class="bg-brand-900 text-white px-5 py-2.5 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 inline-flex items-center gap-2">
+        + Nouveau plan
+      </a>
+    </div>
+  </div>
+
+  <!-- Modal: choose validation mode per plan before import -->
+  <div *ngIf="showImportModal()"
+    class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+    (click)="$event.target === $event.currentTarget && cancelImportModal()">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[85vh] flex flex-col"
+      (click)="$event.stopPropagation()">
+      <div class="flex items-center justify-between p-6 border-b border-gray-100">
+        <h2 class="text-xl font-bold text-gray-800">
+          <i class="fas fa-file-excel text-emerald-600 mr-2"></i> Choisir le mode de validation par plan
+        </h2>
+        <button type="button" (click)="cancelImportModal()" class="text-gray-400 hover:text-gray-600 p-1">
+          <i class="fas fa-times text-xl"></i>
+        </button>
+      </div>
+      <p class="px-6 py-2 text-sm text-gray-500">Choisir les modes du validations puis cliquez sur Importer.</p>
+      <div *ngIf="importPreviewErrors().length" class="mx-6 mb-2 p-3 bg-amber-50 border border-amber-200 rounded-xl text-amber-800 text-sm">
+        <span class="font-medium">{{ importPreviewErrors().length }} avertissement(s)</span>
+        <pre class="mt-1 whitespace-pre-wrap">{{ importPreviewErrors().slice(0, 5).join('\n') }}</pre>
+      </div>
+      <div class="flex-1 overflow-auto px-6 pb-4">
+        <table class="w-full text-sm">
+          <thead class="bg-gray-50 sticky top-0">
+            <tr>
+              <th class="p-3 text-left text-gray-600 font-semibold">Site</th>
+              <th class="p-3 text-left text-gray-600 font-semibold">Année</th>
+              <th class="p-3 text-left text-gray-600 font-semibold">Mode de validation</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let plan of importPlansWithModes(); let i = index" class="border-t border-gray-100 hover:bg-gray-50/50">
+              <td class="p-3 font-medium text-gray-800">{{ plan.site_name ?? plan.site_id }}</td>
+              <td class="p-3 text-gray-700">{{ plan.year }}</td>
+              <td class="p-3">
+                <select
+                  class="w-full max-w-[180px] pl-3 pr-8 py-2 border border-gray-200 rounded-lg text-gray-700 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                  (change)="setPlanMode(i, $any($event.target).value)">
+                  <option value="101" [selected]="plan.validation_mode === '101'">Corporate only</option>
+                  <option value="111" [selected]="plan.validation_mode === '111'">ALL</option>
+                </select>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="flex justify-end gap-3 p-6 border-t border-gray-100">
+        <button type="button" (click)="cancelImportModal()"
+          class="px-5 py-2.5 rounded-xl border border-gray-300 text-gray-700 hover:bg-gray-50 font-medium">
+          Annuler
+        </button>
+        <button type="button" (click)="confirmImport()" [disabled]="importLoading() || !importPlansWithModes().length"
+          class="px-6 py-2.5 rounded-xl bg-brand-900 hover:bg-brand-800 disabled:opacity-50 text-white font-semibold">
+          <span *ngIf="!importLoading()">Importer</span>
+          <span *ngIf="importLoading()"><i class="fas fa-spinner fa-spin mr-1"></i> Import...</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Import result message -->
+  <div *ngIf="importResult() as result"
+    class="rounded-xl border p-4 flex items-start justify-between gap-4"
+    [class.bg-green-50]="result.success"
+    [class.border-green-200]="result.success"
+    [class.bg-red-50]="!result.success"
+    [class.border-red-200]="!result.success">
+    <div class="min-w-0">
+      <p [class.text-green-800]="result.success" [class.text-red-800]="!result.success" class="font-medium">{{ result.message }}</p>
+      <pre *ngIf="result.details" class="mt-2 text-sm whitespace-pre-wrap break-words" [class.text-green-700]="result.success" [class.text-red-700]="!result.success">{{ result.details }}</pre>
+    </div>
+    <button type="button" (click)="clearImportResult()" class="text-gray-500 hover:text-gray-700 shrink-0">
+      <i class="fas fa-times"></i>
+    </button>
   </div>
 
   <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -25,61 +106,75 @@
     </div>
   </div>
 
-  <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 flex flex-wrap items-center gap-4 justify-between">
-    <div class="flex flex-1 items-center gap-4 min-w-0">
-      <!-- Recherche -->
-      <div class="relative flex-1 min-w-0">
-        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-5 h-5 text-gray-400">
+  <!-- Filters row: fixed layout, never shrinks -->
+  <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+    <div class="flex items-center gap-4">
+      <div class="relative flex-1 min-w-[200px]">
+        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-5 h-5">
             <path fill-rule="evenodd" d="M10.5 3.75a6.75 6.75 0 1 0 0 13.5 6.75 6.75 0 0 0 0-13.5ZM2.25 10.5a8.25 8.25 0 1 1 14.59 5.28l4.69 4.69a.75.75 0 1 1-1.06 1.06l-4.69-4.69A8.25 8.25 0 0 1 2.25 10.5Z" clip-rule="evenodd"/>
           </svg>
         </div>
         <input type="text" placeholder="Rechercher par site ou année..."
-          class="pl-10 pr-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none w-full min-w-0"
+          class="pl-10 pr-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none w-full"
           (input)="search.set($any($event.target).value)" />
       </div>
-
-      <!-- Filtre statut -->
-      <div class="relative flex-shrink-0">
-        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor" class="w-4 h-4 text-gray-500">
+      <div class="relative w-[180px] flex-shrink-0">
+        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-500">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor" class="w-4 h-4">
             <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
           </svg>
         </div>
         <select
-          class="pl-9 pr-10 py-2.5 bg-gray-100 border-0 rounded-xl text-sm text-gray-700 font-medium focus:ring-2 focus:ring-blue-500 focus:bg-white focus:outline-none transition-all appearance-none cursor-pointer hover:bg-gray-200 min-w-[180px]"
+          class="pl-9 pr-10 py-2.5 w-full bg-gray-100 border-0 rounded-xl text-sm text-gray-700 font-medium focus:ring-2 focus:ring-blue-500 focus:bg-white focus:outline-none appearance-none cursor-pointer hover:bg-gray-200"
           [value]="selectedStatus()"
           (change)="selectedStatus.set($any($event.target).value)">
           <option value="">Tous statuts</option>
           <option value="DRAFT">Brouillon</option>
           <option value="SUBMITTED">Soumis</option>
-          <option value="VALIDATED">Validé</option>
+          <option value="VALIDATED_LOCKED">Validé</option>
+          <option value="VALIDATED_OPEN">Verrouillé</option>
           <option value="REJECTED">Rejeté</option>
-          <option value="LOCKED">Verrouillé</option>
         </select>
-        <div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
-          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-3.5 h-3.5 text-gray-500">
+        <div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none text-gray-500">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-3.5 h-3.5">
             <path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5"/>
           </svg>
         </div>
       </div>
-
-      <!-- Filtre année -->
-      <div class="relative flex-shrink-0">
-        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor" class="w-4 h-4 text-gray-500">
+      <div class="relative w-[180px] flex-shrink-0">
+        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-500">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor" class="w-4 h-4">
             <path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5" />
           </svg>
         </div>
         <select
-          class="pl-9 pr-10 py-2.5 bg-gray-100 border-0 rounded-xl text-sm text-gray-700 font-medium focus:ring-2 focus:ring-blue-500 focus:bg-white focus:outline-none transition-all appearance-none cursor-pointer hover:bg-gray-200 min-w-[180px]"
+          class="pl-9 pr-10 py-2.5 w-full bg-gray-100 border-0 rounded-xl text-sm text-gray-700 font-medium focus:ring-2 focus:ring-blue-500 focus:bg-white focus:outline-none appearance-none cursor-pointer hover:bg-gray-200"
           [value]="selectedYear() ?? ''"
           (change)="selectedYear.set($any($event.target).value ? +$any($event.target).value : null)">
           <option value="">Toutes années</option>
           <option [value]="y" *ngFor="let y of [2025,2024,2023,2022,2021]">{{ y }}</option>
         </select>
-        <div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
-          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-3.5 h-3.5 text-gray-500">
+        <div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none text-gray-500">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-3.5 h-3.5">
+            <path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5"/>
+          </svg>
+        </div>
+      </div>
+
+      <!-- Bulk actions dropdown (fixed, always visible) -->
+      <div class="relative w-[140px] flex-shrink-0">
+        <select
+          [ngModel]="bulkActionChoice()"
+          (ngModelChange)="onBulkActionChange($event)"
+          [disabled]="bulkActionLoading() || selectedCount() === 0"
+          class="pl-3 pr-9 py-2.5 w-full bg-gray-100 border-0 rounded-xl text-sm text-gray-700 font-medium focus:ring-2 focus:ring-blue-500 focus:bg-white focus:outline-none appearance-none cursor-pointer hover:bg-gray-200 disabled:opacity-60 disabled:cursor-not-allowed">
+          <option value="">Actions</option>
+          <option value="submit" [disabled]="!canBulkSubmit()">Soumettre</option>
+          <option value="delete" [disabled]="!canBulkDelete()">Supprimer</option>
+        </select>
+        <div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none text-gray-500">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-3.5 h-3.5">
             <path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5"/>
           </svg>
         </div>
@@ -93,24 +188,34 @@
     <table *ngIf="!loading()" class="w-full text-sm">
       <thead class="bg-gray-50 text-gray-600 uppercase text-xs tracking-wider">
         <tr>
+          <th class="p-4 w-12 text-center">
+            <label class="cursor-pointer flex items-center justify-center gap-1 select-none" title="Tout sélectionner / désélectionner">
+              <input type="checkbox"
+                [checked]="isAllFilteredSelected()"
+                [indeterminate]="isSomeFilteredSelected() && !isAllFilteredSelected()"
+                (change)="toggleSelectAllFiltered()"
+                class="rounded border-gray-300 text-slate-700 focus:ring-brand-700 w-4 h-4" />
+              <span class="sr-only">Tout sélectionner</span>
+            </label>
+          </th>
           <th (click)="sortBy('site_name')"
             class="p-4 text-left cursor-pointer hover:bg-gray-100 transition select-none">
             <div class="flex items-center gap-2">
               <span class="flex flex-col gap-0.5">
                 <svg xmlns="http://www.w3.org/2000/svg" class="w-3 h-3 transition-colors"
-                  [class.text-blue-900]="sortColumn() === 'site_name' && sortDirection() === 'asc'"
+                  [class.text-brand-900]="sortColumn() === 'site_name' && sortDirection() === 'asc'"
                   [class.text-gray-300]="sortColumn() !== 'site_name' || sortDirection() !== 'asc'"
                   viewBox="0 0 24 24" fill="currentColor">
                   <path fill-rule="evenodd" d="M11.47 7.72a.75.75 0 0 1 1.06 0l7.5 7.5a.75.75 0 1 1-1.06 1.06L12 9.31l-6.97 6.97a.75.75 0 0 1-1.06-1.06l7.5-7.5Z" clip-rule="evenodd"/>
                 </svg>
                 <svg xmlns="http://www.w3.org/2000/svg" class="w-3 h-3 transition-colors"
-                  [class.text-blue-900]="sortColumn() === 'site_name' && sortDirection() === 'desc'"
+                  [class.text-brand-900]="sortColumn() === 'site_name' && sortDirection() === 'desc'"
                   [class.text-gray-300]="sortColumn() !== 'site_name' || sortDirection() !== 'desc'"
                   viewBox="0 0 24 24" fill="currentColor">
                   <path fill-rule="evenodd" d="M12.53 16.28a.75.75 0 0 1-1.06 0l-7.5-7.5a.75.75 0 0 1 1.06-1.06L12 14.69l6.97-6.97a.75.75 0 1 1 1.06 1.06l-7.5 7.5Z" clip-rule="evenodd"/>
                 </svg>
               </span>
-              <span [class.text-blue-900]="sortColumn() === 'site_name'" [class.font-bold]="sortColumn() === 'site_name'">Site</span>
+              <span [class.text-brand-900]="sortColumn() === 'site_name'" [class.font-bold]="sortColumn() === 'site_name'">Site</span>
             </div>
           </th>
           <th (click)="sortBy('year')"
@@ -118,19 +223,19 @@
             <div class="flex items-center gap-2">
               <span class="flex flex-col gap-0.5">
                 <svg xmlns="http://www.w3.org/2000/svg" class="w-3 h-3 transition-colors"
-                  [class.text-blue-900]="sortColumn() === 'year' && sortDirection() === 'asc'"
+                  [class.text-brand-900]="sortColumn() === 'year' && sortDirection() === 'asc'"
                   [class.text-gray-300]="sortColumn() !== 'year' || sortDirection() !== 'asc'"
                   viewBox="0 0 24 24" fill="currentColor">
                   <path fill-rule="evenodd" d="M11.47 7.72a.75.75 0 0 1 1.06 0l7.5 7.5a.75.75 0 1 1-1.06 1.06L12 9.31l-6.97 6.97a.75.75 0 0 1-1.06-1.06l7.5-7.5Z" clip-rule="evenodd"/>
                 </svg>
                 <svg xmlns="http://www.w3.org/2000/svg" class="w-3 h-3 transition-colors"
-                  [class.text-blue-900]="sortColumn() === 'year' && sortDirection() === 'desc'"
+                  [class.text-brand-900]="sortColumn() === 'year' && sortDirection() === 'desc'"
                   [class.text-gray-300]="sortColumn() !== 'year' || sortDirection() !== 'desc'"
                   viewBox="0 0 24 24" fill="currentColor">
                   <path fill-rule="evenodd" d="M12.53 16.28a.75.75 0 0 1-1.06 0l-7.5-7.5a.75.75 0 0 1 1.06-1.06L12 14.69l6.97-6.97a.75.75 0 1 1 1.06 1.06l-7.5 7.5Z" clip-rule="evenodd"/>
                 </svg>
               </span>
-              <span [class.text-blue-900]="sortColumn() === 'year'" [class.font-bold]="sortColumn() === 'year'">Année</span>
+              <span [class.text-brand-900]="sortColumn() === 'year'" [class.font-bold]="sortColumn() === 'year'">Année</span>
             </div>
           </th>
           <th (click)="sortBy('total_budget')"
@@ -138,47 +243,56 @@
             <div class="flex items-center justify-end gap-2">
               <span class="flex flex-col gap-0.5">
                 <svg xmlns="http://www.w3.org/2000/svg" class="w-3 h-3 transition-colors"
-                  [class.text-blue-900]="sortColumn() === 'total_budget' && sortDirection() === 'asc'"
+                  [class.text-brand-900]="sortColumn() === 'total_budget' && sortDirection() === 'asc'"
                   [class.text-gray-300]="sortColumn() !== 'total_budget' || sortDirection() !== 'asc'"
                   viewBox="0 0 24 24" fill="currentColor">
                   <path fill-rule="evenodd" d="M11.47 7.72a.75.75 0 0 1 1.06 0l7.5 7.5a.75.75 0 1 1-1.06 1.06L12 9.31l-6.97 6.97a.75.75 0 0 1-1.06-1.06l7.5-7.5Z" clip-rule="evenodd"/>
                 </svg>
                 <svg xmlns="http://www.w3.org/2000/svg" class="w-3 h-3 transition-colors"
-                  [class.text-blue-900]="sortColumn() === 'total_budget' && sortDirection() === 'desc'"
+                  [class.text-brand-900]="sortColumn() === 'total_budget' && sortDirection() === 'desc'"
                   [class.text-gray-300]="sortColumn() !== 'total_budget' || sortDirection() !== 'desc'"
                   viewBox="0 0 24 24" fill="currentColor">
                   <path fill-rule="evenodd" d="M12.53 16.28a.75.75 0 0 1-1.06 0l-7.5-7.5a.75.75 0 0 1 1.06-1.06L12 14.69l6.97-6.97a.75.75 0 1 1 1.06 1.06l-7.5 7.5Z" clip-rule="evenodd"/>
                 </svg>
               </span>
-              <span [class.text-blue-900]="sortColumn() === 'total_budget'" [class.font-bold]="sortColumn() === 'total_budget'">Budget total</span>
+              <span [class.text-brand-900]="sortColumn() === 'total_budget'" [class.font-bold]="sortColumn() === 'total_budget'">Budget total</span>
             </div>
           </th>
           <th class="p-4 text-center">Mode</th>
+          <th class="p-4 text-center">Activités</th>
+          <th class="p-4 text-left">Créé le</th>
           <th (click)="sortBy('status')"
             class="p-4 text-center cursor-pointer hover:bg-gray-100 transition select-none">
             <div class="flex items-center justify-center gap-2">
               <span class="flex flex-col gap-0.5">
                 <svg xmlns="http://www.w3.org/2000/svg" class="w-3 h-3 transition-colors"
-                  [class.text-blue-900]="sortColumn() === 'status' && sortDirection() === 'asc'"
+                  [class.text-brand-900]="sortColumn() === 'status' && sortDirection() === 'asc'"
                   [class.text-gray-300]="sortColumn() !== 'status' || sortDirection() !== 'asc'"
                   viewBox="0 0 24 24" fill="currentColor">
                   <path fill-rule="evenodd" d="M11.47 7.72a.75.75 0 0 1 1.06 0l7.5 7.5a.75.75 0 1 1-1.06 1.06L12 9.31l-6.97 6.97a.75.75 0 0 1-1.06-1.06l7.5-7.5Z" clip-rule="evenodd"/>
                 </svg>
                 <svg xmlns="http://www.w3.org/2000/svg" class="w-3 h-3 transition-colors"
-                  [class.text-blue-900]="sortColumn() === 'status' && sortDirection() === 'desc'"
+                  [class.text-brand-900]="sortColumn() === 'status' && sortDirection() === 'desc'"
                   [class.text-gray-300]="sortColumn() !== 'status' || sortDirection() !== 'desc'"
                   viewBox="0 0 24 24" fill="currentColor">
                   <path fill-rule="evenodd" d="M12.53 16.28a.75.75 0 0 1-1.06 0l-7.5-7.5a.75.75 0 0 1 1.06-1.06L12 14.69l6.97-6.97a.75.75 0 1 1 1.06 1.06l-7.5 7.5Z" clip-rule="evenodd"/>
                 </svg>
               </span>
-              <span [class.text-blue-900]="sortColumn() === 'status'" [class.font-bold]="sortColumn() === 'status'">Statut</span>
+              <span [class.text-brand-900]="sortColumn() === 'status'" [class.font-bold]="sortColumn() === 'status'">Statut</span>
             </div>
           </th>
           <th class="p-4 text-center">Actions</th>
         </tr>
       </thead>
       <tbody>
-        <tr *ngFor="let plan of filteredPlans()" class="border-t hover:bg-gray-50 transition duration-200">
+        <tr *ngFor="let plan of filteredPlans()" class="border-t hover:bg-gray-50 transition duration-200"
+          [class.bg-brand-100/70]="isSelected(plan.id)">
+          <td class="p-4 w-12 text-center">
+            <label class="cursor-pointer flex items-center justify-center" (click)="$event.stopPropagation()">
+              <input type="checkbox" [checked]="isSelected(plan.id)" (change)="toggleSelection(plan.id)"
+                class="rounded border-gray-300 text-slate-700 focus:ring-brand-700 w-4 h-4" />
+            </label>
+          </td>
           <td class="p-4">
             <span class="font-medium text-gray-800">{{ plan.site_name ?? plan.site_code ?? plan.site_id }}</span>
             <span class="text-gray-400 text-xs ml-1" *ngIf="plan.site_code">({{ plan.site_code }})</span>
@@ -187,32 +301,57 @@
           <td class="p-4 text-right text-gray-700">
             {{ plan.total_budget != null ? (plan.total_budget | number:'1.0-0') + ' €' : '–' }}
           </td>
-          <td class="p-4 text-center text-gray-600">{{ plan.validation_mode }}</td>
+          <td class="p-4 text-center text-gray-600">{{ validationModeLabel(plan.validation_mode) }}</td>
+          <td class="p-4 text-center text-gray-700">{{ plan.activities_count ?? 0 }}</td>
+          <td class="p-4 text-gray-600 text-xs">{{ plan.created_at ? (plan.created_at | date:'dd/MM/yyyy') : '–' }}</td>
           <td class="p-4 text-center">
-            <span class="px-3 py-1 rounded-full text-xs font-semibold"
-              [ngClass]="{
-                'bg-gray-200 text-gray-700': plan.status === 'DRAFT',
-                'bg-yellow-100 text-yellow-700': plan.status === 'SUBMITTED',
-                'bg-green-100 text-green-700': plan.status === 'VALIDATED',
-                'bg-red-100 text-red-700': plan.status === 'REJECTED',
-                'bg-slate-200 text-slate-700': plan.status === 'LOCKED'
-              }">{{ statusLabel(plan.status) }}</span>
+            <span class="px-3 py-1 rounded-full text-xs font-semibold" [ngClass]="statusBadgeClass(plan)">{{ getStatusLabel(plan) }}</span>
           </td>
           <td class="p-4 text-center">
-            <div class="flex items-center justify-center gap-2 flex-wrap">
-              <button *ngIf="plan.status === 'DRAFT'" type="button"
-                (click)="submitForValidation(plan)"
-                class="text-blue-600 hover:text-blue-800 font-medium transition text-sm">
-                Valider
+            <div class="flex items-center justify-center gap-1">
+              <a [routerLink]="['/csr-plans', plan.id]"
+                class="p-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors"
+                title="Détails">
+                <i class="fas fa-eye text-sm"></i>
+              </a>
+              <button *ngIf="plan.status === 'VALIDATED' && !isPlanEditable(plan)" type="button" (click)="goToChangeRequest(plan.id); $event.stopPropagation()"
+                class="inline-flex items-center justify-center p-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors cursor-pointer" title="Demande de modification">
+                <i class="fas fa-lock-open text-sm"></i>
               </button>
-              <a [routerLink]="['/csr-plans', plan.id]" class="text-blue-600 hover:text-blue-800 font-medium transition text-sm">Détails</a>
+              <button *ngIf="isPlanEditable(plan)" type="button" (click)="toggleMenu(plan, $event)"
+                class="inline-flex items-center justify-center p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">
+                <i class="fas fa-ellipsis-vertical text-sm"></i>
+              </button>
             </div>
           </td>
         </tr>
         <tr *ngIf="!loading() && filteredPlans().length === 0" class="border-t">
-          <td colspan="6" class="p-8 text-center text-gray-500">Aucun plan. <a routerLink="/csr-plans/create" class="text-blue-600 hover:underline">Créer un plan</a></td>
+          <td colspan="9" class="p-8 text-center text-gray-500">Aucun plan. <a routerLink="/csr-plans/create" class="text-brand-700 hover:underline">Créer un plan</a></td>
         </tr>
       </tbody>
     </table>
   </div>
+</div>
+
+<!-- Dropdown actions (3 points) – same style as document action -->
+<div *ngIf="activeMenuPlan"
+  class="fixed bg-white border border-gray-200 rounded-xl shadow-xl z-[9999] w-44 py-1 overflow-hidden"
+  [style.top.px]="menuPosition.top"
+  [style.left.px]="menuPosition.left"
+  (click)="$event.stopPropagation()">
+
+  <button *ngIf="canSubmitFromList(activeMenuPlan!)" (click)="submitFromMenu(activeMenuPlan!)"
+    class="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors">
+    <i class="fas fa-paper-plane text-brand-700 w-4 text-center"></i>
+    Soumettre
+  </button>
+
+  <div class="border-t border-gray-100 my-1"></div>
+
+  <button *ngIf="activeMenuPlan!.status === 'DRAFT' || activeMenuPlan!.status === 'REJECTED'" (click)="deleteFromMenu(activeMenuPlan!)"
+    class="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 transition-colors">
+    <i class="fas fa-trash w-4 text-center"></i>
+    Supprimer
+  </button>
+
 </div>

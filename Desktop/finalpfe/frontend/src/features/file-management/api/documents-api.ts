@@ -24,6 +24,11 @@ export class DocumentsApi {
     return `${this.apiUrl}/documents/download/${filePath}`;
   }
 
+  /** Upload file (e.g. for change request). FormData: file, site_id, optional change_request_id */
+  upload(formData: FormData): Observable<Document & { file_size?: number }> {
+    return this.http.post<Document & { file_size?: number }>(`${this.apiUrl}/documents/upload`, formData);
+  }
+
   deleteDocument(docId: string): Observable<{message: string}> {
   return this.http.delete<{message: string}>(`${this.apiUrl}/documents/${docId}`);
 }
