@@ -1,14 +1,14 @@
 /**
- * ProfileComponent - "Mon Profil" page.
- * Displays current user identity, personal info, site access (SITE_USER), and password change form.
+ * ProfileComponent - Paramètres / Gestion du compte.
+ * Displays identity with photo upload, personal info, password change, site access.
  * Route: /account/profile
  */
-import { Component, inject, signal, OnInit } from '@angular/core';
+import { Component, inject, signal, OnInit, OnDestroy, effect } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
+import { HttpClient } from '@angular/common/http';
 import { FontAwesomeModule } from '@fortawesome/angular-fontawesome';
 import {
-  faUser,
   faEnvelope,
   faIdCard,
   faCalendarCheck,
@@ -27,11 +27,11 @@ import { AuthApi, type ProfileResponse } from '../login/auth-api';
   templateUrl: './profile.html',
   styleUrl: './profile.css',
 })
-export class ProfileComponent implements OnInit {
+export class ProfileComponent implements OnInit, OnDestroy {
   private readonly authApi = inject(AuthApi);
   private readonly fb = inject(FormBuilder);
+  private readonly http = inject(HttpClient);
 
-  protected readonly faUser = faUser;
   protected readonly faEnvelope = faEnvelope;
   protected readonly faIdCard = faIdCard;
   protected readonly faCalendarCheck = faCalendarCheck;
@@ -47,6 +47,10 @@ export class ProfileComponent implements OnInit {
   passwordSuccess = signal<string | null>(null);
   passwordError = signal<string | null>(null);
   changingPassword = signal(false);
+  photoUploading = signal(false);
+  photoError = signal<string | null>(null);
+  /** Blob URL for avatar image (loaded with auth so img can display it) */
+  avatarBlobUrl = signal<string | null>(null);
 
   passwordForm = this.fb.group({
     current_password: ['', Validators.required],
@@ -54,8 +58,31 @@ export class ProfileComponent implements OnInit {
     confirm_password: ['', Validators.required],
   });
 
+  constructor() {
+    effect(() => {
+      const p = this.profile();
+      const prevUrl = this.avatarBlobUrl();
+      if (prevUrl) {
+        URL.revokeObjectURL(prevUrl);
+        this.avatarBlobUrl.set(null);
+      }
+      if (p?.avatar_url) {
+        const sep = p.avatar_url.includes('?') ? '&' : '?';
+        this.http.get(`${p.avatar_url}${sep}t=${Date.now()}`, { responseType: 'blob' }).subscribe({
+          next: (blob) => this.avatarBlobUrl.set(URL.createObjectURL(blob)),
+          error: () => {},
+        });
+      }
+    });
+  }
+
   ngOnInit(): void {
     this.loadProfile();
+  }
+
+  ngOnDestroy(): void {
+    const url = this.avatarBlobUrl();
+    if (url) URL.revokeObjectURL(url);
   }
 
   /** Fetch profile from GET /api/auth/profile and update state */
@@ -99,6 +126,36 @@ export class ProfileComponent implements OnInit {
     const last = (p.last_name || '').trim();
     if (first || last) return `${first} ${last}`.trim();
     return p.email;
+  }
+
+  /** Handle profile photo file selection: upload and refresh profile avatar_url */
+  onPhotoSelected(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const file = input?.files?.[0];
+    if (!file) return;
+    const allowed = ['image/png', 'image/jpeg', 'image/jpg', 'image/gif', 'image/webp'];
+    if (!allowed.includes(file.type)) {
+      this.photoError.set('Format accepté : PNG, JPG, GIF ou WEBP.');
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      this.photoError.set('Taille maximale : 5 Mo.');
+      return;
+    }
+    this.photoError.set(null);
+    this.photoUploading.set(true);
+    this.authApi.uploadProfilePhoto(file).subscribe({
+      next: () => {
+        this.photoUploading.set(false);
+        input.value = '';
+        this.loadProfile();
+      },
+      error: (err) => {
+        this.photoUploading.set(false);
+        this.photoError.set(err?.error?.message ?? 'Erreur lors de l\'envoi de la photo.');
+        input.value = '';
+      },
+    });
   }
 
   /** Submit password change form: validate confirm match, call changePassword API */

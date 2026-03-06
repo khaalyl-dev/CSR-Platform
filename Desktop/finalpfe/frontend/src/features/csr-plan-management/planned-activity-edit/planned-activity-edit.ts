@@ -1,4 +1,4 @@
-import { Component, inject, OnInit, ChangeDetectorRef } from '@angular/core';
+import { Component, inject, OnInit, OnDestroy, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angular/forms';
 import { Router, ActivatedRoute, RouterLink } from '@angular/router';
@@ -6,6 +6,9 @@ import { catchError, of, switchMap, timeout } from 'rxjs';
 import { CsrActivitiesApi } from '@features/realized-activity-management/api/csr-activities-api';
 import { CategoriesApi, CATEGORY_OTHER_VALUE } from '@features/realized-activity-management/api/categories-api';
 import { RealizedCsrApi } from '@features/realized-activity-management/api/realized-csr-api';
+import { HttpClient } from '@angular/common/http';
+import { DocumentsApi } from '@features/file-management/api/documents-api';
+import type { Document } from '@features/file-management/models/document.model';
 import type { PlannedActivityListItem } from '@features/realized-activity-management/api/csr-activities-api';
 import type { Category } from '@features/realized-activity-management/api/categories-api';
 import type { RealizedCsr } from '@features/realized-activity-management/models/realized-csr.model';
@@ -22,7 +25,7 @@ const MONTH_LABELS: Record<number, string> = {
   imports: [ReactiveFormsModule, CommonModule, RouterLink],
   templateUrl: './planned-activity-edit.html',
 })
-export class PlannedActivityEditComponent implements OnInit {
+export class PlannedActivityEditComponent implements OnInit, OnDestroy {
   private fb = inject(FormBuilder);
   private router = inject(Router);
   private route = inject(ActivatedRoute);
@@ -30,8 +33,16 @@ export class PlannedActivityEditComponent implements OnInit {
   private activitiesApi = inject(CsrActivitiesApi);
   private categoriesApi = inject(CategoriesApi);
   private realizedApi = inject(RealizedCsrApi);
+  private documentsApi = inject(DocumentsApi);
+  private http = inject(HttpClient);
 
   form!: FormGroup;
+  /** Photos linked to this activity. */
+  activityPhotos: Document[] = [];
+  /** Blob URLs for image thumbnails (auth). */
+  photoBlobUrls: Record<string, string> = {};
+  private blobUrlsToRevoke: string[] = [];
+  uploadingPhotos = false;
   /** When isPlanRealized: form for first realization (or new). */
   realizedForm!: FormGroup;
   activity = null as PlannedActivityListItem | null;
@@ -130,6 +141,7 @@ export class PlannedActivityEditComponent implements OnInit {
         });
         this.loadCategories();
         if (this.isPlanRealized && a.id) this.loadFirstRealization(a.id);
+        this.loadActivityPhotos(a.id);
       },
       error: () => {
         this.errorMsg = 'Impossible de charger l\'activité.';
@@ -163,6 +175,87 @@ export class PlannedActivityEditComponent implements OnInit {
         this.cdr.markForCheck();
       },
     });
+  }
+
+  private loadActivityPhotos(activityId: string): void {
+    this.documentsApi.listByEntity('ACTIVITY', activityId).pipe(
+      catchError(() => of([] as Document[])),
+    ).subscribe({
+      next: (list) => {
+        this.activityPhotos = list ?? [];
+        this.activityPhotos.filter((d) => this.isImageType(d)).forEach((doc) => {
+          const url = this.documentsApi.getServeUrl(doc.file_path);
+          this.http.get(url, { responseType: 'blob' }).subscribe({
+            next: (blob) => {
+              const blobUrl = URL.createObjectURL(blob);
+              this.blobUrlsToRevoke.push(blobUrl);
+              this.photoBlobUrls = { ...this.photoBlobUrls, [doc.id]: blobUrl };
+              this.cdr.markForCheck();
+            },
+          });
+        });
+        this.cdr.markForCheck();
+      },
+    });
+  }
+
+  onPhotoFilesSelected(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const files = input.files;
+    if (!files?.length || !this.activity?.id) return;
+    const siteId = (this.activity as PlannedActivityListItem).site_id;
+    if (!siteId) return;
+    this.uploadingPhotos = true;
+    this.cdr.markForCheck();
+    let done = 0;
+    const total = files.length;
+    Array.from(files).forEach((file) => {
+      const form = new FormData();
+      form.append('file', file);
+      form.append('site_id', siteId);
+      form.append('entity_type', 'ACTIVITY');
+      form.append('entity_id', this.activity!.id);
+      this.documentsApi.upload(form).subscribe({
+        next: (doc) => {
+          this.activityPhotos = [...this.activityPhotos, doc];
+          done++;
+          if (done === total) {
+            this.uploadingPhotos = false;
+            this.cdr.markForCheck();
+          }
+        },
+        error: () => {
+          done++;
+          if (done === total) {
+            this.uploadingPhotos = false;
+            this.cdr.markForCheck();
+          }
+        },
+      });
+    });
+    input.value = '';
+  }
+
+  deletePhoto(doc: Document): void {
+    this.documentsApi.deleteDocument(doc.id).subscribe({
+      next: () => {
+        this.activityPhotos = this.activityPhotos.filter((d) => d.id !== doc.id);
+        this.cdr.markForCheck();
+      },
+    });
+  }
+
+  isImageType(doc: Document): boolean {
+    const t = (doc.file_type || '').toLowerCase();
+    return ['png', 'jpg', 'jpeg', 'gif', 'webp'].includes(t);
+  }
+
+  getPhotoUrl(doc: Document): string {
+    return this.photoBlobUrls[doc.id] ?? this.documentsApi.getServeUrl(doc.file_path);
+  }
+
+  getDownloadUrl(doc: Document): string {
+    return this.documentsApi.getDownloadUrl(doc.file_path);
   }
 
   private loadCategories(): void {
@@ -274,5 +367,9 @@ export class PlannedActivityEditComponent implements OnInit {
   cancel(): void {
     if (this.activity?.plan_id) this.router.navigate(['/csr-plans', this.activity.plan_id]);
     else this.router.navigate(['/planned-activities']);
+  }
+
+  ngOnDestroy(): void {
+    this.blobUrlsToRevoke.forEach((u) => URL.revokeObjectURL(u));
   }
 }

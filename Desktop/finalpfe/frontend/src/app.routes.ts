@@ -34,6 +34,7 @@ import { ChangeRequestsListComponent } from '@features/change-request-management
 import { ChangeRequestsPendingComponent } from '@features/change-request-management/change-requests-pending/change-requests-pending';
 import { ChangeRequestsHistoryComponent } from '@features/change-request-management/change-requests-history/change-requests-history';
 import { ChangeRequestDetailComponent } from '@features/change-request-management/change-request-detail/change-request-detail';
+import { AuditListComponent } from '@features/audit-history-management/audit-list/audit-list';
 
 export const routes: Routes = [
   { path: 'login', component: Login },
@@ -72,6 +73,7 @@ export const routes: Routes = [
       { path: 'changes/pending', component: ChangeRequestsPendingComponent, canActivate: [roleGuard(['corporate'])] },
       { path: 'changes/history', component: ChangeRequestsHistoryComponent, canActivate: [roleGuard(['corporate'])] },
       { path: 'changes/:id', component: ChangeRequestDetailComponent },
+      { path: 'admin/audit', component: AuditListComponent, canActivate: [roleGuard(['corporate'])] },
 
       { path: '', redirectTo: 'dashboard', pathMatch: 'full' }
     ]

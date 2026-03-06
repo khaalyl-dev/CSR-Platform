@@ -7,6 +7,7 @@ import { Observable } from 'rxjs';
 import type { CsrActivity } from '../models/csr-activity.model';
 
 export interface PlannedActivityListItem extends CsrActivity {
+  site_id?: string | null;
   site_name?: string | null;
   site_code?: string | null;
   year?: number;

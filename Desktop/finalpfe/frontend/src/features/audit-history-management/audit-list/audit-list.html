@@ -1,0 +1,103 @@
+<div class="p-8 bg-gray-50 min-h-screen">
+  <div class="mb-6">
+    <h1 class="text-3xl font-bold tracking-tight text-gray-800">Journal d'audit</h1>
+    <p class="text-gray-500 mt-1">Historique des créations, modifications, suppressions, validations et demandes de modification (corporate)</p>
+  </div>
+
+  <div class="mb-6 flex flex-wrap items-end gap-4 bg-white rounded-2xl shadow-sm border border-gray-100 p-4">
+    <div>
+      <label class="block text-xs text-gray-500 mb-1">Action</label>
+      <select
+        class="border border-gray-200 rounded-lg px-3 py-2 text-sm min-w-[180px]"
+        [ngModel]="filterAction()"
+        (ngModelChange)="filterAction.set($event)"
+      >
+        <option value="">Toutes</option>
+        <option value="CREATE">Création</option>
+        <option value="UPDATE">Modification</option>
+        <option value="DELETE">Suppression</option>
+        <option value="APPROVE">Approbation</option>
+        <option value="REJECT">Rejet</option>
+        <option value="REQUEST_MODIFICATION">Demande de modification</option>
+      </select>
+    </div>
+    <div>
+      <label class="block text-xs text-gray-500 mb-1">Type d'entité</label>
+      <select
+        class="border border-gray-200 rounded-lg px-3 py-2 text-sm min-w-[120px]"
+        [ngModel]="filterEntityType()"
+        (ngModelChange)="filterEntityType.set($event)"
+      >
+        <option value="">Tous</option>
+        <option value="PLAN">Plan</option>
+        <option value="ACTIVITY">Activité</option>
+      </select>
+    </div>
+    <div>
+      <label class="block text-xs text-gray-500 mb-1">Site</label>
+      <select
+        class="border border-gray-200 rounded-lg px-3 py-2 text-sm min-w-[180px]"
+        [ngModel]="filterSiteId()"
+        (ngModelChange)="filterSiteId.set($event)"
+      >
+        <option value="">Tous</option>
+        <option *ngFor="let s of sites()" [value]="s.id">{{ s.name }}</option>
+      </select>
+    </div>
+    <button
+      type="button"
+      class="px-4 py-2 rounded-lg bg-brand-600 text-white text-sm font-medium hover:bg-brand-700"
+      (click)="applyFilters()"
+    >
+      Filtrer
+    </button>
+  </div>
+
+  <p *ngIf="error()" class="mb-4 text-red-600 text-sm">{{ error() }}</p>
+
+  <div *ngIf="loading()" class="text-center py-12 text-gray-500">Chargement...</div>
+
+  <div *ngIf="!loading() && logs().length === 0" class="bg-white rounded-2xl shadow-sm border border-gray-100 p-12 text-center text-gray-500">
+    Aucune entrée dans le journal d'audit.
+  </div>
+
+  <div *ngIf="!loading() && logs().length > 0" class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+    <table class="w-full text-sm">
+      <thead class="bg-gray-50 text-gray-600 uppercase text-xs">
+        <tr>
+          <th class="p-4 text-left">Date</th>
+          <th class="p-4 text-left">Action</th>
+          <th class="p-4 text-left">Type</th>
+          <th class="p-4 text-left">Site</th>
+          <th class="p-4 text-left">Utilisateur</th>
+          <th class="p-4 text-left">Description</th>
+          <th class="p-4 text-right">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let log of logs()" class="border-t hover:bg-gray-50">
+          <td class="p-4 text-gray-500 whitespace-nowrap">{{ log.created_at | date:'short' }}</td>
+          <td class="p-4 font-medium">{{ actionLabel(log.action) }}</td>
+          <td class="p-4 text-gray-600">{{ entityTypeLabel(log.entity_type) }}</td>
+          <td class="p-4 text-gray-600">{{ log.site_name ?? log.site_id ?? '–' }}</td>
+          <td class="p-4 text-gray-600">{{ log.user_name ?? log.user_id ?? '–' }}</td>
+          <td class="p-4 text-gray-600 max-w-xs truncate" [title]="log.description ?? ''">{{ log.description ?? '–' }}</td>
+          <td class="p-4 text-right">
+            <ng-container *ngIf="entityLink(log); let link">
+              <a [routerLink]="link" class="text-brand-700 hover:underline mr-2">Voir</a>
+            </ng-container>
+            <button
+              *ngIf="canRollback(log)"
+              type="button"
+              class="text-amber-700 hover:underline disabled:opacity-50"
+              [disabled]="rollbackLoading() !== null"
+              (click)="rollback(log)"
+            >
+              {{ rollbackLoading() === log.entity_history_id ? '…' : 'Restaurer' }}
+            </button>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>

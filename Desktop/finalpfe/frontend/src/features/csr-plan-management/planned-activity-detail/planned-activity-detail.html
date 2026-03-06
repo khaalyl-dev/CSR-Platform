@@ -53,5 +53,17 @@
         </div>
       </div>
     </div>
+
+    <div *ngIf="photos().length" class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+      <h2 class="p-4 font-semibold text-gray-800 border-b border-gray-100">Photos</h2>
+      <div class="p-6 flex flex-wrap gap-4">
+        <ng-container *ngFor="let doc of photos()">
+          <a *ngIf="isImageType(doc)" [href]="getPhotoUrl(doc)" target="_blank" class="block">
+            <img [src]="getPhotoUrl(doc)" [alt]="doc.file_name" class="w-40 h-40 object-cover rounded-xl border border-gray-200 hover:ring-2 hover:ring-brand-500"/>
+          </a>
+          <a *ngIf="!isImageType(doc)" [href]="getDownloadUrl(doc)" target="_blank" class="flex w-40 h-40 items-center justify-center rounded-xl border border-gray-200 bg-gray-50 text-sm text-gray-600 hover:bg-gray-100">{{ doc.file_name }}</a>
+        </ng-container>
+      </div>
+    </div>
   </div>
 </div>

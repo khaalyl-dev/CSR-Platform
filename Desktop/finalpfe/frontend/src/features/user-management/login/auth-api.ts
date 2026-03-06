@@ -40,6 +40,7 @@ export interface ProfileResponse {
   role: string;
   is_active: boolean;
   created_at: string | null;
+  avatar_url: string | null;
   sites: ProfileSite[];
 }
 
@@ -75,5 +76,12 @@ export class AuthApi {
       current_password: currentPassword,
       new_password: newPassword,
     });
+  }
+
+  /** Upload profile photo. Returns new avatar_url. */
+  uploadProfilePhoto(file: File): Observable<{ message: string; avatar_url: string }> {
+    const formData = new FormData();
+    formData.append('file', file);
+    return this.http.post<{ message: string; avatar_url: string }>(`${this.apiUrl}/auth/profile-photo`, formData);
   }
 }

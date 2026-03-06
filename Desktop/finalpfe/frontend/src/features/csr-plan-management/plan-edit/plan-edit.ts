@@ -1,10 +1,11 @@
-import { Component, inject, OnInit, signal, computed } from '@angular/core';
+import { Component, inject, OnInit, OnDestroy, signal, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angular/forms';
 import { Router, ActivatedRoute } from '@angular/router';
 import { RouterLink } from '@angular/router';
 import { CsrPlansApi } from '../api/csr-plans-api';
 import type { CsrPlan, UpdateCsrPlanPayload } from '../models/csr-plan.model';
+import { BreadcrumbService } from '@core/services/breadcrumb.service';
 
 @Component({
   selector: 'app-plan-edit',
@@ -12,11 +13,12 @@ import type { CsrPlan, UpdateCsrPlanPayload } from '../models/csr-plan.model';
   imports: [ReactiveFormsModule, CommonModule, RouterLink],
   templateUrl: './plan-edit.html',
 })
-export class PlanEditComponent implements OnInit {
+export class PlanEditComponent implements OnInit, OnDestroy {
   private fb = inject(FormBuilder);
   private router = inject(Router);
   private route = inject(ActivatedRoute);
   private csrPlansApi = inject(CsrPlansApi);
+  private breadcrumb = inject(BreadcrumbService);
 
   planForm!: FormGroup;
   plan = signal<CsrPlan | null>(null);
@@ -52,12 +54,18 @@ export class PlanEditComponent implements OnInit {
           validation_mode: plan.validation_mode || '101',
         });
         this.loading = false;
+        const siteName = plan.site_name ?? plan.site_code ?? plan.site_id ?? 'Plan';
+        this.breadcrumb.setContext([siteName, String(plan.year)]);
       },
       error: () => {
         this.errorMsg = 'Plan introuvable.';
         this.loading = false;
       },
     });
+  }
+
+  ngOnDestroy(): void {
+    this.breadcrumb.clearContext();
   }
 
   submit(): void {

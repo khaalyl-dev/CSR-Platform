@@ -1,8 +1,9 @@
-import { Component, inject, signal, computed } from '@angular/core';
+import { Component, inject, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule, Router } from '@angular/router';
 import { AuthStore } from '@core/services/auth-store';
 import { AuthService } from '@core/services/auth.service';
+import { SidebarService } from '@core/services/sidebar.service';
 import { navItems, type NavSection, type NavItem } from './nav-config';
 import { FontAwesomeModule } from '@fortawesome/angular-fontawesome';
 
@@ -17,8 +18,13 @@ export class Sidebar {
   private authStore = inject(AuthStore);
   private authService = inject(AuthService);
   private router = inject(Router);
+  sidebarService = inject(SidebarService);
 
-  isCollapsed = signal(false);
+  isCollapsed = this.sidebarService.isCollapsed;
+
+  constructor() {
+    this.sidebarService.initFromStorage();
+  }
 
   filteredNavItems = computed(() => {
     const role = this.authStore.userRole();
@@ -36,21 +42,8 @@ export class Sidebar {
   isAuthenticated = this.authStore.isAuthenticated;
   user = this.authStore.user;
 
-  constructor() {
-    const stored = localStorage.getItem('sidebarCollapsed');
-    if (stored !== null) {
-      this.isCollapsed.set(stored === 'true');
-    }
-  }
-
-  toggleSidebar() {
-    const collapsed = !this.isCollapsed();
-    this.isCollapsed.set(collapsed);
-    localStorage.setItem('sidebarCollapsed', collapsed.toString());
-    const sidebarEl = document.querySelector('.sidebar');
-    if (sidebarEl) {
-      sidebarEl.classList.toggle('collapsed', collapsed);
-    }
+  toggleSidebar(): void {
+    this.sidebarService.toggle();
   }
 
   trackBySection(index: number, section: NavSection) {

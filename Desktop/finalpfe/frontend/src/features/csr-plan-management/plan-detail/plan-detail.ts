@@ -1,9 +1,10 @@
-import { Component, inject, OnInit, signal, HostListener } from '@angular/core';
+import { Component, inject, OnInit, OnDestroy, signal, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { CsrPlansApi, CsrPlanDetail } from '../api/csr-plans-api';
 import { CsrActivitiesApi } from '@features/realized-activity-management/api/csr-activities-api';
 import { AuthStore } from '@core/services/auth-store';
+import { BreadcrumbService } from '@core/services/breadcrumb.service';
 
 @Component({
   selector: 'app-plan-detail',
@@ -11,12 +12,13 @@ import { AuthStore } from '@core/services/auth-store';
   imports: [CommonModule, RouterModule],
   templateUrl: './plan-detail.html'
 })
-export class PlanDetailComponent implements OnInit {
+export class PlanDetailComponent implements OnInit, OnDestroy {
   private route = inject(ActivatedRoute);
   private router = inject(Router);
   private plansApi = inject(CsrPlansApi);
   private activitiesApi = inject(CsrActivitiesApi);
   private authStore = inject(AuthStore);
+  private breadcrumb = inject(BreadcrumbService);
 
   plan = signal<CsrPlanDetail | null>(null);
   loading = signal(true);
@@ -138,12 +140,18 @@ export class PlanDetailComponent implements OnInit {
       next: (p) => {
         this.plan.set(p);
         this.loading.set(false);
+        const siteName = p.site_name ?? p.site_code ?? p.site_id ?? 'Plan';
+        this.breadcrumb.setContext([siteName, String(p.year)]);
       },
       error: () => {
         this.loading.set(false);
         this.errorMsg.set('Plan introuvable');
       },
     });
+  }
+
+  ngOnDestroy(): void {
+    this.breadcrumb.clearContext();
   }
 
   submitForValidation(): void {

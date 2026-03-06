@@ -1,6 +1,6 @@
 <div class="sidebar relative flex flex-col h-full bg-[rgb(30,41,59)] text-white transition-all duration-300"
   [ngClass]="isCollapsed() ? 'w-16 collapsed' : 'w-64'">
-  <div class="relative flex items-center justify-between p-4">
+  <div class="relative flex items-center p-4">
     <div class="flex min-w-0 items-center">
       <img
         src="/logo/csr-insight-high-resolution-logo-only-transparent-inverse.png"
@@ -14,16 +14,8 @@
         <div class="truncate text-lg font-extrabold uppercase tracking-[0.05em] text-white [font-family:'Lora',serif]">
           CSR Insight.
         </div>
-        
       </div>
     </div>
-    <button (click)="toggleSidebar()"
-      class="flex h-6 w-6 items-center justify-center rounded-full bg-white/10 hover:bg-white/15 border-2 border-white/20 transition-all duration-300">
-      <svg class="h-4 w-4 transition-transform duration-300" [ngClass]="isCollapsed() ? 'rotate-180' : ''" fill="none"
-        stroke="currentColor" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
-      </svg>
-    </button>
   </div>
   <nav class="flex-1 overflow-y-auto px-2">
     <div *ngFor="let section of filteredNavItems(); trackBy: trackBySection" class="mb-4">

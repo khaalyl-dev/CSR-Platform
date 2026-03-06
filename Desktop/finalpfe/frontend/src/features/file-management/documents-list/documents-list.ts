@@ -36,6 +36,64 @@ export class DocumentsListComponent implements OnInit {
   showDeleteModal = false;
   deletingDoc: Document | null = null;
 
+  // ── Search, filter, sort ───────────────────────────────────────────────────
+  searchQuery = signal('');
+  filterType = signal<string>('');
+  filterSiteId = signal<string>('');
+  sortColumn = signal<'file_name' | 'file_type' | 'site_name' | 'uploaded_at' | 'updated_at' | 'uploader_name'>('file_name');
+  sortDirection = signal<'asc' | 'desc'>('asc');
+
+  filteredAndSortedDocuments = computed(() => {
+    let list = this.documents();
+    const q = (this.searchQuery() ?? '').trim().toLowerCase();
+    if (q) {
+      list = list.filter(d =>
+        (d.file_name ?? '').toLowerCase().includes(q) ||
+        (d.file_type ?? '').toLowerCase().includes(q) ||
+        (d.site_name ?? '').toLowerCase().includes(q) ||
+        (d.uploader_name ?? '').toLowerCase().includes(q)
+      );
+    }
+    const type = (this.filterType() ?? '').trim();
+    if (type) {
+      list = list.filter(d => (d.file_type ?? '').toUpperCase() === type.toUpperCase());
+    }
+    const siteId = (this.filterSiteId() ?? '').trim();
+    if (siteId) {
+      list = list.filter(d => d.site_id === siteId);
+    }
+    const col = this.sortColumn();
+    const dir = this.sortDirection();
+    return [...list].sort((a, b) => {
+      let va: string | number = '';
+      let vb: string | number = '';
+      switch (col) {
+        case 'file_name': va = (a.file_name ?? '').toLowerCase(); vb = (b.file_name ?? '').toLowerCase(); break;
+        case 'file_type': va = (a.file_type ?? '').toLowerCase(); vb = (b.file_type ?? '').toLowerCase(); break;
+        case 'site_name': va = (a.site_name ?? '').toLowerCase(); vb = (b.site_name ?? '').toLowerCase(); break;
+        case 'uploader_name': va = (a.uploader_name ?? '').toLowerCase(); vb = (b.uploader_name ?? '').toLowerCase(); break;
+        case 'uploaded_at': va = new Date(a.uploaded_at ?? 0).getTime(); vb = new Date(b.uploaded_at ?? 0).getTime(); break;
+        case 'updated_at': va = new Date(a.updated_at ?? 0).getTime(); vb = new Date(b.updated_at ?? 0).getTime(); break;
+        default: break;
+      }
+      if (typeof va === 'string' && typeof vb === 'string') {
+        const c = va.localeCompare(vb);
+        return dir === 'asc' ? c : -c;
+      }
+      const n = (va as number) - (vb as number);
+      return dir === 'asc' ? n : -n;
+    });
+  });
+
+  setSort(column: 'file_name' | 'file_type' | 'site_name' | 'uploaded_at' | 'updated_at' | 'uploader_name') {
+    if (this.sortColumn() === column) {
+      this.sortDirection.update(d => d === 'asc' ? 'desc' : 'asc');
+    } else {
+      this.sortColumn.set(column);
+      this.sortDirection.set('asc');
+    }
+  }
+
   constructor(private documentsApi: DocumentsApi, private http: HttpClient) {}
 
   ngOnInit() {
@@ -69,16 +127,17 @@ export class DocumentsListComponent implements OnInit {
     });
   }
 
-  // ── Stats par site ────────────────────────────────────────────────────────
-  siteStats = computed(() => {
+  // ── Stats par type de fichier (PDF, PNG, etc.) ────────────────────────────
+  fileTypeStats = computed(() => {
     const map = new Map<string, { name: string; count: number }>();
     for (const doc of this.documents()) {
-      if (!map.has(doc.site_id)) {
-        map.set(doc.site_id, { name: doc.site_name, count: 0 });
+      const type = (doc.file_type ?? 'Autre').toUpperCase();
+      if (!map.has(type)) {
+        map.set(type, { name: type, count: 0 });
       }
-      map.get(doc.site_id)!.count++;
+      map.get(type)!.count++;
     }
-    const stats = Array.from(map.values());
+    const stats = Array.from(map.values()).sort((a, b) => b.count - a.count);
     const max = Math.max(...stats.map(s => s.count), 1);
     return stats.map(s => ({ ...s, percent: Math.round((s.count / max) * 100) }));
   });
@@ -120,8 +179,6 @@ export class DocumentsListComponent implements OnInit {
         this.documents.update(docs =>
           docs.map(d => d.id === doc.id ? { ...d, is_pinned: res.is_pinned } : d)
         );
-        this.success.set(res.is_pinned ? 'Document épinglé ✓' : 'Document désépinglé ✓');
-        setTimeout(() => this.success.set(''), 3000);
       },
       error: () => this.error.set('Erreur lors de l\'épinglage')
     });
@@ -187,24 +244,24 @@ export class DocumentsListComponent implements OnInit {
     });
   }
 
-  downloadFile(filePath: string) {
-  this.http.get(`/api/documents/download/${filePath}`, {
-    responseType: 'blob'
-  }).subscribe({
-    next: (blob) => {
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = filePath;
-      a.click();
-      window.URL.revokeObjectURL(url);
-    },
-    error: () => this.error.set('Erreur lors du téléchargement')
-  });
-}
+  downloadFile(filePath: string, fileName?: string) {
+    this.http.get(`/api/documents/download/${filePath}`, {
+      responseType: 'blob'
+    }).subscribe({
+      next: (blob) => {
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = (fileName ?? filePath.split('/').pop() ?? 'document').trim() || 'document';
+        a.click();
+        window.URL.revokeObjectURL(url);
+      },
+      error: () => this.error.set('Erreur lors du téléchargement')
+    });
+  }
 
-  // ── Couleurs ──────────────────────────────────────────────────────────────
-  siteColors = [
+  // ── Couleurs (bar / légende) ──────────────────────────────────────────────
+  fileTypeColors = [
     { bar: 'bg-brand-700',  dot: 'bg-brand-700',  text: 'text-brand-800' },
     { bar: 'bg-orange-500', dot: 'bg-orange-500', text: 'text-orange-600' },
     { bar: 'bg-brand-800',  dot: 'bg-brand-800',  text: 'text-brand-900' },
@@ -215,7 +272,7 @@ export class DocumentsListComponent implements OnInit {
   ];
 
   getColor(index: number) {
-    return this.siteColors[index % this.siteColors.length];
+    return this.fileTypeColors[index % this.fileTypeColors.length];
   }
 
   getFileIcon(fileType: string): string {

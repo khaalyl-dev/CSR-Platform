@@ -11,6 +11,7 @@ import {
   faFolderTree,
   faFolderOpen,
   faCalendarPlus,
+  faClipboardList,
 } from '@fortawesome/free-solid-svg-icons';
 
 export interface NavItem {
@@ -65,6 +66,7 @@ export const navItems: NavSection[] = [
       { label: 'Sites', path: '/sites', roles: ['corporate'], icon: faBuilding },
       { label: 'Catégories CSR', path: '/categories', roles: ['corporate'], icon: faFolderTree },
       { label: 'Utilisateurs', path: '/admin/users', roles: ['corporate'], icon: faUser },
+      { label: 'Journal d\'audit', path: '/admin/audit', roles: ['corporate'], icon: faClipboardList },
     ],
   },
   {

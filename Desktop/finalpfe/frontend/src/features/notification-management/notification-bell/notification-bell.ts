@@ -1,5 +1,5 @@
 import { CommonModule, DatePipe } from '@angular/common';
-import { Component, DestroyRef, inject, signal } from '@angular/core';
+import { Component, DestroyRef, ElementRef, HostListener, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Router } from '@angular/router';
 import { interval } from 'rxjs';
@@ -94,8 +94,17 @@ export class NotificationBellComponent {
   private readonly notificationsApi = inject(NotificationsApi);
   private readonly destroyRef = inject(DestroyRef);
   private readonly router = inject(Router);
+  private readonly elementRef = inject(ElementRef<HTMLElement>);
 
   protected readonly isOpen = signal(false);
+
+  @HostListener('document:click', ['$event'])
+  onDocumentClick(event: MouseEvent): void {
+    const target = event.target as Node;
+    if (this.isOpen() && target && !this.elementRef.nativeElement.contains(target)) {
+      this.isOpen.set(false);
+    }
+  }
   protected readonly loading = signal(false);
   protected readonly error = signal<string | null>(null);
   protected readonly unreadCount = signal(0);

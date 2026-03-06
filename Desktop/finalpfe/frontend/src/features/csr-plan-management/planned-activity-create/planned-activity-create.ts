@@ -7,6 +7,7 @@ import { catchError, of, switchMap, timeout } from 'rxjs';
 import { CsrPlansApi } from '../api/csr-plans-api';
 import { CsrActivitiesApi } from '@features/realized-activity-management/api/csr-activities-api';
 import { CategoriesApi, CATEGORY_OTHER_VALUE } from '@features/realized-activity-management/api/categories-api';
+import { DocumentsApi } from '@features/file-management/api/documents-api';
 import type { CsrPlan } from '../models/csr-plan.model';
 import type { Category } from '@features/realized-activity-management/api/categories-api';
 
@@ -28,9 +29,12 @@ export class PlannedActivityCreateComponent implements OnInit {
   private plansApi = inject(CsrPlansApi);
   private activitiesApi = inject(CsrActivitiesApi);
   private categoriesApi = inject(CategoriesApi);
+  private documentsApi = inject(DocumentsApi);
 
   form!: FormGroup;
   plan = null as CsrPlan | null;
+  /** Photos to upload after creating the activity. */
+  selectedPhotoFiles: File[] = [];
   /** Plans with year >= current year, for dropdown when no plan_id in URL */
   plansForSelection: CsrPlan[] = [];
   currentYear = new Date().getFullYear();
@@ -163,6 +167,34 @@ export class PlannedActivityCreateComponent implements OnInit {
     this.cdr.markForCheck();
   }
 
+  onPhotosSelected(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    if (input.files?.length) {
+      this.selectedPhotoFiles.push(...Array.from(input.files));
+      input.value = '';
+      this.cdr.markForCheck();
+    }
+  }
+
+  removePhoto(index: number): void {
+    this.selectedPhotoFiles.splice(index, 1);
+    this.cdr.markForCheck();
+  }
+
+  private uploadActivityPhotos(siteId: string, activityId: string): void {
+    if (!this.selectedPhotoFiles.length) return;
+    this.selectedPhotoFiles.forEach((file) => {
+      const form = new FormData();
+      form.append('file', file);
+      form.append('site_id', siteId);
+      form.append('entity_type', 'ACTIVITY');
+      form.append('entity_id', activityId);
+      this.documentsApi.upload(form).subscribe({ next: () => {}, error: () => {} });
+    });
+    this.selectedPhotoFiles = [];
+    this.cdr.markForCheck();
+  }
+
   submit(): void {
     if (!this.plan || this.form.invalid) {
       this.form.markAllAsTouched();
@@ -190,7 +222,13 @@ export class PlannedActivityCreateComponent implements OnInit {
         })
       ),
     ).subscribe({
-      next: () => {
+      next: (activity) => {
+        const siteId = this.plan?.site_id;
+        if (siteId && this.selectedPhotoFiles.length) {
+          this.uploadActivityPhotos(siteId, activity.id);
+        } else {
+          this.selectedPhotoFiles = [];
+        }
         this.loading = false;
         this.addAnotherMode = true;
         this.cdr.markForCheck();
@@ -233,6 +271,11 @@ export class PlannedActivityCreateComponent implements OnInit {
         ),
       ).subscribe({
         next: (activity) => {
+          if (this.plan?.site_id && this.selectedPhotoFiles.length) {
+            this.uploadActivityPhotos(this.plan.site_id, activity.id);
+          } else {
+            this.selectedPhotoFiles = [];
+          }
           this.loading = false;
           this.draftSavedId = activity.id;
           this.addAnotherMode = true;
@@ -259,6 +302,11 @@ export class PlannedActivityCreateComponent implements OnInit {
       planned_budget: plannedBudget,
     }).subscribe({
       next: (activity) => {
+        if (this.plan?.site_id && this.selectedPhotoFiles.length) {
+          this.uploadActivityPhotos(this.plan.site_id, activity.id);
+        } else {
+          this.selectedPhotoFiles = [];
+        }
         this.loading = false;
         this.draftSavedId = activity.id;
         this.addAnotherMode = true;
@@ -279,6 +327,7 @@ export class PlannedActivityCreateComponent implements OnInit {
   addAnother(): void {
     this.addAnotherMode = false;
     this.draftSavedId = null;
+    this.selectedPhotoFiles = [];
     this.form.patchValue({
       category_id: '',
       new_category_name: '',

@@ -176,6 +176,21 @@
           </div>
         </ng-container>
 
+        <!-- Photos -->
+        <div class="border-t border-gray-200 pt-6 mt-6">
+          <h3 class="text-lg font-bold text-gray-800 mb-2">Photos</h3>
+          <div *ngIf="activityPhotos.length" class="flex flex-wrap gap-3 mb-3">
+            <div *ngFor="let doc of activityPhotos" class="relative group">
+              <img *ngIf="isImageType(doc)" [src]="getPhotoUrl(doc)" [alt]="doc.file_name" class="w-24 h-24 object-cover rounded-lg border border-gray-200"/>
+              <a *ngIf="!isImageType(doc)" [href]="getDownloadUrl(doc)" target="_blank" class="flex w-24 h-24 items-center justify-center rounded-lg border border-gray-200 bg-gray-50 text-xs text-gray-600 truncate">{{ doc.file_name }}</a>
+              <button type="button" (click)="deletePhoto(doc)" class="absolute -top-1 -right-1 w-6 h-6 rounded-full bg-red-500 text-white text-sm leading-none opacity-0 group-hover:opacity-100 transition">×</button>
+            </div>
+          </div>
+          <input type="file" accept="image/*" multiple (change)="onPhotoFilesSelected($event)" [disabled]="uploadingPhotos"
+            class="w-full text-sm text-gray-600 file:mr-3 file:py-2 file:px-4 file:rounded-xl file:border-0 file:bg-brand-100 file:text-brand-800 file:font-medium hover:file:bg-brand-200 disabled:opacity-50"/>
+          <p *ngIf="uploadingPhotos" class="text-xs text-gray-500 mt-1">Envoi en cours...</p>
+        </div>
+
         <div *ngIf="errorMsg" class="flex items-center gap-3 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl text-sm">
           {{ errorMsg }}
         </div>

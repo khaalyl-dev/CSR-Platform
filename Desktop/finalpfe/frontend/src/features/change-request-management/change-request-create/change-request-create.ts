@@ -24,12 +24,11 @@ export class ChangeRequestCreateComponent implements OnInit {
   loading = signal(true);
   error = signal('');
   reason = signal('');
-  requestedDurationDays = signal<number>(30);
+  requestedDurationDays = signal<number | null>(null);
+  durationError = signal('');
   files = signal<File[]>([]);
   dragOver = signal(false);
   submitting = signal(false);
-
-  readonly durationOptions = [7, 14, 30];
 
   ngOnInit(): void {
     const planId = this.route.snapshot.queryParamMap.get('planId') ?? this.route.snapshot.paramMap.get('planId');
@@ -82,20 +81,36 @@ export class ChangeRequestCreateComponent implements OnInit {
     this.files.update((list) => list.filter((_, i) => i !== index));
   }
 
+  onDurationInput(value: string): void {
+    this.durationError.set('');
+    const n = value.trim() === '' ? null : parseInt(value, 10);
+    if (n !== null && !Number.isNaN(n)) {
+      this.requestedDurationDays.set(n);
+    } else {
+      this.requestedDurationDays.set(null);
+    }
+  }
+
   submit(): void {
     const p = this.plan();
     const reason = this.reason().trim();
+    const days = this.requestedDurationDays();
     if (!p) return;
     if (!reason) {
       this.error.set('Veuillez indiquer la raison de votre demande.');
       return;
     }
+    if (days == null || days < 1 || days > 365) {
+      this.durationError.set('La durée est obligatoire (entre 1 et 365 jours).');
+      return;
+    }
     this.error.set('');
+    this.durationError.set('');
     this.submitting.set(true);
     this.changeRequestsApi.create({
       plan_id: p.id,
       reason,
-      requested_duration: this.requestedDurationDays(),
+      requested_duration: days,
     }).subscribe({
       next: (cr) => {
         const fileList = this.files();
