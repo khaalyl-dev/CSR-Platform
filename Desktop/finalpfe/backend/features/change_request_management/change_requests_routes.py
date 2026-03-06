@@ -8,6 +8,7 @@ from flask import Blueprint, jsonify, request
 from core import db, token_required, role_required
 from models import ChangeRequest, CsrPlan, Document, UserSite
 from features.notification_management.notification_helper import notify_corporate, notify_user
+from features.audit_history_management.audit_helper import write_audit
 
 bp = Blueprint("change_requests", __name__, url_prefix="/api/change-requests")
 
@@ -106,6 +107,15 @@ def create_change_request():
         requested_duration=duration_label,
     )
     db.session.add(cr)
+    db.session.flush()
+    write_audit(
+        user_id=request.user_id,
+        site_id=plan.site_id,
+        action="REQUEST_MODIFICATION",
+        entity_type="PLAN",
+        entity_id=plan_id,
+        description=f"Demande de modification plan {plan.year}: {reason[:200]}",
+    )
     db.session.commit()
 
     site_name = plan.site.name if plan.site else "Site inconnu"
@@ -185,6 +195,15 @@ def approve_change_request(cr_id):
             days = _parse_duration_days(cr.requested_duration)
             plan.unlock_until = now + timedelta(days=days)
             plan.unlock_since = now
+    plan = CsrPlan.query.get(cr.entity_id) if (cr.entity_type == "PLAN" and cr.entity_id) else None
+    write_audit(
+        request.user_id,
+        cr.site_id,
+        "APPROVE",
+        "PLAN",
+        cr.entity_id,
+        f"Demande de modification approuvée (plan {plan.year})" if plan else "Demande de modification approuvée",
+    )
     db.session.commit()
 
     site_name = cr.site.name if cr.site else "Site inconnu"
@@ -223,6 +242,14 @@ def reject_change_request(cr_id):
     cr.reviewed_at = datetime.utcnow()
     if comment:
         cr.reason = (cr.reason or "") + "\n[Rejet: " + comment + "]"
+    write_audit(
+        request.user_id,
+        cr.site_id,
+        "REJECT",
+        "PLAN",
+        cr.entity_id,
+        f"Demande de modification rejetée: {comment[:200]}" if comment else "Demande de modification rejetée",
+    )
     db.session.commit()
 
     site_name = cr.site.name if cr.site else "Site inconnu"

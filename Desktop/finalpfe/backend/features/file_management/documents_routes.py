@@ -1,20 +1,25 @@
 import os
 from flask import Blueprint, jsonify, send_from_directory, request
+from sqlalchemy import or_
+from config import get_media_folder
 from core import db, token_required
 from models import Document, UserSite
 from datetime import datetime
 
+
+def _exclude_profile_photos(query):
+    """Exclude USER_PROFILE documents from list/pinned so they are not shown in the document interface."""
+    return query.filter(or_(Document.entity_type.is_(None), Document.entity_type != "USER_PROFILE"))
+
+
 bp = Blueprint("documents", __name__, url_prefix="/api/documents")
 
-MEDIA_FOLDER = os.path.join(
-    os.path.dirname(os.path.abspath(__file__)),
-    '..', '..', '..', 'frontend', 'src', 'media'
-)
+MEDIA_FOLDER = get_media_folder()
 
 def _document_to_json(doc: Document):
     out = {
         "id": doc.id,
-        "site_id": doc.site_id,
+        "site_id": doc.site_id or "",
         "site_name": doc.site.name if doc.site else "",
         "file_name": doc.file_name,
         "file_path": doc.file_path,
@@ -27,6 +32,10 @@ def _document_to_json(doc: Document):
     }
     if hasattr(doc, "change_request_id"):
         out["change_request_id"] = doc.change_request_id
+    if hasattr(doc, "entity_type"):
+        out["entity_type"] = doc.entity_type
+    if hasattr(doc, "entity_id"):
+        out["entity_id"] = doc.entity_id
     return out
 
 @bp.post("")
@@ -65,6 +74,8 @@ def create_document():
         is_pinned=bool(data.get("is_pinned")),
         uploaded_by=getattr(request, "user_id", None),
         change_request_id=data.get("change_request_id") or None,
+        entity_type=(data.get("entity_type") or "").strip().upper() or None,
+        entity_id=(data.get("entity_id") or "").strip() or None,
     )
     db.session.add(doc)
     db.session.commit()
@@ -72,7 +83,9 @@ def create_document():
 
 
 UPLOAD_SUBFOLDER = "change_requests"
+UPLOAD_SUBFOLDER_ACTIVITY_PHOTOS = "activity_photos"
 ALLOWED_EXTENSIONS = {"pdf", "doc", "docx", "xls", "xlsx", "png", "jpg", "jpeg", "gif", "webp"}
+PHOTO_EXTENSIONS = {"png", "jpg", "jpeg", "gif", "webp"}
 
 
 def _allowed_file(filename):
@@ -82,10 +95,15 @@ def _allowed_file(filename):
     return ext in ALLOWED_EXTENSIONS
 
 
+def _upload_subfolder(entity_type: str) -> str:
+    """Return subfolder for uploads: activity_photos for ACTIVITY, else change_requests."""
+    return UPLOAD_SUBFOLDER_ACTIVITY_PHOTOS if (entity_type or "").upper() == "ACTIVITY" else UPLOAD_SUBFOLDER
+
+
 @bp.post("/upload")
 @token_required
 def upload_document():
-    """Upload a file (multipart): file (required), site_id (required), change_request_id (optional). Saves to media/change_requests/ and creates a Document row."""
+    """Upload a file (multipart): file (required), site_id (required), change_request_id (optional), entity_type (optional), entity_id (optional). Saves to media/change_requests/ or media/activity_photos/ and creates a Document row."""
     if "file" not in request.files:
         return jsonify({"message": "Aucun fichier fourni"}), 400
     f = request.files["file"]
@@ -95,6 +113,8 @@ def upload_document():
         return jsonify({"message": "Type de fichier non autorisé"}), 400
     site_id = (request.form.get("site_id") or "").strip()
     change_request_id = (request.form.get("change_request_id") or "").strip() or None
+    entity_type = (request.form.get("entity_type") or "").strip().upper() or None
+    entity_id = (request.form.get("entity_id") or "").strip() or None
     if not site_id:
         return jsonify({"message": "site_id obligatoire"}), 400
     role = (getattr(request, "role", "") or "").upper()
@@ -114,9 +134,10 @@ def upload_document():
     uid = str(uuid.uuid4())[:8]
     ext = safe.rsplit(".", 1)[-1].lower() if "." in safe else "bin"
     filename = f"{ts}_{uid}.{ext}"
-    subdir = os.path.join(MEDIA_FOLDER, UPLOAD_SUBFOLDER)
+    subfolder = _upload_subfolder(entity_type)
+    subdir = os.path.join(MEDIA_FOLDER, subfolder)
     os.makedirs(subdir, exist_ok=True)
-    relative_path = f"{UPLOAD_SUBFOLDER}/{filename}"
+    relative_path = f"{subfolder}/{filename}"
     full_path = os.path.join(MEDIA_FOLDER, relative_path)
     f.save(full_path)
     file_size = os.path.getsize(full_path)
@@ -129,6 +150,8 @@ def upload_document():
         is_pinned=False,
         uploaded_by=getattr(request, "user_id", None),
         change_request_id=change_request_id,
+        entity_type=entity_type,
+        entity_id=entity_id,
     )
     db.session.add(doc)
     db.session.commit()
@@ -140,17 +163,23 @@ def upload_document():
 @bp.get("")
 @token_required
 def list_documents():
+    entity_type = request.args.get("entity_type", "").strip().upper() or None
+    entity_id = request.args.get("entity_id", "").strip() or None
     role = request.role.upper()
     if role == "CORPORATE_USER":
-        documents = Document.query.order_by(Document.uploaded_at.desc()).all()
+        q = Document.query
     else:
         user_sites = UserSite.query.filter_by(user_id=request.user_id, is_active=True).all()
         site_ids = [us.site_id for us in user_sites]
         if not site_ids:
             return jsonify([]), 200
-        documents = Document.query.filter(
-            Document.site_id.in_(site_ids)
-        ).order_by(Document.uploaded_at.desc()).all()
+        q = Document.query.filter(Document.site_id.in_(site_ids))
+    q = _exclude_profile_photos(q)
+    if entity_type:
+        q = q.filter(Document.entity_type == entity_type)
+    if entity_id:
+        q = q.filter(Document.entity_id == entity_id)
+    documents = q.order_by(Document.uploaded_at.desc()).all()
     return jsonify([_document_to_json(d) for d in documents]), 200
 
 @bp.get("/pinned")
@@ -158,20 +187,42 @@ def list_documents():
 def list_pinned():
     role = request.role.upper()
     if role == "CORPORATE_USER":
-        docs = Document.query.filter_by(is_pinned=True).all()
+        q = Document.query.filter_by(is_pinned=True)
     else:
         user_sites = UserSite.query.filter_by(user_id=request.user_id, is_active=True).all()
         site_ids = [us.site_id for us in user_sites]
-        docs = Document.query.filter(
+        q = Document.query.filter(
             Document.site_id.in_(site_ids),
             Document.is_pinned == True
-        ).all()
+        )
+    docs = _exclude_profile_photos(q).all()
     return jsonify([_document_to_json(d) for d in docs]), 200
 
 @bp.get("/download/<path:filename>")
 @token_required
 def download_file(filename):
     return send_from_directory(MEDIA_FOLDER, filename, as_attachment=True)
+
+
+def _media_folder_for(filename):
+    """Return the media folder that contains the file, or MEDIA_FOLDER if not found elsewhere."""
+    primary = os.path.join(MEDIA_FOLDER, filename)
+    if os.path.isfile(primary):
+        return MEDIA_FOLDER
+    backend_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    fallback = os.path.join(backend_root, "frontend", "src", "media")
+    fallback_path = os.path.join(fallback, filename)
+    if os.path.isfile(fallback_path):
+        return fallback
+    return MEDIA_FOLDER
+
+
+@bp.get("/serve/<path:filename>")
+@token_required
+def serve_file(filename):
+    """Serve file for display (e.g. images in img src). No Content-Disposition attachment."""
+    folder = _media_folder_for(filename)
+    return send_from_directory(folder, filename, as_attachment=False)
 
 @bp.get("/site/<string:site_id>")
 @token_required

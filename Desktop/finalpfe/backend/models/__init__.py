@@ -17,6 +17,8 @@ from .document import Document
 from .notification import Notification
 from .csr_snapshot import CsrSnapshot
 from .chatbot_log import ChatbotLog
+from .audit_log import AuditLog
+from .entity_history import EntityHistory
 
 __all__ = [
     "User",
@@ -34,4 +36,6 @@ __all__ = [
     "Notification",
     "CsrSnapshot",
     "ChatbotLog",
+    "AuditLog",
+    "EntityHistory",
 ]

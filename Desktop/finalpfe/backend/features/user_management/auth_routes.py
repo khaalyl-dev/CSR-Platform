@@ -1,5 +1,5 @@
 """
-Auth endpoints: login, logout, session validation, profile, change password.
+Auth endpoints: login, logout, session validation, profile, change password, profile photo.
 
 Endpoints:
   POST /api/auth/login          - Authenticate user, create session, return JWT
@@ -7,7 +7,9 @@ Endpoints:
   GET  /api/auth/me             - Validate token, return minimal user info
   GET  /api/auth/profile        - Return full user profile (read-only)
   PUT  /api/auth/change-password - Change current user's password
+  POST /api/auth/profile-photo  - Upload profile photo (multipart file)
 """
+import os
 from datetime import datetime, timedelta
 
 from flask import Blueprint, request, jsonify
@@ -16,7 +18,7 @@ import jwt
 
 from core import db, generate_access_token, token_required, revoke_jti
 from core.jwt_utils import ACCESS_TOKEN_EXPIRATION_HOURS, SECRET_KEY
-from models import User, UserSession, UserSite, Site
+from models import User, UserSession, UserSite, Site, Document
 
 bp = Blueprint("auth", __name__, url_prefix="/api/auth")
 
@@ -161,6 +163,7 @@ def profile():
         "role": user.role,
         "is_active": user.is_active,
         "created_at": user.created_at.isoformat() if user.created_at else None,
+        "avatar_url": f"/api/documents/serve/{user.avatar_url}" if getattr(user, "avatar_url", None) and user.avatar_url else None,
     }
 
     if user.role == "SITE_USER":
@@ -222,3 +225,76 @@ def change_password():
     user.password_hash = User.hash_password(new_password)
     db.session.commit()
     return jsonify({"message": "Mot de passe modifié avec succès."})
+
+
+# Profile photo: store under media/profile_photos (same MEDIA_FOLDER as documents)
+_PROFILE_PHOTOS_SUBFOLDER = "profile_photos"
+_ALLOWED_PHOTO_EXT = {"png", "jpg", "jpeg", "gif", "webp"}
+
+
+def _get_profile_photos_dir():
+    """Return absolute path to media/profile_photos (same MEDIA_FOLDER as documents route)."""
+    from config import get_media_folder
+    return os.path.join(get_media_folder(), _PROFILE_PHOTOS_SUBFOLDER)
+
+
+@bp.post("/profile-photo")
+@token_required
+def upload_profile_photo():
+    """
+    Upload current user's profile photo. Multipart: file (image).
+    Saves to media/profile_photos/{user_id}.{ext}, updates user.avatar_url.
+    """
+    user_id = getattr(request, "user_id", None)
+    if not user_id:
+        return jsonify({"message": "Unauthorized"}), 401
+
+    user = User.query.get(user_id)
+    if not user:
+        return jsonify({"message": "Utilisateur introuvable"}), 401
+
+    file = request.files.get("file")
+    if not file or not file.filename:
+        return jsonify({"message": "Aucun fichier fourni."}), 400
+
+    ext = (file.filename.rsplit(".", 1)[-1] or "").lower()
+    if ext not in _ALLOWED_PHOTO_EXT:
+        return jsonify({"message": "Format non autorisé. Utilisez PNG, JPG, JPEG, GIF ou WEBP."}), 400
+
+    photos_dir = _get_profile_photos_dir()
+    os.makedirs(photos_dir, exist_ok=True)
+
+    # Remove old profile photo document and file if any
+    if getattr(user, "avatar_url", None) and user.avatar_url:
+        old_path = os.path.join(_get_profile_photos_dir(), os.path.basename(user.avatar_url))
+        if os.path.isfile(old_path):
+            try:
+                os.remove(old_path)
+            except OSError:
+                pass
+    Document.query.filter_by(entity_type="USER_PROFILE", entity_id=user_id).delete()
+
+    filename = f"{user_id}.{ext}"
+    relative_path = f"{_PROFILE_PHOTOS_SUBFOLDER}/{filename}"
+    save_path = os.path.join(photos_dir, filename)
+    file.save(save_path)
+
+    user.avatar_url = relative_path
+    # Store as document (excluded from documents list in UI via entity_type USER_PROFILE)
+    doc = Document(
+        site_id=None,
+        file_name=f"photo_profil.{ext}",
+        file_path=relative_path,
+        file_type=ext.upper(),
+        is_pinned=False,
+        uploaded_by=user_id,
+        entity_type="USER_PROFILE",
+        entity_id=user_id,
+    )
+    db.session.add(doc)
+    db.session.commit()
+
+    return jsonify({
+        "message": "Photo de profil mise à jour.",
+        "avatar_url": f"/api/documents/serve/{relative_path}",
+    })

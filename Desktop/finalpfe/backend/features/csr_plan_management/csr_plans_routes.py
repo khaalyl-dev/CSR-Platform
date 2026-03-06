@@ -15,6 +15,13 @@ logger = logging.getLogger(__name__)
 from core import db, token_required
 from models import CsrPlan, Site, UserSite, Validation, ChangeRequest
 from features.notification_management.notification_helper import notify_corporate, notify_site_users
+from features.audit_history_management.audit_helper import (
+    audit_create,
+    audit_update,
+    audit_delete,
+    write_audit,
+    snapshot_plan,
+)
 
 bp = Blueprint("csr_plans", __name__, url_prefix="/api/csr-plans")
 
@@ -228,6 +235,15 @@ def create_plan():
         created_by=request.user_id,
     )
     db.session.add(plan)
+    db.session.flush()
+    audit_create(
+        user_id=request.user_id,
+        site_id=site_id,
+        entity_type="PLAN",
+        entity_id=plan.id,
+        description=f"Création plan {plan.year} site {site_id}",
+        new_snapshot=snapshot_plan(plan),
+    )
     db.session.commit()
     return jsonify(_plan_to_json(plan)), 201
 
@@ -341,6 +357,7 @@ def update_plan(plan_id):
     if not data:
         return jsonify({"message": "Données manquantes"}), 400
 
+    old_snapshot = snapshot_plan(plan)
     if "year" in data and data["year"] is not None:
         try:
             year = int(data["year"])
@@ -362,6 +379,15 @@ def update_plan(plan_id):
         plan.rejected_comment = None
         plan.rejected_activity_ids = None
 
+    audit_update(
+        user_id=request.user_id,
+        site_id=plan.site_id,
+        entity_type="PLAN",
+        entity_id=plan_id,
+        description=f"Modification plan {plan.year}",
+        old_snapshot=old_snapshot,
+        new_snapshot=snapshot_plan(plan),
+    )
     db.session.commit()
     return jsonify(_plan_to_json(plan)), 200
 
@@ -552,6 +578,10 @@ def approve_plan(plan_id):
         v.validated_at = datetime.utcnow()
         plan.validation_step = 2
         _get_or_create_plan_validation(plan_id, plan.site_id, "level_2")  # next step PENDING
+        write_audit(
+            request.user_id, plan.site_id, "APPROVE", "PLAN", plan_id,
+            "Validation niveau 1 (Level 1)",
+        )
         db.session.commit()
         return jsonify(_plan_to_json(plan)), 200
 
@@ -565,6 +595,10 @@ def approve_plan(plan_id):
     plan.status = "VALIDATED"
     plan.validated_at = datetime.utcnow()
     plan.validation_step = None
+    write_audit(
+        request.user_id, plan.site_id, "APPROVE", "PLAN", plan_id,
+        f"Plan {plan.year} validé",
+    )
     db.session.commit()
 
     site_name = plan.site.name if plan.site else "Site inconnu"
@@ -636,6 +670,10 @@ def reject_plan(plan_id):
     plan.rejected_comment = motif
     plan.rejected_activity_ids = json.dumps(activity_ids) if activity_ids else None
     plan.validation_step = None
+    write_audit(
+        request.user_id, plan.site_id, "REJECT", "PLAN", plan_id,
+        f"Plan rejeté: {motif[:200]}",
+    )
     db.session.commit()
 
     site_name = plan.site.name if plan.site else "Site inconnu"
@@ -668,6 +706,15 @@ def delete_plan(plan_id):
         if not _user_can_access_site(request.user_id, plan.site_id):
             return jsonify({"message": "Vous n'avez pas accès à ce plan"}), 403
 
+    old_snapshot = snapshot_plan(plan)
+    audit_delete(
+        user_id=request.user_id,
+        site_id=plan.site_id,
+        entity_type="PLAN",
+        entity_id=plan_id,
+        description=f"Suppression plan {plan.year}",
+        old_snapshot=old_snapshot,
+    )
     db.session.delete(plan)
     db.session.commit()
     return jsonify({"message": "Plan supprimé"}), 200

@@ -1,6 +1,7 @@
 """
 Flask application factory.
 """
+import logging
 import os
 
 from flask import Flask
@@ -69,5 +70,21 @@ def create_app(config_class=Config) -> Flask:
 
 app = create_app()
 
+
+class SuppressServeLogFilter(logging.Filter):
+    """Suppress request logs for /api/documents/serve/ (e.g. profile photos) to reduce terminal noise."""
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        try:
+            msg = record.getMessage()
+        except Exception:
+            msg = str(getattr(record, "msg", ""))
+        if "/api/documents/serve/" in msg:
+            return False
+        return True
+
+
 if __name__ == "__main__":
+    # Attach filter to the logger so it applies to all handlers (including any added by werkzeug later)
+    logging.getLogger("werkzeug").addFilter(SuppressServeLogFilter())
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5001)), debug=True)

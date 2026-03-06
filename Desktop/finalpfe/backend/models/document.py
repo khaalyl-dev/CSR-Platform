@@ -25,8 +25,8 @@ class Document(db.Model):
     site_id = db.Column(
         CHAR(36, collation="utf8mb4_unicode_ci"),
         db.ForeignKey("sites.id", ondelete="CASCADE"),
-        nullable=False,
-        comment="Site auquel appartient le document"
+        nullable=True,
+        comment="Site auquel appartient le document (NULL pour photo de profil)"
     )
 
     # ── Infos fichier ─────────────────────────────────────────────────────────
@@ -42,6 +42,10 @@ class Document(db.Model):
         nullable=True,
         comment="Demande de modification à laquelle ce document est joint"
     )
+
+    # ── Lien entité (ex. activité pour photos) ──────────────────────────────────
+    entity_type = db.Column(db.String(20), nullable=True, comment="PLAN, ACTIVITY, etc.")
+    entity_id = db.Column(CHAR(36, collation="utf8mb4_unicode_ci"), nullable=True, comment="ID de l'entité (ex. activity_id)")
 
     # ── Métadonnées ───────────────────────────────────────────────────────────
     uploaded_by = db.Column(

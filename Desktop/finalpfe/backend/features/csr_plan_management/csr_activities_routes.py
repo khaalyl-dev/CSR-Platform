@@ -6,6 +6,12 @@ from flask import Blueprint, request, jsonify
 
 from core import db, token_required
 from models import CsrActivity, CsrPlan, UserSite, RealizedCsr, Category
+from features.audit_history_management.audit_helper import (
+    audit_create,
+    audit_update,
+    audit_delete,
+    snapshot_activity,
+)
 
 
 def _plan_is_editable(plan: CsrPlan) -> bool:
@@ -46,12 +52,14 @@ def _activity_to_json_with_plan(a: CsrActivity):
     """Include plan and category info for list views."""
     out = _activity_to_json(a)
     if a.plan:
+        out["site_id"] = a.plan.site_id
         out["site_name"] = a.plan.site.name if a.plan.site else None
         out["site_code"] = a.plan.site.code if a.plan.site else None
         out["year"] = a.plan.year
         out["plan_status"] = a.plan.status
         out["plan_editable"] = _plan_is_editable(a.plan)
     else:
+        out["site_id"] = None
         out["site_name"] = out["site_code"] = None
         out["year"] = None
         out["plan_status"] = None
@@ -193,6 +201,15 @@ def create_activity():
         status="DRAFT",
     )
     db.session.add(a)
+    db.session.flush()
+    audit_create(
+        user_id=request.user_id,
+        site_id=plan.site_id,
+        entity_type="ACTIVITY",
+        entity_id=a.id,
+        description=f"Création activité {a.title or a.activity_number}",
+        new_snapshot=snapshot_activity(a),
+    )
     db.session.commit()
     return jsonify(_activity_to_json(a)), 201
 
@@ -215,6 +232,10 @@ def get_activity(activity_id: str):
     if not _user_can_access_plan(request.user_id, a.plan_id, getattr(request, "role", "")):
         return jsonify({"message": "Vous n'avez pas accès à cette activité"}), 403
     return jsonify(_activity_to_json_with_plan(a)), 200
+
+
+def _activity_site_id(a: CsrActivity):
+    return a.plan.site_id if a.plan else None
 
 
 @bp.put("/<activity_id>")
@@ -244,6 +265,7 @@ def update_activity(activity_id: str):
     if existing and existing.id != activity_id:
         return jsonify({"message": "Une activité avec ce numéro existe déjà dans ce plan"}), 400
 
+    old_snapshot = snapshot_activity(a)
     def _num(key):
         v = data.get(key)
         if v is None or v == "":
@@ -283,6 +305,15 @@ def update_activity(activity_id: str):
         a.action_impact_target = _num("action_impact_target")
     if "action_impact_unit" in data:
         a.action_impact_unit = _str_val("action_impact_unit")
+    audit_update(
+        user_id=request.user_id,
+        site_id=_activity_site_id(a),
+        entity_type="ACTIVITY",
+        entity_id=activity_id,
+        description=f"Modification activité {a.title or a.activity_number}",
+        old_snapshot=old_snapshot,
+        new_snapshot=snapshot_activity(a),
+    )
     db.session.commit()
     return jsonify(_activity_to_json(a)), 200
 
@@ -299,6 +330,15 @@ def delete_activity(activity_id: str):
     plan = CsrPlan.query.get(a.plan_id)
     if plan and not _plan_is_editable(plan):
         return jsonify({"message": "Plan validé (verrouillé) ou période d'ouverture expirée. Utilisez une demande de modification."}), 403
+    old_snapshot = snapshot_activity(a)
+    audit_delete(
+        user_id=request.user_id,
+        site_id=_activity_site_id(a),
+        entity_type="ACTIVITY",
+        entity_id=activity_id,
+        description=f"Suppression activité {a.title or a.activity_number}",
+        old_snapshot=old_snapshot,
+    )
     db.session.delete(a)
     db.session.commit()
     return jsonify({"message": "Activité supprimée"}), 200

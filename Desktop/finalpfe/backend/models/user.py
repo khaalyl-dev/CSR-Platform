@@ -41,6 +41,7 @@ class User(db.Model):
         db.Boolean, nullable=False, default=False,
         comment="Accès corporate global (tous les sites)"
     )
+    avatar_url = db.Column(db.String(512), nullable=True, comment="Chemin relatif de la photo de profil (ex: profile_photos/user_id.jpg)")
     created_at = db.Column(db.DateTime, default=db.func.now(), comment="Date de création")
     updated_at = db.Column(
         db.DateTime, default=db.func.now(), onupdate=db.func.now(),
