@@ -1,0 +1,239 @@
+<div class="settings-shell">
+  @if (loading()) {
+    <div class="settings-state">
+      <div class="spinner"></div>
+      <p>{{ 'PROFILE_SETTINGS.LOADING' | translate }}</p>
+    </div>
+  } @else if (loadError(); as msg) {
+    <div class="settings-state settings-state--error">
+      <fa-icon [icon]="faCircleXmark"></fa-icon>
+      <p>{{ msg }}</p>
+      <button type="button" class="btn btn-danger" (click)="loadProfile()">{{ 'COMMON.RETRY' | translate }}</button>
+    </div>
+  } @else if (profile(); as p) {
+    <aside class="settings-side">
+      <div class="side-profile">
+        @if (avatarBlobUrl()) {
+          <img [src]="avatarBlobUrl()!" alt="Profile picture" class="side-avatar" />
+        } @else {
+          <div class="side-avatar side-avatar--placeholder">{{ ((p.first_name || p.email || '?')[0] || '?') | uppercase }}</div>
+        }
+        <h3>{{ (p.first_name || '') + ' ' + (p.last_name || '') }}</h3>
+        <p>{{ p.email }}</p>
+      </div>
+
+      <nav class="side-nav">
+        <button type="button" class="side-link" [class.side-link--active]="activeTab() === 'profile'" (click)="setTab('profile')"><fa-icon [icon]="faUserCog"></fa-icon> {{ 'PROFILE_SETTINGS.TABS.PROFILE' | translate }}</button>
+        <button type="button" class="side-link" [class.side-link--active]="activeTab() === 'account'" (click)="setTab('account')"><fa-icon [icon]="faIdCard"></fa-icon> {{ 'PROFILE_SETTINGS.TABS.ACCOUNT' | translate }}</button>
+        <button type="button" class="side-link" [class.side-link--active]="activeTab() === 'security'" (click)="setTab('security')"><fa-icon [icon]="faKey"></fa-icon> {{ 'PROFILE_SETTINGS.TABS.SECURITY' | translate }}</button>
+        <button type="button" class="side-link" [class.side-link--active]="activeTab() === 'notifications'" (click)="setTab('notifications')"><fa-icon [icon]="faBell"></fa-icon> {{ 'PROFILE_SETTINGS.TABS.NOTIFICATIONS' | translate }}</button>
+        <button type="button" class="side-link" [class.side-link--active]="activeTab() === 'preferences'" (click)="setTab('preferences')"><fa-icon [icon]="faGear"></fa-icon> {{ 'PROFILE_SETTINGS.TABS.PREFERENCES' | translate }}</button>
+      </nav>
+    </aside>
+
+    <main class="settings-main">
+      <header class="settings-main-header">
+        <h1>{{ 'PROFILE_SETTINGS.TITLE' | translate }}</h1>
+      </header>
+
+      @if (activeTab() === 'profile') {
+        <section class="settings-card">
+          <div class="settings-row settings-row--top">
+            <h2><fa-icon [icon]="faUserCog"></fa-icon> {{ 'PROFILE_SETTINGS.SECTIONS.PROFILE' | translate }}</h2>
+            <label class="picture-btn">
+              <input
+                type="file"
+                accept="image/png,image/jpeg,image/jpg,image/gif,image/webp"
+                (change)="onPhotoSelected($event)"
+                [disabled]="photoUploading()"
+              />
+              {{ photoUploading() ? ('PROFILE_SETTINGS.BUTTONS.UPLOADING' | translate) : ('PROFILE_SETTINGS.BUTTONS.CHANGE_PICTURE' | translate) }}
+            </label>
+          </div>
+
+          <form [formGroup]="profileForm" (ngSubmit)="onUpdateProfile()" class="settings-list">
+            <div class="settings-item">
+              <div>
+                <h4>{{ 'PROFILE_SETTINGS.FIELDS.FIRST_NAME' | translate }}</h4>
+                <input type="text" formControlName="first_name" />
+                @if (profileForm.get('first_name')?.invalid && profileForm.get('first_name')?.touched) {
+                  <p class="field-error">{{ 'PROFILE_SETTINGS.VALIDATION.FIRST_NAME_REQUIRED' | translate }}</p>
+                }
+              </div>
+            </div>
+            <div class="settings-item">
+              <div>
+                <h4>{{ 'PROFILE_SETTINGS.FIELDS.LAST_NAME' | translate }}</h4>
+                <input type="text" formControlName="last_name" />
+                @if (profileForm.get('last_name')?.invalid && profileForm.get('last_name')?.touched) {
+                  <p class="field-error">{{ 'PROFILE_SETTINGS.VALIDATION.LAST_NAME_REQUIRED' | translate }}</p>
+                }
+              </div>
+            </div>
+            <div class="settings-item">
+              <div>
+                <h4>{{ 'PROFILE_SETTINGS.FIELDS.PHONE' | translate }}</h4>
+                <div class="phone-input-group">
+                  <select formControlName="phone_prefix" class="phone-prefix-select">
+                    @for (country of countryPrefixes; track country.code) {
+                      <option [value]="country.prefix">{{ country.name }} ({{ country.prefix }})</option>
+                    }
+                  </select>
+                  <input type="text" formControlName="phone" [placeholder]="'PROFILE_SETTINGS.FIELDS.PHONE_NUMBER' | translate" />
+                </div>
+              </div>
+            </div>
+            <div class="settings-item">
+              <div>
+                <h4>{{ 'PROFILE_SETTINGS.FIELDS.EMAIL' | translate }}</h4>
+                <input type="text" formControlName="email" readonly />
+              </div>
+            </div>
+
+            @if (photoError(); as msg) {
+              <p class="form-message form-message--error">{{ msg }}</p>
+            }
+            @if (formError(); as msg) {
+              <p class="form-message form-message--error">{{ msg }}</p>
+            }
+            @if (formSuccess(); as msg) {
+              <p class="form-message form-message--ok">{{ msg }}</p>
+            }
+            <button type="submit" class="btn btn-primary" [disabled]="savingProfile()">
+              {{ savingProfile() ? ('COMMON.SAVING' | translate) : ('PROFILE_SETTINGS.BUTTONS.UPDATE_PROFILE' | translate) }}
+            </button>
+          </form>
+        </section>
+      }
+
+      @if (activeTab() === 'account') {
+        <section class="settings-card">
+          <div class="settings-row settings-row--top">
+            <h2><fa-icon [icon]="faIdCard"></fa-icon> {{ 'PROFILE_SETTINGS.SECTIONS.ACCOUNT' | translate }}</h2>
+          </div>
+          <div class="settings-list">
+            <div class="settings-item"><h4>{{ 'PROFILE_SETTINGS.ACCOUNT.ROLE' | translate }}</h4><p>{{ roleLabel(p.role) }}</p></div>
+            <div class="settings-item"><h4>{{ 'PROFILE_SETTINGS.ACCOUNT.ASSIGNED_SITE' | translate }}</h4><p>{{ assignedSiteLabel(p) }}</p></div>
+            <div class="settings-item"><h4>{{ 'PROFILE_SETTINGS.ACCOUNT.STATUS' | translate }}</h4><p>{{ p.is_active ? ('PROFILE_SETTINGS.ACCOUNT.ACTIVE' | translate) : ('PROFILE_SETTINGS.ACCOUNT.INACTIVE' | translate) }}</p></div>
+            <div class="settings-item"><h4>{{ 'PROFILE_SETTINGS.ACCOUNT.LAST_LOGIN' | translate }}</h4><p>{{ formatDate(p.last_login) }}</p></div>
+            <div class="settings-item"><h4>{{ 'PROFILE_SETTINGS.ACCOUNT.CREATED_AT' | translate }}</h4><p>{{ formatDate(p.created_at) }}</p></div>
+          </div>
+        </section>
+      }
+
+      @if (activeTab() === 'security') {
+        <section class="settings-card">
+          <div class="settings-row settings-row--top">
+            <h2><fa-icon [icon]="faKey"></fa-icon> {{ 'PROFILE_SETTINGS.SECTIONS.SECURITY' | translate }}</h2>
+          </div>
+          <form [formGroup]="passwordForm" (ngSubmit)="onChangePassword()" class="settings-list">
+            <div class="settings-item">
+              <div>
+                <h4>{{ 'PROFILE_SETTINGS.FIELDS.CURRENT_PASSWORD' | translate }}</h4>
+                <input type="password" formControlName="current_password" autocomplete="current-password" />
+              </div>
+            </div>
+            <div class="settings-item">
+              <div>
+                <h4>{{ 'PROFILE_SETTINGS.FIELDS.NEW_PASSWORD' | translate }}</h4>
+                <input type="password" formControlName="new_password" autocomplete="new-password" />
+                @if (passwordForm.get('new_password')?.invalid && passwordForm.get('new_password')?.touched) {
+                  <p class="field-error">{{ 'PROFILE_SETTINGS.VALIDATION.PASSWORD_MIN' | translate }}</p>
+                }
+              </div>
+            </div>
+            <div class="settings-item">
+              <div>
+                <h4>{{ 'PROFILE_SETTINGS.FIELDS.CONFIRM_PASSWORD' | translate }}</h4>
+                <input type="password" formControlName="confirm_password" autocomplete="new-password" />
+              </div>
+            </div>
+
+            @if (passwordError(); as msg) {
+              <p class="form-message form-message--error">{{ msg }}</p>
+            }
+            @if (passwordSuccess(); as msg) {
+              <p class="form-message form-message--ok">{{ msg }}</p>
+            }
+            <button type="submit" class="btn btn-primary" [disabled]="changingPassword()">
+              {{ changingPassword() ? ('COMMON.SAVING' | translate) : ('PROFILE_SETTINGS.BUTTONS.CHANGE_PASSWORD' | translate) }}
+            </button>
+          </form>
+        </section>
+      }
+
+      @if (activeTab() === 'notifications') {
+        <section class="settings-card">
+          <div class="settings-row settings-row--top">
+            <h2><fa-icon [icon]="faBell"></fa-icon> {{ 'PROFILE_SETTINGS.SECTIONS.NOTIFICATIONS' | translate }}</h2>
+          </div>
+          <form [formGroup]="notificationForm" class="settings-list">
+            <label class="settings-item settings-item--toggle">
+              <span>{{ 'PROFILE_SETTINGS.NOTIFICATIONS.CSR_PLAN' | translate }}</span>
+              <input type="checkbox" formControlName="csrPlanValidation" />
+            </label>
+            <label class="settings-item settings-item--toggle">
+              <span>{{ 'PROFILE_SETTINGS.NOTIFICATIONS.ACTIVITY_VALIDATION' | translate }}</span>
+              <input type="checkbox" formControlName="activityValidation" />
+            </label>
+            <label class="settings-item settings-item--toggle">
+              <span>{{ 'PROFILE_SETTINGS.NOTIFICATIONS.ACTIVITY_REMINDERS' | translate }}</span>
+              <input type="checkbox" formControlName="activityReminders" />
+            </label>
+            <label class="settings-item settings-item--toggle">
+              <span>{{ 'PROFILE_SETTINGS.NOTIFICATIONS.WEEKLY_SUMMARY' | translate }}</span>
+              <input type="checkbox" formControlName="weeklySummaryEmail" />
+            </label>
+            @if (settingsError(); as msg) {
+              <p class="form-message form-message--error">{{ msg }}</p>
+            }
+            @if (settingsSuccess(); as msg) {
+              <p class="form-message form-message--ok">{{ msg }}</p>
+            }
+            <button type="button" class="btn btn-primary" (click)="onSaveNotifications()" [disabled]="savingNotifications()">
+              {{ savingNotifications() ? ('COMMON.SAVING' | translate) : ('PROFILE_SETTINGS.BUTTONS.SAVE_NOTIFICATIONS' | translate) }}
+            </button>
+          </form>
+        </section>
+      }
+
+      @if (activeTab() === 'preferences') {
+        <section class="settings-card">
+          <div class="settings-row settings-row--top">
+            <h2><fa-icon [icon]="faGear"></fa-icon> {{ 'PROFILE_SETTINGS.SECTIONS.PREFERENCES' | translate }}</h2>
+          </div>
+          <form [formGroup]="preferencesForm" class="settings-list">
+            <div class="settings-item">
+              <div>
+                <h4>{{ 'PROFILE_SETTINGS.FIELDS.LANGUAGE' | translate }}</h4>
+                <select formControlName="language">
+                  <option value="en">{{ 'LANGUAGES.ENGLISH' | translate }}</option>
+                  <option value="fr">{{ 'LANGUAGES.FRENCH' | translate }}</option>
+                </select>
+              </div>
+            </div>
+            <div class="settings-item">
+              <div>
+                <h4>{{ 'PROFILE_SETTINGS.FIELDS.THEME' | translate }}</h4>
+                <select formControlName="theme">
+                  <option value="light">{{ 'PROFILE_SETTINGS.THEME.LIGHT' | translate }}</option>
+                  <option value="dark">{{ 'PROFILE_SETTINGS.THEME.DARK' | translate }}</option>
+                </select>
+              </div>
+            </div>
+            @if (settingsError(); as msg) {
+              <p class="form-message form-message--error">{{ msg }}</p>
+            }
+            @if (settingsSuccess(); as msg) {
+              <p class="form-message form-message--ok">{{ msg }}</p>
+            }
+            <button type="button" class="btn btn-primary" (click)="onSavePreferences()" [disabled]="savingPreferences()">
+              {{ savingPreferences() ? ('COMMON.SAVING' | translate) : ('PROFILE_SETTINGS.BUTTONS.SAVE_PREFERENCES' | translate) }}
+            </button>
+          </form>
+        </section>
+      }
+
+    </main>
+  }
+</div>

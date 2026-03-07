@@ -37,6 +37,7 @@ def _realized_to_json(r: RealizedCsr):
         "activity_id": r.activity_id,
         "activity_title": act.title if act else None,
         "activity_number": act.activity_number if act else None,
+        "planned_budget": float(act.planned_budget) if act and act.planned_budget is not None else None,
         "plan_id": act.plan_id if act else None,
         "site_name": plan.site.name if plan and plan.site else None,
         "plan_status": plan.status if plan else None,

@@ -5,11 +5,11 @@
       <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
       </svg>
-      Retour
+      {{ 'COMMON.BACK' | translate }}
     </button>
   </div>
 
-  <div *ngIf="loading()" class="text-center py-12 text-gray-500">Chargement...</div>
+  <div *ngIf="loading()" class="text-center py-12 text-gray-500">{{ 'COMMON.LOADING' | translate }}</div>
   <div *ngIf="errorMsg()" class="text-center py-12 text-red-600">{{ errorMsg() }}</div>
 
   <div *ngIf="plan() && !loading()" class="space-y-6">
@@ -17,15 +17,15 @@
       <div class="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 class="text-2xl font-bold text-gray-800">{{ plan()!.site_name ?? plan()!.site_code }} – {{ plan()!.year }}</h1>
-          <p class="text-gray-500 mt-1">Mode {{ validationModeLabel(plan()!.validation_mode) }} – {{ statusLabel(plan()!.status) }}</p>
+          <p class="text-gray-500 mt-1">{{ 'PLAN_DETAIL.MODE' | translate }} {{ validationModeLabel(plan()!.validation_mode) }} – {{ statusLabel(plan()!.status) }}</p>
           <p *ngIf="validationStepLabel()" class="text-amber-600 text-sm font-medium mt-1">{{ validationStepLabel() }}</p>
           <p *ngIf="plan()!.unlock_until && isUnlockUntilFuture()" class="text-sm text-green-700 font-medium mt-1">
-            <i class="fas fa-unlock-alt mr-1"></i>Ouvert pour modification jusqu'au {{ plan()!.unlock_until | date:'longDate' }} (puis verrouillage automatique)
+            <i class="fas fa-unlock-alt mr-1"></i>{{ 'PLAN_DETAIL.OPEN_FOR_EDIT_UNTIL' | translate }} {{ plan()!.unlock_until | date:'longDate' }} ({{ 'PLAN_DETAIL.THEN_AUTO_LOCK' | translate }})
           </p>
         </div>
         <div class="flex items-center gap-3">
           <button *ngIf="plan()!.status === 'VALIDATED' && !isUnlockUntilFuture()" type="button" (click)="goToChangeRequest(plan()!.id)"
-            class="inline-flex items-center justify-center p-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors cursor-pointer" title="Demande de modification">
+            class="inline-flex items-center justify-center p-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors cursor-pointer" [title]="'PLAN_DETAIL.CHANGE_REQUEST_TITLE' | translate">
             <i class="fas fa-lock-open text-lg"></i>
           </button>
           <button *ngIf="canSubmitForValidation()" type="button" (click)="submitForValidation()" [disabled]="actionLoading()"
@@ -35,24 +35,24 @@
           <div *ngIf="plan()!.status === 'SUBMITTED' && (canApprove || canReject)" class="flex items-center gap-2">
             <button *ngIf="canApprove" type="button" (click)="approve()" [disabled]="actionLoading()"
               class="inline-flex items-center justify-center min-w-[130px] px-5 py-2.5 rounded-xl text-sm font-semibold text-white bg-brand-900 hover:opacity-90 active:opacity-95 shadow-sm hover:shadow transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-brand-900 focus:ring-offset-2">
-              Approuver
+              {{ 'PLAN_DETAIL.APPROVE' | translate }}
             </button>
             <button *ngIf="canReject" type="button" (click)="openRejectModal()" [disabled]="actionLoading()"
               class="inline-flex items-center justify-center min-w-[130px] px-5 py-2.5 rounded-xl text-sm font-semibold bg-white text-brand-900 border-2 border-brand-900 hover:bg-gray-50 active:bg-gray-100 shadow-sm hover:shadow transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-brand-900 focus:ring-offset-2">
-              Rejeter
+              {{ 'PLAN_DETAIL.REJECT' | translate }}
             </button>
           </div>
           <button *ngIf="canEditPlan()"
             type="button" (click)="addActivity()"
             class="bg-green-600 text-white px-4 py-2 rounded-xl hover:bg-green-700">
-            + Ajouter une activité
+            + {{ 'PLAN_DETAIL.ADD_ACTIVITY' | translate }}
           </button>
         </div>
       </div>
       <div *ngIf="plan()!.rejected_comment" class="mt-4 p-4 bg-red-50 rounded-xl text-red-700 text-sm space-y-1">
-        <p><strong>Motif de rejet :</strong> {{ plan()!.rejected_comment }}</p>
+        <p><strong>{{ 'PLAN_DETAIL.REJECT_REASON' | translate }}</strong> {{ plan()!.rejected_comment }}</p>
         <div *ngIf="rejectedActivitiesList().length" class="mt-2">
-          <strong>Activités à modifier :</strong>
+          <strong>{{ 'PLAN_DETAIL.ACTIVITIES_TO_MODIFY' | translate }}</strong>
           <ul class="list-disc list-inside mt-1 space-y-0.5">
             <li *ngFor="let item of rejectedActivitiesList()">
               <a [routerLink]="['/planned-activity', item.id]" class="underline hover:no-underline">{{ item.label }}</a>
@@ -66,25 +66,25 @@
     <div *ngIf="showRejectModal()" class="fixed inset-0 z-[9998] flex items-center justify-center p-4 bg-black/50" (click)="closeRejectModal()" role="dialog" aria-modal="true" aria-labelledby="reject-modal-title">
       <div class="relative z-[9999] bg-white rounded-2xl shadow-xl border border-gray-200 w-full max-w-md overflow-hidden" (click)="$event.stopPropagation()">
         <div class="p-6 border-b border-gray-100">
-          <h2 id="reject-modal-title" class="text-lg font-semibold text-gray-800">Rejeter le plan</h2>
-          <p class="text-gray-500 text-sm mt-1">Indiquez le motif de rejet et, si besoin, les activités à modifier.</p>
+          <h2 id="reject-modal-title" class="text-lg font-semibold text-gray-800">{{ 'PLAN_DETAIL.REJECT_PLAN' | translate }}</h2>
+          <p class="text-gray-500 text-sm mt-1">{{ 'PLAN_DETAIL.REJECT_INSTRUCTIONS' | translate }}</p>
         </div>
         <div class="p-6 space-y-4">
           <div>
-            <label for="reject-comment" class="block text-sm font-medium text-gray-700 mb-1">Motif de rejet <span class="text-red-500">*</span></label>
+            <label for="reject-comment" class="block text-sm font-medium text-gray-700 mb-1">{{ 'PLAN_DETAIL.REJECT_REASON_LABEL' | translate }} <span class="text-red-500">*</span></label>
             <textarea id="reject-comment" rows="3" [value]="rejectComment()" (input)="rejectComment.set($any($event.target).value)"
               class="w-full px-3 py-2 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-rose-500 focus:border-rose-500"
-              placeholder="Ex. Budget non justifié, description incomplète..."></textarea>
+              [placeholder]="'PLAN_DETAIL.REJECT_REASON_PLACEHOLDER' | translate"></textarea>
           </div>
           <div>
-            <span class="block text-sm font-medium text-gray-700 mb-2">Activités à modifier (optionnel)</span>
+            <span class="block text-sm font-medium text-gray-700 mb-2">{{ 'PLAN_DETAIL.ACTIVITIES_TO_MODIFY_OPTIONAL' | translate }}</span>
             <div class="border border-gray-200 rounded-xl p-3 max-h-48 overflow-y-auto space-y-2 bg-gray-50/50">
               <label *ngFor="let a of plan()!.activities" class="flex items-start gap-3 cursor-pointer hover:bg-white/80 p-2 rounded-lg">
                 <input type="checkbox" [checked]="isRejectActivitySelected(a.id)" (change)="toggleRejectActivity(a.id)"
                   class="mt-1 rounded border-gray-300 text-rose-600 focus:ring-rose-500">
                 <span class="text-sm text-gray-700">{{ a.activity_number }} – {{ a.title }}</span>
               </label>
-              <p *ngIf="!plan()!.activities?.length" class="text-gray-500 text-sm">Aucune activité dans ce plan.</p>
+              <p *ngIf="!plan()!.activities?.length" class="text-gray-500 text-sm">{{ 'PLAN_DETAIL.NO_ACTIVITIES_IN_PLAN' | translate }}</p>
             </div>
           </div>
           <p *ngIf="rejectModalError()" class="text-sm text-red-600">{{ rejectModalError() }}</p>
@@ -92,11 +92,11 @@
         <div class="p-6 pt-0 flex justify-end gap-3">
           <button type="button" (click)="closeRejectModal()"
             class="px-4 py-2 rounded-xl text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 transition-colors">
-            Annuler
+            {{ 'COMMON.CANCEL' | translate }}
           </button>
           <button type="button" (click)="submitReject()" [disabled]="actionLoading()"
             class="px-4 py-2 rounded-xl text-sm font-semibold bg-white text-brand-900 border-2 border-brand-900 hover:bg-gray-50 disabled:opacity-50 transition-colors">
-            Rejeter le plan
+            {{ 'PLAN_DETAIL.REJECT_PLAN_BUTTON' | translate }}
           </button>
         </div>
       </div>
@@ -114,7 +114,7 @@
       <button (click)="goToActivityDetail(activityMenuId()!)"
         class="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors">
         <i class="fas fa-eye w-4 text-center"></i>
-        Détails
+        {{ 'PLAN_VALIDATION.DETAILS' | translate }}
       </button>
 
       <button *ngIf="canEditPlan()" (click)="goToEditActivity(activityMenuId()!)"
@@ -134,7 +134,7 @@
 
     <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
       <div class="p-4 border-b border-gray-100 flex flex-wrap items-center gap-4">
-        <h2 class="font-semibold text-gray-800">Activités ({{ plan()!.activities?.length ?? 0 }})</h2>
+        <h2 class="font-semibold text-gray-800">{{ 'PLAN_DETAIL.ACTIVITIES_COUNT' | translate }} ({{ plan()!.activities?.length ?? 0 }})</h2>
         <ng-container *ngIf="hasUnlockHighlights()">
           <span class="text-xs text-gray-500 flex items-center gap-2">
             <span class="inline-block w-4 h-4 rounded bg-brand-100"></span> Ajouté lors de la dernière ouverture
@@ -148,11 +148,11 @@
           <thead class="bg-gray-50 text-gray-600 uppercase text-xs whitespace-nowrap">
             <tr>
               <th class="p-3 text-left min-w-[7rem] w-28">N°</th>
-              <th class="p-3 text-left">Titre</th>
-              <th class="p-3 text-left max-w-[200px]">Description</th>
-              <th class="p-3 text-left">Catégorie</th>
-              <th class="p-3 text-right">Budget prévu</th>
-              <th class="p-3 text-center w-48">Action</th>
+              <th class="p-3 text-left">{{ 'PLAN_DETAIL.TITLE' | translate }}</th>
+              <th class="p-3 text-left max-w-[200px]">{{ 'PLAN_DETAIL.DESCRIPTION' | translate }}</th>
+              <th class="p-3 text-left">{{ 'PLANNED_ACTIVITIES.CATEGORY' | translate }}</th>
+              <th class="p-3 text-right">{{ 'PLAN_DETAIL.BUDGET_PLANNED' | translate }}</th>
+              <th class="p-3 text-center w-48">{{ 'COMMON.ACTION' | translate }}</th>
             </tr>
           </thead>
           <tbody>
@@ -163,7 +163,7 @@
               [class.bg-amber-100]="a.modified_during_unlock && !a.added_during_unlock"
               [attr.title]="(a.added_during_unlock ? 'Ajouté lors de la dernière ouverture pour modification' : a.modified_during_unlock ? 'Modifié lors de la dernière ouverture pour modification' : null)">
               <td class="p-3 font-medium min-w-[7rem] w-28">
-                <span *ngIf="a.modified_during_unlock && !a.added_during_unlock" class="text-xs text-amber-700 mr-1" title="Modifié">✎</span>
+                <span *ngIf="a.modified_during_unlock && !a.added_during_unlock" class="text-xs text-amber-700 mr-1" [attr.title]="'PLAN_DETAIL.MODIFIED_TITLE' | translate">✎</span>
                 {{ a.activity_number }}
               </td>
               <td class="p-3">{{ a.title }}</td>
@@ -174,7 +174,7 @@
                 <div class="relative flex items-center justify-center">
                   <button type="button" (click)="toggleActivityMenu($event, a.id)"
                     class="inline-flex items-center justify-center p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
-                    title="Actions">
+                    [attr.title]="'PLAN_DETAIL.ACTIONS_TITLE' | translate">
                     <i class="fas fa-ellipsis-vertical text-lg"></i>
                   </button>
                 </div>
@@ -182,11 +182,11 @@
             </tr>
             <tr *ngIf="!plan()!.activities?.length" class="border-t">
               <td colspan="6" class="p-8 text-center text-gray-500">
-                Aucune activité.
+                {{ 'PLAN_DETAIL.NO_ACTIVITIES_IN_PLAN' | translate }}
                 <ng-container *ngIf="canEditPlan()">
-                  <button type="button" (click)="addActivity()" class="text-brand-700 hover:underline">Ajouter une activité</button>
+                  <button type="button" (click)="addActivity()" class="text-brand-700 hover:underline">{{ 'PLAN_DETAIL.ADD_ACTIVITY' | translate }}</button>
                 </ng-container>
-                <span *ngIf="!canEditPlan() && plan()!.status !== 'SUBMITTED'">Plan verrouillé ou période d'ouverture expirée. Utilisez une demande de modification (cadenas) pour demander des changements.</span>
+                <span *ngIf="!canEditPlan() && plan()!.status !== 'SUBMITTED'">{{ 'PLAN_DETAIL.LOCKED_OR_EXPIRED' | translate }}</span>
               </td>
             </tr>
           </tbody>
@@ -196,22 +196,22 @@
           <thead class="bg-gray-50 text-gray-600 uppercase text-xs whitespace-nowrap">
             <tr>
               <th class="p-3 text-left min-w-[7rem] w-28">N°</th>
-              <th class="p-3 text-left">Titre</th>
-              <th class="p-3 text-left max-w-[200px]">Description</th>
-              <th class="p-3 text-left">Catégorie</th>
-              <th class="p-3 text-left">Nature collab.</th>
-              <th class="p-3 text-left">Organisation</th>
-              <th class="p-3 text-left">Organisateur</th>
-              <th class="p-3 text-right">Budget prévu</th>
-              <th class="p-3 text-right">Volontaires prévus</th>
-              <th class="p-3 text-right">Impact cible</th>
-              <th class="p-3 text-left">Unité impact</th>
-              <th class="p-3 text-right">Budget réalisé</th>
-              <th class="p-3 text-right">Participants</th>
-              <th class="p-3 text-right">Impact réalisé</th>
-              <th class="p-3 text-left">Unité (réalisé)</th>
-              <th class="p-3 text-center">Réalisations</th>
-              <th class="p-3 text-center w-48">Action</th>
+              <th class="p-3 text-left">{{ 'PLAN_DETAIL.TITLE' | translate }}</th>
+              <th class="p-3 text-left max-w-[200px]">{{ 'PLAN_DETAIL.DESCRIPTION' | translate }}</th>
+              <th class="p-3 text-left">{{ 'PLANNED_ACTIVITIES.CATEGORY' | translate }}</th>
+              <th class="p-3 text-left">{{ 'PLAN_DETAIL.COLLAB_NATURE' | translate }}</th>
+              <th class="p-3 text-left">{{ 'PLAN_DETAIL.ORGANISATION' | translate }}</th>
+              <th class="p-3 text-left">{{ 'PLAN_DETAIL.ORGANIZER' | translate }}</th>
+              <th class="p-3 text-right">{{ 'PLAN_DETAIL.BUDGET_PLANNED' | translate }}</th>
+              <th class="p-3 text-right">{{ 'PLAN_DETAIL.VOLUNTEERS_PLANNED' | translate }}</th>
+              <th class="p-3 text-right">{{ 'PLAN_DETAIL.TARGET_IMPACT' | translate }}</th>
+              <th class="p-3 text-left">{{ 'PLAN_DETAIL.IMPACT_UNIT' | translate }}</th>
+              <th class="p-3 text-right">{{ 'PLAN_DETAIL.BUDGET_REALIZED' | translate }}</th>
+              <th class="p-3 text-right">{{ 'REALIZED.PARTICIPANTS' | translate }}</th>
+              <th class="p-3 text-right">{{ 'PLAN_DETAIL.IMPACT_REALIZED' | translate }}</th>
+              <th class="p-3 text-left">{{ 'PLAN_DETAIL.UNIT_REALIZED' | translate }}</th>
+              <th class="p-3 text-center">{{ 'PLAN_DETAIL.REALIZATIONS' | translate }}</th>
+              <th class="p-3 text-center w-48">{{ 'COMMON.ACTION' | translate }}</th>
             </tr>
           </thead>
           <tbody>
@@ -222,7 +222,7 @@
               [class.bg-amber-100]="a.modified_during_unlock && !a.added_during_unlock"
               [attr.title]="(a.added_during_unlock ? 'Ajouté lors de la dernière ouverture pour modification' : a.modified_during_unlock ? 'Modifié lors de la dernière ouverture pour modification' : null)">
               <td class="p-3 font-medium min-w-[7rem] w-28">
-                <span *ngIf="a.modified_during_unlock && !a.added_during_unlock" class="text-xs text-amber-700 mr-1" title="Modifié">✎</span>
+                <span *ngIf="a.modified_during_unlock && !a.added_during_unlock" class="text-xs text-amber-700 mr-1" [attr.title]="'PLAN_DETAIL.MODIFIED_TITLE' | translate">✎</span>
                 {{ a.activity_number }}
               </td>
               <td class="p-3">{{ a.title }}</td>
@@ -244,7 +244,7 @@
                 <div class="relative flex items-center justify-center">
                   <button type="button" (click)="toggleActivityMenu($event, a.id)"
                     class="inline-flex items-center justify-center p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
-                    title="Actions">
+                    [attr.title]="'PLAN_DETAIL.ACTIONS_TITLE' | translate">
                     <i class="fas fa-ellipsis-vertical text-lg"></i>
                   </button>
                 </div>
@@ -252,11 +252,11 @@
             </tr>
             <tr *ngIf="!plan()!.activities?.length" class="border-t">
               <td colspan="17" class="p-8 text-center text-gray-500">
-                Aucune activité.
+                {{ 'PLAN_DETAIL.NO_ACTIVITIES_IN_PLAN' | translate }}
                 <ng-container *ngIf="canEditPlan()">
-                  <button type="button" (click)="addActivity()" class="text-brand-700 hover:underline">Ajouter une activité</button>
+                  <button type="button" (click)="addActivity()" class="text-brand-700 hover:underline">{{ 'PLAN_DETAIL.ADD_ACTIVITY' | translate }}</button>
                 </ng-container>
-                <span *ngIf="!canEditPlan() && plan()!.status !== 'SUBMITTED'">Plan verrouillé ou période d'ouverture expirée. Utilisez une demande de modification (cadenas) pour demander des changements.</span>
+                <span *ngIf="!canEditPlan() && plan()!.status !== 'SUBMITTED'">{{ 'PLAN_DETAIL.LOCKED_OR_EXPIRED' | translate }}</span>
               </td>
             </tr>
           </tbody>
@@ -264,4 +264,19 @@
       </div>
     </div>
   </div>
+</div>
+
+<!-- Add planned activity sidebar (for draft/planned plans) -->
+<div *ngIf="showAddActivitySidebar()"
+  class="fixed inset-0 z-50 flex"
+  (click)="closeAddActivitySidebar()">
+  <div class="flex-1 bg-black/40 transition-opacity" aria-hidden="true"></div>
+  <aside class="w-full max-w-md bg-white shadow-2xl flex flex-col h-full animate-slide-in-right"
+    (click)="$event.stopPropagation()">
+    <app-planned-activity-create-sidebar
+      [initialPlanId]="plan()?.id ?? null"
+      (closed)="closeAddActivitySidebar()"
+      (created)="onActivityAdded()">
+    </app-planned-activity-create-sidebar>
+  </aside>
 </div>

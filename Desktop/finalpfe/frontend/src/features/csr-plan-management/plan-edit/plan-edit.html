@@ -9,13 +9,13 @@
         </svg>
       </button>
       <div>
-        <h1 class="text-xl font-bold text-gray-800">Modifier le plan</h1>
+        <h1 class="text-xl font-bold text-gray-800">{{ 'PLAN_EDIT.TITLE' | translate }}</h1>
         <p class="text-gray-400 text-sm" *ngIf="plan()">{{ plan()!.site_name ?? plan()!.site_code }} – {{ plan()!.year }}</p>
       </div>
     </div>
 
     <div *ngIf="loading" class="bg-white rounded-2xl shadow-sm border border-gray-200 p-12 text-center text-gray-500">
-      Chargement du plan...
+      {{ 'PLAN_EDIT.LOADING' | translate }}
     </div>
 
     <div *ngIf="!loading && plan()" class="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
@@ -27,8 +27,8 @@
           </svg>
         </div>
         <div>
-          <h2 class="text-lg font-bold text-gray-800">Informations du plan</h2>
-          <p class="text-gray-400 text-sm">Site : <strong class="text-gray-700">{{ plan()!.site_name ?? plan()!.site_code }}</strong> (non modifiable)</p>
+          <h2 class="text-lg font-bold text-gray-800">{{ 'PLAN_EDIT.PLAN_INFO' | translate }}</h2>
+          <p class="text-gray-400 text-sm">{{ 'PLAN_EDIT.SITE_READONLY' | translate }} : <strong class="text-gray-700">{{ plan()!.site_name ?? plan()!.site_code }}</strong></p>
         </div>
       </div>
 
@@ -37,7 +37,7 @@
         <!-- Année + Mode de validation -->
         <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
           <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1.5">Année <span class="text-red-500">*</span></label>
+            <label class="block text-sm font-medium text-gray-700 mb-1.5">{{ 'PLAN_EDIT.YEAR_LABEL' | translate }} <span class="text-red-500">*</span></label>
             <div class="relative">
               <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor" class="w-4 h-4 text-gray-400">
@@ -50,11 +50,11 @@
                 [class.border-red-400]="planForm.get('year')?.touched && planForm.get('year')?.invalid"/>
             </div>
             <p class="text-xs text-red-500 mt-1" *ngIf="planForm.get('year')?.touched && planForm.get('year')?.invalid">
-              Année invalide (2000–2100)
+              {{ 'PLAN_EDIT.YEAR_INVALID' | translate }}
             </p>
           </div>
           <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1.5">Mode de validation</label>
+            <label class="block text-sm font-medium text-gray-700 mb-1.5">{{ 'PLAN_EDIT.VALIDATION_MODE' | translate }}</label>
             <div class="relative">
               <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor" class="w-4 h-4 text-gray-400">
@@ -63,8 +63,8 @@
               </div>
               <select formControlName="validation_mode"
                 class="w-full pl-9 pr-10 py-2.5 bg-gray-100 border-0 rounded-xl text-sm text-gray-700 font-medium focus:ring-2 focus:ring-blue-500 focus:bg-white focus:outline-none transition-all appearance-none cursor-pointer hover:bg-gray-200">
-                <option value="101">Corporate only</option>
-                <option value="111">ALL</option>
+                <option value="101">{{ 'PLAN_EDIT.MODE_CORPORATE_ONLY' | translate }}</option>
+                <option value="111">{{ 'PLAN_EDIT.MODE_ALL' | translate }}</option>
               </select>
               <div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-3.5 h-3.5 text-gray-500">

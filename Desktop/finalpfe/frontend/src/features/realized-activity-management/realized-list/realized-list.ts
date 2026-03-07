@@ -1,18 +1,21 @@
 import { Component, computed, signal, inject, OnInit, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { Router, RouterModule } from '@angular/router';
+import { Router, RouterModule, ActivatedRoute } from '@angular/router';
+import { TranslateModule } from '@ngx-translate/core';
 import { RealizedCsrApi } from '../api/realized-csr-api';
 import type { RealizedCsr } from '../models/realized-csr.model';
+import { RealizedCreateSidebarComponent } from '../realized-create-sidebar/realized-create-sidebar';
 
 @Component({
   selector: 'app-realized-list',
   standalone: true,
-  imports: [CommonModule, RouterModule],
+  imports: [CommonModule, RouterModule, TranslateModule, RealizedCreateSidebarComponent],
   templateUrl: './realized-list.html'
 })
 export class RealizedListComponent implements OnInit {
   private api = inject(RealizedCsrApi);
   private router = inject(Router);
+  private route = inject(ActivatedRoute);
 
   activeMenuRealized: RealizedCsr | null = null;
   menuPosition = { top: 0, left: 0 };
@@ -50,7 +53,7 @@ export class RealizedListComponent implements OnInit {
         this.list.update((list) => list.filter((x) => x.id !== r.id));
         this.closeMenu();
       },
-      error: (err) => alert(err.error?.message ?? 'Erreur lors de la suppression'),
+      error: () => {},
     });
   }
 
@@ -105,9 +108,22 @@ export class RealizedListComponent implements OnInit {
     return [...filtered].sort((a, b) => {
       const valA = (a as any)[col]?.toString().toLowerCase() ?? '';
       const valB = (b as any)[col]?.toString().toLowerCase() ?? '';
-      const numA = typeof (a as any)[col] === 'number' ? (a as any)[col] : parseFloat(valA) || 0;
-      const numB = typeof (b as any)[col] === 'number' ? (b as any)[col] : parseFloat(valB) || 0;
-      if (col === 'year' || col === 'realized_budget') {
+      let numA: number, numB: number;
+      if (col === 'activity_number') {
+        // Natural sort: extract numbers for comparison (CSR 1 < CSR 2 < CSR 10 < CSR 100)
+        const matchA = valA.match(/\d+/g);
+        const matchB = valB.match(/\d+/g);
+        numA = matchA?.length ? parseInt(matchA[matchA.length - 1], 10) : 0;
+        numB = matchB?.length ? parseInt(matchB[matchB.length - 1], 10) : 0;
+        if (numA !== numB) {
+          if (numA < numB) return dir === 'asc' ? -1 : 1;
+          if (numA > numB) return dir === 'asc' ? 1 : -1;
+        }
+        return dir === 'asc' ? (valA < valB ? -1 : valA > valB ? 1 : 0) : (valA < valB ? 1 : valA > valB ? -1 : 0);
+      }
+      numA = typeof (a as any)[col] === 'number' ? (a as any)[col] : parseFloat(valA) || 0;
+      numB = typeof (b as any)[col] === 'number' ? (b as any)[col] : parseFloat(valB) || 0;
+      if (col === 'year' || col === 'planned_budget' || col === 'realized_budget' || col === 'participants' || col === 'total_hc') {
         if (numA < numB) return dir === 'asc' ? -1 : 1;
         if (numA > numB) return dir === 'asc' ? 1 : -1;
       } else {
@@ -130,7 +146,30 @@ export class RealizedListComponent implements OnInit {
   totalRecords = computed(() => this.filteredList().length);
   totalBudget = computed(() => this.filteredList().reduce((sum, r) => sum + (r.realized_budget ?? 0), 0));
 
+  showCreateSidebar = signal(false);
+  initialPlanIdForSidebar: string | null = null;
+
   ngOnInit(): void {
+    this.refresh();
+    this.route.queryParamMap.subscribe((params) => {
+      const planId = params.get('plan_id');
+      this.initialPlanIdForSidebar = planId || null;
+      if (planId) {
+        this.showCreateSidebar.set(true);
+        this.router.navigate([], { queryParams: { plan_id: null }, queryParamsHandling: 'merge', replaceUrl: true });
+      }
+    });
+  }
+
+  openCreateSidebar(): void {
+    this.showCreateSidebar.set(true);
+  }
+
+  closeCreateSidebar(): void {
+    this.showCreateSidebar.set(false);
+  }
+
+  onRealizedCreated(): void {
     this.refresh();
   }
 

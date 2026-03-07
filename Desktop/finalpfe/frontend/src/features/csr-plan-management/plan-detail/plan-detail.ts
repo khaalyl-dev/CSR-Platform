@@ -1,24 +1,28 @@
 import { Component, inject, OnInit, OnDestroy, signal, HostListener } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { CommonModule, Location } from '@angular/common';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
+import { TranslateModule, TranslateService } from '@ngx-translate/core';
 import { CsrPlansApi, CsrPlanDetail } from '../api/csr-plans-api';
 import { CsrActivitiesApi } from '@features/realized-activity-management/api/csr-activities-api';
 import { AuthStore } from '@core/services/auth-store';
 import { BreadcrumbService } from '@core/services/breadcrumb.service';
+import { PlannedActivityCreateSidebarComponent } from '../planned-activity-create-sidebar/planned-activity-create-sidebar';
 
 @Component({
   selector: 'app-plan-detail',
   standalone: true,
-  imports: [CommonModule, RouterModule],
+  imports: [CommonModule, RouterModule, TranslateModule, PlannedActivityCreateSidebarComponent],
   templateUrl: './plan-detail.html'
 })
 export class PlanDetailComponent implements OnInit, OnDestroy {
   private route = inject(ActivatedRoute);
   private router = inject(Router);
+  private location = inject(Location);
   private plansApi = inject(CsrPlansApi);
   private activitiesApi = inject(CsrActivitiesApi);
   private authStore = inject(AuthStore);
   private breadcrumb = inject(BreadcrumbService);
+  private translate = inject(TranslateService);
 
   plan = signal<CsrPlanDetail | null>(null);
   loading = signal(true);
@@ -40,6 +44,9 @@ export class PlanDetailComponent implements OnInit, OnDestroy {
   activityMenuId = signal<string | null>(null);
   activityMenuPosition = { top: 0, left: 0 };
 
+  // ── Add activity sidebar ────────────────────────────────────────────────
+  showAddActivitySidebar = signal(false);
+
   // ── Reject modal ────────────────────────────────────────────────────────
   showRejectModal = signal(false);
   rejectComment = signal('');
@@ -59,25 +66,25 @@ export class PlanDetailComponent implements OnInit, OnDestroy {
     if (!p || p.status !== 'SUBMITTED') return '';
     const step = p.validation_step;
     const mode = p.validation_mode || '101';
-    if (mode === '111' && step === 1) return 'En attente validation manager';
-    if (mode === '111' && step === 2) return 'En attente validation corporate (finale)';
-    if (mode === '101') return 'En attente validation corporate';
+    if (mode === '111' && step === 1) return this.translate.instant('PLAN_DETAIL.STEP_PENDING_MANAGER');
+    if (mode === '111' && step === 2) return this.translate.instant('PLAN_DETAIL.STEP_PENDING_CORPORATE');
+    if (mode === '101') return this.translate.instant('PLAN_DETAIL.STEP_PENDING_CORPORATE_ONLY');
     return '';
   }
 
-  /** Status label for display: Brouillon, Soumis, Validé, Verrouillé, Rejeté. */
+  /** Status label for display. */
   statusLabel(s: string): string {
     const m: Record<string, string> = {
-      DRAFT: 'Brouillon',
-      SUBMITTED: 'Soumis',
-      REJECTED: 'Rejeté',
+      DRAFT: this.translate.instant('PLAN_DETAIL.STATUS_DRAFT'),
+      SUBMITTED: this.translate.instant('PLAN_DETAIL.STATUS_SUBMITTED'),
+      REJECTED: this.translate.instant('PLAN_DETAIL.STATUS_REJECTED'),
     };
     if (m[s]) return m[s];
     if (s === 'VALIDATED') {
       const p = this.plan();
       const u = p?.unlock_until;
       const open = u ? new Date(u) > new Date() : false;
-      return open ? 'Verrouillé' : 'Validé';
+      return open ? this.translate.instant('PLAN_DETAIL.STATUS_VALIDATED_UNLOCKED') : this.translate.instant('PLAN_DETAIL.STATUS_VALIDATED_LOCKED');
     }
     return s ?? '';
   }
@@ -107,8 +114,8 @@ export class PlanDetailComponent implements OnInit, OnDestroy {
   /** Label for the submit button (differs when re-submitting modifications). */
   submitButtonLabel(): string {
     const p = this.plan();
-    if (p?.status === 'VALIDATED' && this.isUnlockUntilFuture()) return 'Soumettre les modifications pour validation';
-    return 'Soumettre pour validation';
+    if (p?.status === 'VALIDATED' && this.isUnlockUntilFuture()) return this.translate.instant('PLAN_DETAIL.SUBMIT_MODIFICATIONS');
+    return this.translate.instant('PLAN_DETAIL.SUBMIT_FOR_VALIDATION');
   }
 
   /** True if plan can be edited: DRAFT/REJECTED (and not past unlock_until), or VALIDATED with unlock_until in the future. */
@@ -127,7 +134,7 @@ export class PlanDetailComponent implements OnInit, OnDestroy {
   }
 
   validationModeLabel(mode: string): string {
-    return mode === '111' ? 'ALL' : 'Corporate only';
+    return mode === '111' ? this.translate.instant('PLAN_VALIDATION.MODE_ALL') : this.translate.instant('PLAN_VALIDATION.MODE_CORPORATE_ONLY');
   }
 
   ngOnInit(): void {
@@ -264,9 +271,24 @@ export class PlanDetailComponent implements OnInit, OnDestroy {
     if (!p) return;
     const currentYear = new Date().getFullYear();
     if (p.year >= currentYear) {
-      this.router.navigate(['/planned-activity/create'], { queryParams: { plan_id: p.id } });
+      this.showAddActivitySidebar.set(true);
     } else {
-      this.router.navigate(['/realized-csr/create'], { queryParams: { plan_id: p.id } });
+      this.router.navigate(['/realized-csr'], { queryParams: { plan_id: p.id } });
+    }
+  }
+
+  closeAddActivitySidebar(): void {
+    this.showAddActivitySidebar.set(false);
+  }
+
+  onActivityAdded(): void {
+    const p = this.plan();
+    if (p) {
+      this.plansApi.get(p.id).subscribe({
+        next: (updated) => {
+          this.plan.set(updated);
+        },
+      });
     }
   }
 
@@ -335,7 +357,7 @@ export class PlanDetailComponent implements OnInit, OnDestroy {
   }
 
   back(): void {
-    this.router.navigate(['/csr-plans']);
+    this.location.back();
   }
 
   goToActivityDetail(activityId: string): void {

@@ -12,17 +12,18 @@ import {
   faFolderOpen,
   faCalendarPlus,
   faClipboardList,
+  faChartLine,
 } from '@fortawesome/free-solid-svg-icons';
 
 export interface NavItem {
-  label: string;
+  labelKey: string;
   path: string;
   roles: ('site' | 'corporate')[];
   icon: any;
 }
 
 export interface NavSection {
-  section: string;
+  sectionKey: string;
   roles: ('site' | 'corporate')[];
   isDropdown?: boolean;
   items: NavItem[];
@@ -30,50 +31,50 @@ export interface NavSection {
 
 export const navItems: NavSection[] = [
   {
-    section: 'Pilotage',
+    sectionKey: 'NAV.SECTIONS.PILOTAGE',
     roles: ['site', 'corporate'],
     items: [
-      { label: 'Vue générale', path: '/dashboard', roles: ['site', 'corporate'], icon: faTachometerAlt },
+      { labelKey: 'NAV.ITEMS.OVERVIEW', path: '/dashboard', roles: ['site', 'corporate'], icon: faTachometerAlt },
     ],
   },
   {
-    section: 'Gestion CSR',
-    roles: ['site', 'corporate'],
-    isDropdown: true,
-    items: [
-      { label: 'Plans annuels', path: '/csr-plans', roles: ['site', 'corporate'], icon: faList },
-      { label: 'Activités planifiées', path: '/planned-activities', roles: ['site', 'corporate'], icon: faCalendarPlus },
-      { label: 'Activités réalisées', path: '/realized-csr', roles: ['site', 'corporate'], icon: faClipboardCheck },
-      { label: 'Documents', path: '/documents', roles: ['site', 'corporate'], icon: faFolderOpen },
-    ],
-  },
-  {
-    section: 'Workflow',
+    sectionKey: 'NAV.SECTIONS.CSR_MANAGEMENT',
     roles: ['site', 'corporate'],
     isDropdown: true,
     items: [
-      { label: 'Validation des plans', path: '/annual-plans/validation', roles: ['site', 'corporate'], icon: faCheckSquare },
-      { label: 'Mes demandes', path: '/changes', roles: ['site'], icon: faEnvelopeOpenText },
-      { label: 'Demandes en attente', path: '/changes/pending', roles: ['corporate'], icon: faHourglassHalf },
-      { label: 'Historique des demandes', path: '/changes/history', roles: ['corporate'], icon: faHistory },
+      { labelKey: 'NAV.ITEMS.ANNUAL_PLANS', path: '/csr-plans', roles: ['site', 'corporate'], icon: faList },
+      { labelKey: 'NAV.ITEMS.PLANNED_ACTIVITIES', path: '/planned-activities', roles: ['site', 'corporate'], icon: faCalendarPlus },
+      { labelKey: 'NAV.ITEMS.REALIZED_ACTIVITIES', path: '/realized-csr', roles: ['site', 'corporate'], icon: faClipboardCheck },
+      { labelKey: 'NAV.ITEMS.DOCUMENTS', path: '/documents', roles: ['site', 'corporate'], icon: faFolderOpen },
     ],
   },
   {
-    section: 'Administration',
+    sectionKey: 'NAV.SECTIONS.WORKFLOW',
+    roles: ['site', 'corporate'],
+    isDropdown: true,
+    items: [
+      { labelKey: 'NAV.ITEMS.PLAN_VALIDATION', path: '/annual-plans/validation', roles: ['site', 'corporate'], icon: faCheckSquare },
+      { labelKey: 'NAV.ITEMS.MY_REQUESTS', path: '/changes', roles: ['site'], icon: faEnvelopeOpenText },
+      { labelKey: 'NAV.ITEMS.PENDING_REQUESTS', path: '/changes/pending', roles: ['corporate'], icon: faHourglassHalf },
+      { labelKey: 'NAV.ITEMS.REQUEST_HISTORY', path: '/changes/history', roles: ['corporate'], icon: faHistory },
+    ],
+  },
+  {
+    sectionKey: 'NAV.SECTIONS.ADMINISTRATION',
     roles: ['corporate'],
     isDropdown: true,
     items: [
-      { label: 'Sites', path: '/sites', roles: ['corporate'], icon: faBuilding },
-      { label: 'Catégories CSR', path: '/categories', roles: ['corporate'], icon: faFolderTree },
-      { label: 'Utilisateurs', path: '/admin/users', roles: ['corporate'], icon: faUser },
-      { label: 'Journal d\'audit', path: '/admin/audit', roles: ['corporate'], icon: faClipboardList },
+      { labelKey: 'NAV.ITEMS.SITES', path: '/sites', roles: ['corporate'], icon: faBuilding },
+      { labelKey: 'NAV.ITEMS.CSR_CATEGORIES', path: '/categories', roles: ['corporate'], icon: faFolderTree },
+      { labelKey: 'NAV.ITEMS.USERS', path: '/admin/users', roles: ['corporate'], icon: faUser },
+      { labelKey: 'NAV.ITEMS.AUDIT_LOG', path: '/admin/audit', roles: ['corporate'], icon: faClipboardList },
     ],
   },
   {
-    section: 'Compte',
+    sectionKey: 'NAV.SECTIONS.ACCOUNT',
     roles: ['site', 'corporate'],
     items: [
-      { label: 'Mon profil', path: '/account/profile', roles: ['site', 'corporate'], icon: faUser },
+      { labelKey: 'NAV.ITEMS.MY_PROFILE', path: '/account/profile', roles: ['site', 'corporate'], icon: faUser },
     ],
   },
 ];

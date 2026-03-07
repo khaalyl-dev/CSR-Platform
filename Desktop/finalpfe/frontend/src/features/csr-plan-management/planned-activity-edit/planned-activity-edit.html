@@ -2,7 +2,7 @@
   <div class="w-full max-w-2xl">
 
     <div class="flex items-center gap-4 mb-6">
-      <button type="button" title="Retour" (click)="cancel()"
+      <button type="button" [attr.title]="'PLANNED_ACTIVITY_EDIT.BACK_TITLE' | translate" (click)="cancel()"
         class="flex items-center justify-center w-10 h-10 rounded-xl bg-white border border-gray-200 text-gray-500 hover:text-gray-700 hover:border-gray-300 hover:bg-gray-50 shadow-sm transition-all duration-200">
         <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
           <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" />
@@ -15,73 +15,73 @@
     </div>
 
     <div *ngIf="activity" class="mb-4 p-4 bg-brand-100 border border-brand-700/40 rounded-xl text-brand-900 text-sm">
-      <strong>Plan :</strong> {{ activity.site_name ?? activity.site_code }} – {{ activity.year }}
+      <strong>{{ 'PLANNED_ACTIVITY_EDIT.PLAN_LABEL' | translate }} :</strong> {{ activity.site_name ?? activity.site_code }} – {{ activity.year }}
     </div>
 
     <div *ngIf="activity" class="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
       <div class="h-1.5 bg-gradient-to-r from-blue-600 to-blue-500"></div>
       <div class="px-8 py-6 border-b border-gray-100">
-        <h2 class="text-lg font-bold text-gray-800">{{ isPlanRealized ? 'Données (plan réalisé)' : 'Données (estimées)' }}</h2>
-        <p class="text-gray-500 text-sm mt-1">Champs <span class="text-red-500">*</span> obligatoires.</p>
+        <h2 class="text-lg font-bold text-gray-800">{{ (isPlanRealized ? 'PLANNED_ACTIVITY_EDIT.DATA_REALIZED' : 'PLANNED_ACTIVITY_EDIT.DATA_ESTIMATED') | translate }}</h2>
+        <p class="text-gray-500 text-sm mt-1">{{ 'PLANNED_ACTIVITY_EDIT.FIELDS_REQUIRED' | translate }}</p>
       </div>
 
       <form [formGroup]="form" (ngSubmit)="submit()" class="px-8 py-6 space-y-5">
 
-        <div *ngIf="loadingData" class="py-8 text-center text-gray-500 text-sm">Chargement...</div>
+        <div *ngIf="loadingData" class="py-8 text-center text-gray-500 text-sm">{{ 'COMMON.LOADING' | translate }}</div>
 
         <ng-container *ngIf="!loadingData">
           <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1.5">Catégorie <span class="text-red-500">*</span></label>
+            <label class="block text-sm font-medium text-gray-700 mb-1.5">{{ 'PLANNED_ACTIVITY_CREATE.CATEGORY_REQ' | translate }}</label>
             <select formControlName="category_id"
               class="w-full pl-4 pr-10 py-2.5 bg-gray-100 border border-gray-200 rounded-xl text-sm text-gray-700 focus:ring-2 focus:ring-blue-500 focus:outline-none appearance-none cursor-pointer">
-              <option value="">Choisir une catégorie</option>
+              <option value="">{{ 'PLANNED_ACTIVITY_EDIT.CHOOSE_CATEGORY' | translate }}</option>
               <option *ngFor="let c of categories" [value]="c.id">{{ c.name }}</option>
-              <option [value]="categoryOtherValue">Autre (créer une nouvelle catégorie)</option>
+              <option [value]="categoryOtherValue">{{ 'PLANNED_ACTIVITY_EDIT.OTHER_CREATE_NEW' | translate }}</option>
             </select>
-            <p class="text-xs text-red-500 mt-1" *ngIf="form.get('category_id')?.touched && form.get('category_id')?.invalid">La catégorie est obligatoire</p>
+            <p class="text-xs text-red-500 mt-1" *ngIf="form.get('category_id')?.touched && form.get('category_id')?.invalid">{{ 'PLANNED_ACTIVITY_EDIT.CATEGORY_REQUIRED' | translate }}</p>
             <div *ngIf="isOtherCategorySelected()" class="mt-3">
-              <label class="block text-sm font-medium text-gray-700 mb-1.5">Nom de la nouvelle catégorie <span class="text-red-500">*</span></label>
-              <input type="text" formControlName="new_category_name" placeholder="ex. Biodiversité, Santé..."
+              <label class="block text-sm font-medium text-gray-700 mb-1.5">{{ 'PLANNED_ACTIVITY_EDIT.NEW_CATEGORY_NAME' | translate }}</label>
+              <input type="text" formControlName="new_category_name" [placeholder]="'PLANNED_ACTIVITY_CREATE.PLACEHOLDER_CATEGORY' | translate"
                 class="w-full pl-4 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"/>
-              <p class="text-xs text-red-500 mt-1" *ngIf="form.get('new_category_name')?.touched && form.get('new_category_name')?.invalid">Min. 2 caractères</p>
+              <p class="text-xs text-red-500 mt-1" *ngIf="form.get('new_category_name')?.touched && form.get('new_category_name')?.invalid">{{ 'PLANNED_ACTIVITY_EDIT.MIN_2_CHARS' | translate }}</p>
             </div>
           </div>
 
           <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1.5">Numéro activité <span class="text-red-500">*</span></label>
-              <input type="text" formControlName="activity_number" placeholder="ex. CSR-1"
+              <label class="block text-sm font-medium text-gray-700 mb-1.5">{{ 'PLANNED_ACTIVITY_EDIT.ACTIVITY_NUMBER' | translate }}</label>
+              <input type="text" formControlName="activity_number" [placeholder]="'PLANNED_ACTIVITY_CREATE.PLACEHOLDER_ACTIVITY_NUMBER' | translate"
                 class="w-full pl-4 pr-4 py-2.5 bg-gray-100 border border-gray-200 rounded-xl text-sm text-gray-700 focus:ring-2 focus:ring-blue-500 focus:outline-none"/>
-              <p class="text-xs text-red-500 mt-1" *ngIf="form.get('activity_number')?.touched && form.get('activity_number')?.invalid">Obligatoire</p>
+              <p class="text-xs text-red-500 mt-1" *ngIf="form.get('activity_number')?.touched && form.get('activity_number')?.invalid">{{ 'PLANNED_ACTIVITY_EDIT.REQUIRED' | translate }}</p>
             </div>
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1.5">Titre <span class="text-red-500">*</span></label>
-              <input type="text" formControlName="title" placeholder="Intitulé de l'activité"
+              <label class="block text-sm font-medium text-gray-700 mb-1.5">{{ 'PLANNED_ACTIVITY_EDIT.TITLE_LABEL' | translate }}</label>
+              <input type="text" formControlName="title" [placeholder]="'PLANNED_ACTIVITY_CREATE.PLACEHOLDER_TITLE' | translate"
                 class="w-full pl-4 pr-4 py-2.5 bg-gray-100 border border-gray-200 rounded-xl text-sm text-gray-700 focus:ring-2 focus:ring-blue-500 focus:outline-none"/>
-              <p class="text-xs text-red-500 mt-1" *ngIf="form.get('title')?.touched && form.get('title')?.invalid">Obligatoire</p>
+              <p class="text-xs text-red-500 mt-1" *ngIf="form.get('title')?.touched && form.get('title')?.invalid">{{ 'PLANNED_ACTIVITY_EDIT.REQUIRED' | translate }}</p>
             </div>
           </div>
 
           <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1.5">Description</label>
-            <textarea formControlName="description" rows="2" placeholder="Optionnel"
+            <label class="block text-sm font-medium text-gray-700 mb-1.5">{{ 'PLANNED_ACTIVITY_EDIT.DESCRIPTION' | translate }}</label>
+            <textarea formControlName="description" rows="2" [placeholder]="'PLANNED_ACTIVITY_CREATE.PLACEHOLDER_OPTIONAL' | translate"
               class="w-full pl-4 pr-4 py-2.5 bg-gray-100 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none resize-none"></textarea>
           </div>
 
           <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1.5">Budget prévu / estimé (€)</label>
-            <input type="number" formControlName="planned_budget" min="0" step="0.01" placeholder="Estimation"
+            <label class="block text-sm font-medium text-gray-700 mb-1.5">{{ 'PLANNED_ACTIVITY_EDIT.BUDGET_PLANNED_ESTIMATED' | translate }}</label>
+            <input type="number" formControlName="planned_budget" min="0" step="0.01" [placeholder]="'PLANNED_ACTIVITY_CREATE.PLACEHOLDER_ESTIMATION' | translate"
               class="w-full pl-4 pr-4 py-2.5 bg-gray-100 border border-gray-200 rounded-xl text-sm text-gray-700 focus:ring-2 focus:ring-blue-500 focus:outline-none"/>
           </div>
 
           <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1.5">Volontaires prévus</label>
+              <label class="block text-sm font-medium text-gray-700 mb-1.5">{{ 'PLANNED_ACTIVITY_EDIT.PLANNED_VOLUNTEERS' | translate }}</label>
               <input type="number" formControlName="planned_volunteers" min="0"
                 class="w-full pl-4 pr-4 py-2.5 bg-gray-100 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"/>
             </div>
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1.5">Impact cible</label>
+              <label class="block text-sm font-medium text-gray-700 mb-1.5">{{ 'PLANNED_ACTIVITY_EDIT.IMPACT_TARGET' | translate }}</label>
               <input type="number" formControlName="action_impact_target" min="0" step="0.01"
                 class="w-full pl-4 pr-4 py-2.5 bg-gray-100 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"/>
             </div>
@@ -89,35 +89,35 @@
 
           <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1.5">Unité d'impact</label>
-              <input type="text" formControlName="action_impact_unit" placeholder="ex. arbres, heures, étudiants"
+              <label class="block text-sm font-medium text-gray-700 mb-1.5">{{ 'PLANNED_ACTIVITY_EDIT.IMPACT_UNIT' | translate }}</label>
+              <input type="text" formControlName="action_impact_unit" [placeholder]="'PLANNED_ACTIVITY_EDIT.PLACEHOLDER_IMPACT_UNIT' | translate"
                 class="w-full pl-4 pr-4 py-2.5 bg-gray-100 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"/>
             </div>
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1.5">Nature collab.</label>
+              <label class="block text-sm font-medium text-gray-700 mb-1.5">{{ 'PLANNED_ACTIVITY_EDIT.COLLAB_NATURE' | translate }}</label>
               <select formControlName="collaboration_nature"
                 class="w-full pl-4 pr-10 py-2.5 bg-gray-100 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none appearance-none">
                 <option value="">–</option>
-                <option value="CHARITY_DONATION">Charity / Donation</option>
-                <option value="PARTNERSHIP">Partnership</option>
-                <option value="SPONSORSHIP">Sponsorship</option>
-                <option value="OTHERS">Others</option>
+                <option value="CHARITY_DONATION">{{ 'PLANNED_ACTIVITY_EDIT.CHARITY_DONATION' | translate }}</option>
+                <option value="PARTNERSHIP">{{ 'PLANNED_ACTIVITY_EDIT.PARTNERSHIP' | translate }}</option>
+                <option value="SPONSORSHIP">{{ 'PLANNED_ACTIVITY_EDIT.SPONSORSHIP' | translate }}</option>
+                <option value="OTHERS">{{ 'PLANNED_ACTIVITY_EDIT.OTHERS' | translate }}</option>
               </select>
             </div>
           </div>
 
           <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1.5">Organisation</label>
+              <label class="block text-sm font-medium text-gray-700 mb-1.5">{{ 'PLANNED_ACTIVITY_EDIT.ORGANIZATION' | translate }}</label>
               <select formControlName="organization"
                 class="w-full pl-4 pr-10 py-2.5 bg-gray-100 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none appearance-none">
-                <option value="INTERNAL">Interne</option>
-                <option value="PARTNERSHIP">Partenariat</option>
+                <option value="INTERNAL">{{ 'PLANNED_ACTIVITY_EDIT.INTERNAL' | translate }}</option>
+                <option value="PARTNERSHIP">{{ 'PLANNED_ACTIVITY_EDIT.PARTNERSHIP' | translate }}</option>
               </select>
             </div>
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1.5">Organisateur</label>
-              <input type="text" formControlName="organizer" placeholder="ex. HR, HR/EHS"
+              <label class="block text-sm font-medium text-gray-700 mb-1.5">{{ 'PLANNED_ACTIVITY_EDIT.ORGANIZER' | translate }}</label>
+              <input type="text" formControlName="organizer" [placeholder]="'PLANNED_ACTIVITY_EDIT.PLACEHOLDER_ORGANIZER' | translate"
                 class="w-full pl-4 pr-4 py-2.5 bg-gray-100 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"/>
             </div>
           </div>
@@ -126,17 +126,17 @@
         <!-- Données réalisées (when plan is past year) -->
         <ng-container *ngIf="isPlanRealized && !loadingData">
           <div class="border-t border-gray-200 pt-6 mt-6">
-            <h3 class="text-lg font-bold text-gray-800 mb-1">Données réalisées</h3>
-            <p class="text-gray-500 text-sm mb-4">Budget, participants et impact effectivement réalisés.</p>
+            <h3 class="text-lg font-bold text-gray-800 mb-1">{{ 'PLANNED_ACTIVITY_EDIT.REALIZED_DATA' | translate }}</h3>
+            <p class="text-gray-500 text-sm mb-4">{{ 'PLANNED_ACTIVITY_EDIT.REALIZED_DATA_HINT' | translate }}</p>
             <div [formGroup]="realizedForm" class="space-y-5">
               <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
                 <div>
-                  <label class="block text-sm font-medium text-gray-700 mb-1.5">Année <span class="text-red-500">*</span></label>
+                  <label class="block text-sm font-medium text-gray-700 mb-1.5">{{ 'PLANNED_ACTIVITY_EDIT.YEAR' | translate }} <span class="text-red-500">*</span></label>
                   <input type="number" formControlName="year" min="2000" max="2100"
                     class="w-full pl-4 pr-4 py-2.5 bg-gray-100 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-amber-500 focus:outline-none"/>
                 </div>
                 <div>
-                  <label class="block text-sm font-medium text-gray-700 mb-1.5">Mois <span class="text-red-500">*</span></label>
+                  <label class="block text-sm font-medium text-gray-700 mb-1.5">{{ 'PLANNED_ACTIVITY_EDIT.MONTH' | translate }} <span class="text-red-500">*</span></label>
                   <select formControlName="month"
                     class="w-full pl-4 pr-10 py-2.5 bg-gray-100 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-amber-500 focus:outline-none appearance-none">
                     <option *ngFor="let m of months" [value]="m">{{ monthLabel(m) }}</option>
@@ -145,31 +145,31 @@
               </div>
               <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
                 <div>
-                  <label class="block text-sm font-medium text-gray-700 mb-1.5">Budget réalisé (€)</label>
+                  <label class="block text-sm font-medium text-gray-700 mb-1.5">{{ 'PLANNED_ACTIVITY_EDIT.BUDGET_REALIZED' | translate }}</label>
                   <input type="number" formControlName="realized_budget" min="0" step="0.01"
                     class="w-full pl-4 pr-4 py-2.5 bg-gray-100 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-amber-500 focus:outline-none"/>
                 </div>
                 <div>
-                  <label class="block text-sm font-medium text-gray-700 mb-1.5">Participants</label>
+                  <label class="block text-sm font-medium text-gray-700 mb-1.5">{{ 'PLANNED_ACTIVITY_EDIT.PARTICIPANTS' | translate }}</label>
                   <input type="number" formControlName="participants" min="0"
                     class="w-full pl-4 pr-4 py-2.5 bg-gray-100 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-amber-500 focus:outline-none"/>
                 </div>
               </div>
               <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
                 <div>
-                  <label class="block text-sm font-medium text-gray-700 mb-1.5">Impact réalisé</label>
+                  <label class="block text-sm font-medium text-gray-700 mb-1.5">{{ 'PLANNED_ACTIVITY_EDIT.IMPACT_REALIZED' | translate }}</label>
                   <input type="number" formControlName="action_impact_actual" min="0" step="0.01"
                     class="w-full pl-4 pr-4 py-2.5 bg-gray-100 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-amber-500 focus:outline-none"/>
                 </div>
                 <div>
-                  <label class="block text-sm font-medium text-gray-700 mb-1.5">Unité d'impact</label>
-                  <input type="text" formControlName="action_impact_unit" placeholder="ex. arbres, heures"
+                  <label class="block text-sm font-medium text-gray-700 mb-1.5">{{ 'PLANNED_ACTIVITY_EDIT.IMPACT_UNIT' | translate }}</label>
+                  <input type="text" formControlName="action_impact_unit" [placeholder]="'PLANNED_ACTIVITY_EDIT.PLACEHOLDER_IMPACT_UNIT' | translate"
                     class="w-full pl-4 pr-4 py-2.5 bg-gray-100 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-amber-500 focus:outline-none"/>
                 </div>
               </div>
               <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1.5">Organisateur</label>
-                <input type="text" formControlName="organizer" placeholder="Optionnel"
+                <label class="block text-sm font-medium text-gray-700 mb-1.5">{{ 'PLANNED_ACTIVITY_EDIT.ORGANIZER' | translate }}</label>
+                <input type="text" formControlName="organizer" [placeholder]="'PLANNED_ACTIVITY_CREATE.PLACEHOLDER_OPTIONAL' | translate"
                   class="w-full pl-4 pr-4 py-2.5 bg-gray-100 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-amber-500 focus:outline-none"/>
               </div>
             </div>
@@ -178,7 +178,7 @@
 
         <!-- Photos -->
         <div class="border-t border-gray-200 pt-6 mt-6">
-          <h3 class="text-lg font-bold text-gray-800 mb-2">Photos</h3>
+          <h3 class="text-lg font-bold text-gray-800 mb-2">{{ 'PLANNED_ACTIVITY_EDIT.PHOTOS' | translate }}</h3>
           <div *ngIf="activityPhotos.length" class="flex flex-wrap gap-3 mb-3">
             <div *ngFor="let doc of activityPhotos" class="relative group">
               <img *ngIf="isImageType(doc)" [src]="getPhotoUrl(doc)" [alt]="doc.file_name" class="w-24 h-24 object-cover rounded-lg border border-gray-200"/>
@@ -188,7 +188,7 @@
           </div>
           <input type="file" accept="image/*" multiple (change)="onPhotoFilesSelected($event)" [disabled]="uploadingPhotos"
             class="w-full text-sm text-gray-600 file:mr-3 file:py-2 file:px-4 file:rounded-xl file:border-0 file:bg-brand-100 file:text-brand-800 file:font-medium hover:file:bg-brand-200 disabled:opacity-50"/>
-          <p *ngIf="uploadingPhotos" class="text-xs text-gray-500 mt-1">Envoi en cours...</p>
+          <p *ngIf="uploadingPhotos" class="text-xs text-gray-500 mt-1">{{ 'PLANNED_ACTIVITY_EDIT.UPLOADING' | translate }}</p>
         </div>
 
         <div *ngIf="errorMsg" class="flex items-center gap-3 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl text-sm">
@@ -197,11 +197,11 @@
 
         <div class="flex justify-end gap-3 pt-4 border-t border-gray-100">
           <button type="button" (click)="cancel()" class="px-5 py-2.5 rounded-xl border border-gray-300 text-gray-700 hover:bg-gray-50 font-medium">
-            Annuler
+            {{ 'PLANNED_ACTIVITY_EDIT.CANCEL' | translate }}
           </button>
           <button type="submit" [disabled]="loading || loadingData || form.invalid || (isPlanRealized && realizedForm.invalid)"
             class="px-6 py-2.5 rounded-xl bg-brand-900 hover:bg-brand-800 disabled:opacity-60 text-white font-semibold">
-            {{ loading ? 'Enregistrement...' : 'Enregistrer' }}
+            {{ loading ? ('PLANNED_ACTIVITY_EDIT.SAVING' | translate) : ('PLANNED_ACTIVITY_EDIT.SAVE' | translate) }}
           </button>
         </div>
       </form>
@@ -209,7 +209,7 @@
 
     <div *ngIf="!activity && !loadingData" class="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 text-center">
       <p class="text-red-600 mb-4">{{ errorMsg }}</p>
-      <a routerLink="/planned-activities" class="text-brand-700 hover:underline">Retour aux activités planifiées</a>
+      <a routerLink="/planned-activities" class="text-brand-700 hover:underline">{{ 'PLANNED_ACTIVITY_EDIT.BACK_TO_PLANNED' | translate }}</a>
     </div>
   </div>
 </div>

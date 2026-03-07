@@ -1,6 +1,7 @@
 import { Component, inject, OnInit, signal } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { CommonModule, Location } from '@angular/common';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
+import { TranslateModule } from '@ngx-translate/core';
 import { RealizedCsrApi } from '../api/realized-csr-api';
 import type { RealizedCsr } from '../models/realized-csr.model';
 
@@ -9,12 +10,13 @@ const MONTHS = ['', 'Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juil
 @Component({
   selector: 'app-realized-detail',
   standalone: true,
-  imports: [CommonModule, RouterModule],
+  imports: [CommonModule, RouterModule, TranslateModule],
   templateUrl: './realized-detail.html',
 })
 export class RealizedDetailComponent implements OnInit {
   private route = inject(ActivatedRoute);
   private router = inject(Router);
+  private location = inject(Location);
   private api = inject(RealizedCsrApi);
 
   realized = signal<RealizedCsr | null>(null);
@@ -44,6 +46,6 @@ export class RealizedDetailComponent implements OnInit {
   }
 
   back(): void {
-    this.router.navigate(['/realized-csr']);
+    this.location.back();
   }
 }

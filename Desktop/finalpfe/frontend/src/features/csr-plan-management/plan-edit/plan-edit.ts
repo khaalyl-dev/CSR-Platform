@@ -1,8 +1,9 @@
 import { Component, inject, OnInit, OnDestroy, signal, computed } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { CommonModule, Location } from '@angular/common';
 import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angular/forms';
 import { Router, ActivatedRoute } from '@angular/router';
 import { RouterLink } from '@angular/router';
+import { TranslateModule } from '@ngx-translate/core';
 import { CsrPlansApi } from '../api/csr-plans-api';
 import type { CsrPlan, UpdateCsrPlanPayload } from '../models/csr-plan.model';
 import { BreadcrumbService } from '@core/services/breadcrumb.service';
@@ -10,13 +11,14 @@ import { BreadcrumbService } from '@core/services/breadcrumb.service';
 @Component({
   selector: 'app-plan-edit',
   standalone: true,
-  imports: [ReactiveFormsModule, CommonModule, RouterLink],
+  imports: [ReactiveFormsModule, CommonModule, RouterLink, TranslateModule],
   templateUrl: './plan-edit.html',
 })
 export class PlanEditComponent implements OnInit, OnDestroy {
   private fb = inject(FormBuilder);
   private router = inject(Router);
   private route = inject(ActivatedRoute);
+  private location = inject(Location);
   private csrPlansApi = inject(CsrPlansApi);
   private breadcrumb = inject(BreadcrumbService);
 
@@ -94,11 +96,6 @@ export class PlanEditComponent implements OnInit, OnDestroy {
   }
 
   cancel(): void {
-    const p = this.plan();
-    if (p) {
-      this.router.navigate(['/csr-plans', p.id]);
-    } else {
-      this.router.navigate(['/csr-plans']);
-    }
+    this.location.back();
   }
 }

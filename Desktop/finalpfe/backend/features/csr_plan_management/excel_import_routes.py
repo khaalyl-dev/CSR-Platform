@@ -32,29 +32,45 @@ def _user_can_access_site(user_id: str, site_id: str) -> bool:
     ).first() is not None
 
 
-def _resolve_site(site_code_or_name: str):
-    """Resolve site by code or name (case-insensitive)."""
+def _build_site_cache():
+    """Build cache: {normalized_key -> Site} for O(1) lookup."""
+    sites = Site.query.all()
+    cache = {}
+    for s in sites:
+        if s.code:
+            cache[str(s.code).strip().lower()] = s
+        if s.name:
+            cache[str(s.name).strip().lower()] = s
+    return cache
+
+
+def _resolve_site_cached(site_code_or_name: str, site_cache: dict):
+    """Resolve site from cache by code or name (case-insensitive)."""
     if not site_code_or_name or not str(site_code_or_name).strip():
         return None
-    s = str(site_code_or_name).strip()
-    site = Site.query.filter(db.func.lower(Site.code) == s.lower()).first()
-    if site:
-        return site
-    site = Site.query.filter(db.func.lower(Site.name) == s.lower()).first()
-    return site
+    s = str(site_code_or_name).strip().lower()
+    return site_cache.get(s)
 
 
-def _resolve_category(name: str):
-    """Resolve category by name (case-insensitive). Create if not found."""
+def _resolve_category_cached(name: str, category_cache: dict, created_cats: dict):
+    """Resolve category from cache. Create if not found and cache it."""
     if not name or not str(name).strip():
         return None
     n = str(name).strip()
-    cat = Category.query.filter(db.func.lower(Category.name) == n.lower()).first()
+    key = n.lower()
+    if key in category_cache:
+        return category_cache[key]
+    cat = Category.query.filter(db.func.lower(Category.name) == key).first()
     if cat:
+        category_cache[key] = cat
         return cat
+    if key in created_cats:
+        return created_cats[key]
     cat = Category(name=n)
     db.session.add(cat)
     db.session.flush()
+    category_cache[key] = cat
+    created_cats[key] = cat
     return cat
 
 
@@ -93,7 +109,7 @@ def _safe_str(val, max_len=255):
     return s[:max_len] if max_len else s
 
 
-def _collect_plan_keys_from_rows(rows, site_id_override, year_override, role, user_id):
+def _collect_plan_keys_from_rows(rows, site_id_override, year_override, role, user_id, site_cache):
     """From parsed rows, return unique (site_id, site_name, year) and list of errors. No DB writes."""
     errors = []
     seen = set()
@@ -107,7 +123,7 @@ def _collect_plan_keys_from_rows(rows, site_id_override, year_override, role, us
             if not site_val:
                 errors.append(f"Ligne {row_num}: site manquant")
                 continue
-            site = _resolve_site(str(site_val))
+            site = _resolve_site_cached(str(site_val), site_cache)
             if not site:
                 errors.append(f"Ligne {row_num}: site inconnu '{site_val}'")
                 continue
@@ -174,6 +190,7 @@ def import_excel_preview():
             return jsonify({"message": "Erreurs lors de la lecture du fichier", "errors": parse_errors}), 400
         if not rows:
             return jsonify({"message": "Aucune ligne de données trouvée", "plans": [], "errors": []}), 200
+        site_cache = _build_site_cache()
         if site_id_override:
             site = Site.query.get(site_id_override)
             if not site:
@@ -182,7 +199,7 @@ def import_excel_preview():
                 return jsonify({"message": "Vous n'avez pas accès à ce site"}), 403
         if year_override is not None and (year_override < 2000 or year_override > 2100):
             return jsonify({"message": "Année invalide"}), 400
-        plans, errors = _collect_plan_keys_from_rows(rows, site_id_override, year_override, role, user_id)
+        plans, errors = _collect_plan_keys_from_rows(rows, site_id_override, year_override, role, user_id, site_cache)
         return jsonify({"plans": plans, "errors": errors}), 200
     finally:
         if tmp_path and os.path.exists(tmp_path):
@@ -292,6 +309,10 @@ def import_excel():
         realized_created = 0
         errors = []
         plan_cache = {}  # (site_id, year) -> plan
+        site_cache = _build_site_cache()
+        category_cache = {}  # name_lower -> Category
+        created_cats = {}
+        activity_numbers_cache = {}  # plan_id -> {activity_number -> activity}
 
         for i, row in enumerate(rows):
             row_num = i + 2  # 1-based + header
@@ -303,7 +324,7 @@ def import_excel():
                 if not site_val:
                     errors.append(f"Ligne {row_num}: site manquant")
                     continue
-                site = _resolve_site(str(site_val))
+                site = _resolve_site_cached(str(site_val), site_cache)
                 if not site:
                     errors.append(f"Ligne {row_num}: site inconnu '{site_val}'")
                     continue
@@ -348,7 +369,7 @@ def import_excel():
             cat_name = row.get("category")
             if not cat_name or not str(cat_name).strip():
                 cat_name = "Uncategorized"
-            category = _resolve_category(str(cat_name).strip())
+            category = _resolve_category_cached(str(cat_name).strip(), category_cache, created_cats)
             if not category:
                 errors.append(f"Ligne {row_num}: impossible de créer la catégorie")
                 continue
@@ -356,7 +377,10 @@ def import_excel():
             activity_number = _safe_str(row.get("activity_number") or row.get("title")) or f"CSR-{row_num}"
             title = _safe_str(row.get("title"), 255) or _safe_str(row.get("activity_number"), 255) or f"Activité {row_num}"
 
-            existing_act = CsrActivity.query.filter_by(plan_id=plan.id, activity_number=activity_number).first()
+            if plan.id not in activity_numbers_cache:
+                acts = CsrActivity.query.filter_by(plan_id=plan.id).all()
+                activity_numbers_cache[plan.id] = {a.activity_number: a for a in acts}
+            existing_act = activity_numbers_cache[plan.id].get(activity_number)
             if existing_act:
                 activity = existing_act
             else:
@@ -388,6 +412,7 @@ def import_excel():
                 db.session.add(activity)
                 db.session.flush()
                 activities_created += 1
+                activity_numbers_cache[plan.id][activity_number] = activity
 
             # Optional: realization row (Actual Budget in € or Nbr of internal Participants, etc.)
             real_budget = _safe_float(row.get("realized_budget"))
@@ -412,10 +437,15 @@ def import_excel():
                 db.session.add(rc)
                 realized_created += 1
 
-        # Recalculate total_budget for each plan (sum of activities' planned_budget)
-        for plan in plan_cache.values():
-            total = db.session.query(db.func.coalesce(db.func.sum(CsrActivity.planned_budget), 0)).filter(CsrActivity.plan_id == plan.id).scalar()
-            plan.total_budget = float(total) if total is not None else None
+        # Recalculate total_budget for each plan in one query
+        plan_ids = [p.id for p in plan_cache.values()]
+        if plan_ids:
+            totals = db.session.query(CsrActivity.plan_id, db.func.coalesce(db.func.sum(CsrActivity.planned_budget), 0)).filter(
+                CsrActivity.plan_id.in_(plan_ids)
+            ).group_by(CsrActivity.plan_id).all()
+            total_by_plan = {pid: float(t) for pid, t in totals}
+            for plan in plan_cache.values():
+                plan.total_budget = total_by_plan.get(plan.id, 0)
 
         # Persist uploaded file as Document so user can download it
         document_site_id = site_id_override

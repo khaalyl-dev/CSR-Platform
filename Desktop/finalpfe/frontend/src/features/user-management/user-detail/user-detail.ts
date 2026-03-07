@@ -4,9 +4,10 @@
  * Features: view user, activate/deactivate, generate password, manage site access (SITE_USER).
  */
 import { Component, inject, signal, OnInit } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { CommonModule, Location } from '@angular/common';
 import { ReactiveFormsModule, FormBuilder } from '@angular/forms';
-import { ActivatedRoute, RouterLink } from '@angular/router';
+import { ActivatedRoute } from '@angular/router';
+import { TranslateModule } from '@ngx-translate/core';
 import { FontAwesomeModule } from '@fortawesome/angular-fontawesome';
 import { faArrowLeft, faKey, faBan, faCheck, faBuilding } from '@fortawesome/free-solid-svg-icons';
 import { UsersApi, type UserWithSites } from '../api/users-api';
@@ -15,12 +16,13 @@ import { SitesApi, type Site } from '@features/site-management/api/sites-api';
 @Component({
   selector: 'app-user-detail',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, RouterLink, FontAwesomeModule],
+  imports: [CommonModule, ReactiveFormsModule, FontAwesomeModule, TranslateModule],
   templateUrl: './user-detail.html',
 })
 export class UserDetailComponent implements OnInit {
   private readonly route = inject(ActivatedRoute);
   private readonly usersApi = inject(UsersApi);
+  private readonly location = inject(Location);
   private readonly sitesApi = inject(SitesApi);
   private readonly fb = inject(FormBuilder);
 
@@ -51,6 +53,10 @@ export class UserDetailComponent implements OnInit {
       this.loadUser(id);
     }
     this.loadSites();
+  }
+
+  goBack(): void {
+    this.location.back();
   }
 
   /** Fetch user with sites from GET /api/users/:id */

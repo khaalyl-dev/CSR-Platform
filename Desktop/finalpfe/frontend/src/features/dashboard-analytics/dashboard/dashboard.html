@@ -1,55 +1,254 @@
-<div class="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
-  <h1 class="mb-2 text-2xl font-semibold text-slate-800">Interface site</h1>
-  @if (summary(); as s) {
-    <p class="mb-6 text-slate-600">
-      Bienvenue sur CSR Insight pour votre site.
-      <span class="font-medium">Site ID :</span>
-      <span class="font-mono">{{ s.siteId ?? '—' }}</span>
-    </p>
-  } @else {
-    <p class="mb-6 text-slate-600">Bienvenue sur CSR Insight pour votre site.</p>
-  }
-  @if (errorMessage()) {
-    <p class="mb-4 rounded-md bg-red-50 p-3 text-sm text-red-800">{{ errorMessage() }}</p>
-  }
-  <div class="rounded-lg border border-slate-200 bg-white p-6">
-    <div class="grid gap-4">
-      <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <div class="rounded-lg border border-slate-200 bg-white p-4">
-          <p class="text-xs text-slate-500">Plans créés</p>
-          <p class="mt-2 text-2xl font-semibold text-slate-800">{{ summary()?.plansCount ?? 0 }}</p>
+<div class="min-h-screen bg-gray-50">
+  <!-- Header: title + filters only -->
+  <header class=" px-6 py-4 ">
+    <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+      <div>
+        <h1 class="text-2xl font-bold tracking-tight text-gray-800">{{ 'BREADCRUMB.DASHBOARD' | translate }}</h1>
+        <p class="mt-0.5 text-sm text-gray-500">{{ 'DASHBOARD.SUBTITLE' | translate }}</p>
+      </div>
+      <div class="flex flex-wrap items-center gap-4">
+        <!-- Year -->
+        <div class="relative w-[140px] flex-shrink-0">
+          <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-500">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor" class="w-4 h-4">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5" />
+            </svg>
+          </div>
+          <select
+            [ngModel]="selectedYear()"
+            (ngModelChange)="selectedYear.set($event); onFiltersChange()"
+            class="pl-9 pr-10 py-2.5 w-full bg-gray-100 border-0 rounded-xl text-sm text-gray-700 font-medium focus:ring-2 focus:ring-blue-500 focus:bg-white focus:outline-none appearance-none cursor-pointer hover:bg-gray-200 transition-all">
+            <option [ngValue]="null">{{ 'DASHBOARD.ALL_YEARS' | translate }}</option>
+            @for (y of filterOptions().years; track y) {
+              <option [ngValue]="y">{{ y }}</option>
+            }
+          </select>
+          <div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none text-gray-500">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-3.5 h-3.5">
+              <path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5"/>
+            </svg>
+          </div>
         </div>
-        <div class="rounded-lg border border-slate-200 bg-white p-4">
-          <p class="text-xs text-slate-500">Plans validés</p>
-          <p class="mt-2 text-2xl font-semibold text-emerald-700">{{ summary()?.validatedPlansCount ?? 0 }}</p>
+        <!-- Site -->
+        <div class="relative w-[200px] flex-shrink-0">
+          <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-500">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor" class="w-4 h-4">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 21h16.5M4.5 3h15M5.25 3v18m13.5-18v18M9 6.75h1.5m-1.5 3h1.5m-1.5 3h1.5m3-6H15m-1.5 3H15m-1.5 3H15M9 21v-3.375c0-.621.504-1.125 1.125-1.125h3.75c.621 0 1.125.504 1.125 1.125V21" />
+            </svg>
+          </div>
+          <select
+            [ngModel]="selectedSite()"
+            (ngModelChange)="selectedSite.set($event); onFiltersChange()"
+            class="pl-9 pr-10 py-2.5 w-full bg-gray-100 border-0 rounded-xl text-sm text-gray-700 font-medium focus:ring-2 focus:ring-blue-500 focus:bg-white focus:outline-none appearance-none cursor-pointer hover:bg-gray-200 transition-all">
+            <option [ngValue]="null">{{ 'DASHBOARD.ALL_SITES' | translate }}</option>
+            @for (s of filterOptions().sites; track s.id) {
+              <option [value]="s.id">{{ s.name }}</option>
+            }
+          </select>
+          <div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none text-gray-500">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-3.5 h-3.5">
+              <path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5"/>
+            </svg>
+          </div>
         </div>
-        <div class="rounded-lg border border-slate-200 bg-white p-4">
-          <p class="text-xs text-slate-500">Activités ce mois</p>
-          <p class="mt-2 text-2xl font-semibold text-slate-800">{{ summary()?.activitiesThisMonth ?? 0 }}</p>
+        <!-- Category -->
+        <div class="relative w-[180px] flex-shrink-0">
+          <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-500">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor" class="w-4 h-4">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M9.568 3H5.25A2.25 2.25 0 0 0 3 5.25v4.318c0 .597.237 1.17.659 1.591l9.581 9.581c.699.699 1.78.872 2.607.33a18.095 18.095 0 0 0 5.223-5.223c.542-.827.369-1.908-.33-2.607L11.16 3.66A2.25 2.25 0 0 0 9.568 3Z" />
+            </svg>
+          </div>
+          <select
+            [ngModel]="selectedCategory()"
+            (ngModelChange)="selectedCategory.set($event); onFiltersChange()"
+            class="pl-9 pr-10 py-2.5 w-full bg-gray-100 border-0 rounded-xl text-sm text-gray-700 font-medium focus:ring-2 focus:ring-blue-500 focus:bg-white focus:outline-none appearance-none cursor-pointer hover:bg-gray-200 transition-all">
+            <option [ngValue]="null">{{ 'DASHBOARD.ALL_CATEGORIES' | translate }}</option>
+            @for (c of filterOptions().categories; track c.id) {
+              <option [value]="c.id">{{ c.name }}</option>
+            }
+          </select>
+          <div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none text-gray-500">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-3.5 h-3.5">
+              <path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5"/>
+            </svg>
+          </div>
         </div>
-        <div class="rounded-lg border border-slate-200 bg-white p-4">
-          <p class="text-xs text-slate-500">Coût total (€)</p>
-          <p class="mt-2 text-2xl font-semibold text-slate-800">{{ (summary()?.totalCost ?? 0) | number:'1.2-2':'fr-FR' }}</p>
+        <!-- Quick actions -->
+        <a routerLink="/csr-plans" class="inline-flex items-center gap-2 rounded-xl bg-brand-900 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-brand-800 flex-shrink-0">
+          <fa-icon [icon]="faFileImport"></fa-icon>
+          {{ 'DASHBOARD.QUICK_ACTIONS.IMPORT_CSR_PLAN' | translate }}
+        </a>
+        <button type="button" class="inline-flex items-center gap-2 rounded-xl border border-gray-300 bg-white px-5 py-2.5 text-sm font-medium text-gray-700 shadow-sm transition hover:bg-gray-50 flex-shrink-0">
+          <fa-icon [icon]="faChartLine"></fa-icon>
+          {{ 'DASHBOARD.QUICK_ACTIONS.EXPORT_CSR_REPORT' | translate }}
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main class="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
+    @if (errorMessage()) {
+      <div class="mb-6 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">
+        {{ errorMessage() }}
+      </div>
+    }
+
+    <!-- KPI Cards -->
+    @if (kpis(); as k) {
+      <div class="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-4">
+        <app-kpi-widget
+          [label]="'DASHBOARD.KPI_TOTAL_PLANNED' | translate"
+          [value]="k.totalPlanned"
+          format="number" />
+        <app-kpi-widget
+          [label]="'DASHBOARD.KPI_COMPLETED' | translate"
+          [value]="k.completed"
+          format="number" />
+        <app-kpi-widget
+          [label]="'DASHBOARD.KPI_IN_PROGRESS' | translate"
+          [value]="k.inProgress"
+          format="number" />
+        <app-kpi-widget
+          [label]="'DASHBOARD.KPI_COMPLETION_RATE' | translate"
+          [value]="k.completionRate"
+          format="percent" />
+        <app-kpi-widget
+          [label]="'DASHBOARD.KPI_BUDGET_PLANNED' | translate"
+          [value]="k.budgetPlanned"
+          format="currency" />
+        <app-kpi-widget
+          [label]="'DASHBOARD.KPI_BUDGET_SPENT' | translate"
+          [value]="k.budgetSpent"
+          format="currency" />
+        <app-kpi-widget
+          [label]="'DASHBOARD.KPI_PARTICIPANTS' | translate"
+          [value]="k.totalParticipants"
+          format="number" />
+        <app-kpi-widget
+          [label]="'DASHBOARD.KPI_VOLUNTEER_HOURS' | translate"
+          [value]="k.volunteerHours"
+          format="number" />
+      </div>
+    } @else if (loading()) {
+      <div class="mb-8 flex h-48 items-center justify-center rounded-xl border border-gray-200 bg-white shadow-sm">
+        <div class="h-10 w-10 animate-spin rounded-full border-2 border-brand-900 border-t-transparent"></div>
+      </div>
+    }
+
+    <!-- Charts Grid -->
+    <div class="mb-8 grid grid-cols-1 gap-6 lg:grid-cols-2">
+      <!-- Planned vs Completed -->
+      <div class="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+        <h3 class="mb-4 text-base font-semibold text-gray-800">{{ 'DASHBOARD.PLANNED_VS_COMPLETED' | translate }}</h3>
+        <div class="h-72 relative">
+          @if (!plannedVsCompleted()) {
+            <div class="absolute inset-0 z-10 flex items-center justify-center bg-gray-50/90 text-sm text-gray-500">{{ 'DASHBOARD.LOADING_CHART' | translate }}</div>
+          }
+          <canvas #chartPlannedVsCompleted></canvas>
         </div>
       </div>
-      <div class="mt-4 flex flex-wrap items-center gap-3">
-        <button type="button" class="inline-flex items-center rounded-lg bg-brand-900 px-4 py-2 text-sm font-medium text-white hover:bg-brand-800 disabled:opacity-50" disabled>
-          Plans annuels (bientôt)
-        </button>
-        <button type="button" class="inline-flex items-center rounded-lg bg-brand-800 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-50" disabled>
-          Activités réalisées (bientôt)
-        </button>
+
+      <!-- Activities by category -->
+      <div class="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+        <h3 class="mb-4 text-base font-semibold text-gray-800">{{ 'DASHBOARD.ACTIVITIES_BY_CATEGORY' | translate }}</h3>
+        @if (categoriesData().length) {
+          <div class="h-72">
+            <canvas #chartCategories></canvas>
+          </div>
+        } @else {
+          <div class="flex h-72 items-center justify-center text-sm text-gray-500">{{ 'DASHBOARD.LOADING_CHART' | translate }}</div>
+        }
       </div>
-      <div class="mt-6">
-        <h2 class="text-sm font-medium text-slate-700">Activités (6 derniers mois)</h2>
-        <div class="mt-3 rounded-lg border border-slate-200 bg-white p-4">
-          @if (chart() && chart()!.labels.length) {
-            <div class="h-64"><canvas #activitiesChart></canvas></div>
-          } @else {
-            <p class="text-sm text-slate-500">Aucune donnée d'activité disponible pour le moment.</p>
+
+      <!-- Monthly timeline -->
+      <div class="rounded-xl border border-gray-200 bg-white p-6 shadow-sm lg:col-span-2">
+        <h3 class="mb-4 text-base font-semibold text-gray-800">{{ 'DASHBOARD.MONTHLY_TIMELINE' | translate }}</h3>
+        @if (monthlyTimeline()) {
+          <div class="h-64">
+            <canvas #chartTimeline></canvas>
+          </div>
+        } @else {
+          <div class="flex h-64 items-center justify-center text-sm text-gray-500">{{ 'DASHBOARD.LOADING_CHART' | translate }}</div>
+        }
+      </div>
+
+      <!-- Site performance -->
+      <div class="rounded-xl border border-gray-200 bg-white p-6 shadow-sm lg:col-span-2">
+        <h3 class="mb-4 text-base font-semibold text-gray-800">{{ 'DASHBOARD.SITE_PERFORMANCE' | translate }}</h3>
+        @if (sitePerformance().length) {
+          <div class="h-64">
+            <canvas #chartSites></canvas>
+          </div>
+        } @else {
+          <div class="flex h-64 items-center justify-center text-sm text-gray-500">{{ 'DASHBOARD.LOADING_CHART' | translate }}</div>
+        }
+      </div>
+    </div>
+
+    <!-- Tables + Notifications -->
+    <div class="grid grid-cols-1 gap-6 lg:grid-cols-3">
+      <!-- Top CSR Activities table -->
+      <div class="lg:col-span-2 rounded-xl border border-gray-200 bg-white shadow-sm">
+        <div class="border-b border-gray-200 px-6 py-4">
+          <h3 class="text-base font-semibold text-gray-800">{{ 'DASHBOARD.TOP_ACTIVITIES' | translate }}</h3>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="min-w-full divide-y divide-gray-200">
+            <thead class="bg-gray-50">
+              <tr>
+                <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">{{ 'DASHBOARD.ACTIVITY' | translate }}</th>
+                <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">{{ 'DASHBOARD.CATEGORY' | translate }}</th>
+                <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">{{ 'DASHBOARD.PARTICIPANTS' | translate }}</th>
+                <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">{{ 'DASHBOARD.IMPACT' | translate }}</th>
+                <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">{{ 'DASHBOARD.STATUS' | translate }}</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-200 bg-white">
+              @for (a of topActivities(); track a.name + a.category) {
+                <tr class="hover:bg-gray-50/50">
+                  <td class="whitespace-nowrap px-6 py-4 text-sm font-medium text-gray-800">{{ a.name }}</td>
+                  <td class="whitespace-nowrap px-6 py-4 text-sm text-gray-600">{{ a.category }}</td>
+                  <td class="whitespace-nowrap px-6 py-4 text-sm text-gray-600">{{ a.participants }}</td>
+                  <td class="whitespace-nowrap px-6 py-4 text-sm text-gray-600">{{ a.impact }}</td>
+                  <td class="whitespace-nowrap px-6 py-4">
+                    <span
+                      class="inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium"
+                      [ngClass]="statusBadgeClass(a.status)">
+                      {{ a.status === 'completed' ? ('DASHBOARD.STATUS_COMPLETED' | translate) : a.status === 'in_progress' ? ('DASHBOARD.STATUS_IN_PROGRESS' | translate) : ('DASHBOARD.STATUS_PLANNED' | translate) }}
+                    </span>
+                  </td>
+                </tr>
+              } @empty {
+                <tr>
+                  <td colspan="5" class="px-6 py-8 text-center text-sm text-gray-500">{{ 'DASHBOARD.NO_ACTIVITIES_YET' | translate }}</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Notifications panel -->
+      <div class="rounded-xl border border-gray-200 bg-white shadow-sm">
+        <div class="border-b border-gray-200 px-6 py-4">
+          <h3 class="text-base font-semibold text-gray-800">{{ 'DASHBOARD.NOTIFICATIONS' | translate }}</h3>
+        </div>
+        <div class="divide-y divide-gray-100 p-4">
+          @for (n of notifications(); track n.id) {
+            <a [routerLink]="n.link || '#'" class="block rounded-xl border border-gray-100 p-3 transition hover:opacity-90" [ngClass]="notificationBgClass(n.type)">
+              <div class="flex items-start gap-3">
+                <fa-icon [icon]="notificationIcon(n.type)" class="mt-0.5 h-5 w-5 flex-shrink-0 text-gray-600"></fa-icon>
+                <div class="min-w-0 flex-1">
+                  <p class="text-sm font-medium text-gray-800">{{ n.title }}</p>
+                  <p class="mt-0.5 text-xs text-gray-600">{{ n.message }}</p>
+                </div>
+              </div>
+            </a>
+          } @empty {
+            <p class="p-4 text-center text-sm text-gray-500">{{ 'DASHBOARD.NO_NOTIFICATIONS' | translate }}</p>
           }
         </div>
       </div>
     </div>
-  </div>
+  </main>
 </div>

@@ -9,9 +9,9 @@ import { catchError, of } from 'rxjs';
  * If token exists but GET /api/auth/me returns 401, clears auth.
  */
 export function initSession(): () => Promise<void> {
+  const authStore = inject(AuthStore);
+  const authApi = inject(AuthApi);
   return () => {
-    const authStore = inject(AuthStore);
-    const authApi = inject(AuthApi);
     if (!authStore.token()) {
       return Promise.resolve();
     }

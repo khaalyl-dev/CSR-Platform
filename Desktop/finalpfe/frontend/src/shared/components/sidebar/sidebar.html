@@ -21,7 +21,7 @@
     <div *ngFor="let section of filteredNavItems(); trackBy: trackBySection" class="mb-4">
       <div class="section uppercase text-gray-400 text-xs font-semibold mb-2 transition-opacity duration-300"
         [ngClass]="isCollapsed() ? 'opacity-0 h-0 overflow-hidden' : 'opacity-100'">
-        {{ section.section }}
+        {{ section.sectionKey | translate }}
       </div>
       <ul>
         <li *ngFor="let item of section.items; trackBy: trackByItem">
@@ -33,7 +33,7 @@
             </span>
             <span class="transition-all duration-300 whitespace-nowrap overflow-hidden"
               [ngClass]="isCollapsed() ? 'w-0 opacity-0 m-0 p-0' : 'ml-3 w-auto opacity-100'">
-              {{ item.label }}
+              {{ item.labelKey | translate }}
             </span>
           </a>
         </li>
@@ -48,7 +48,7 @@
     </div>
     <button class="btn-logout bg-white text-black font-semibold rounded hover:bg-gray-200
                    transition-all duration-300 flex items-center justify-center py-1 w-full" (click)="logout()">
-      <span *ngIf="!isCollapsed()" class="transition-all duration-300">Déconnexion</span>
+      <span *ngIf="!isCollapsed()" class="transition-all duration-300">{{ 'COMMON.LOGOUT' | translate }}</span>
       <span *ngIf="isCollapsed()" class="transition-all duration-300 text-lg">⇥</span>
     </button>
   </div>

@@ -15,7 +15,7 @@ export class AuthService {
     return role === 'CORPORATE_USER' || role === 'corporate' ? 'corporate' : 'site';
   }
 
-  login(email: string, password: string, remember = true) {
+  login(email: string, password: string, remember = false) {
     return this.authApi.login(email, password).pipe(
       tap(res => {
         const user = {

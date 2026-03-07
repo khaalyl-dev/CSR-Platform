@@ -1,7 +1,8 @@
 import { Component, inject, OnInit, ChangeDetectorRef } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { CommonModule, Location } from '@angular/common';
 import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angular/forms';
 import { Router, ActivatedRoute } from '@angular/router';
+import { TranslateModule } from '@ngx-translate/core';
 import { RealizedCsrApi } from '../api/realized-csr-api';
 import type { RealizedCsr } from '../models/realized-csr.model';
 
@@ -14,7 +15,7 @@ const MONTH_LABELS: Record<number, string> = {
 @Component({
   selector: 'app-realized-edit',
   standalone: true,
-  imports: [ReactiveFormsModule, CommonModule],
+  imports: [ReactiveFormsModule, CommonModule, TranslateModule],
   templateUrl: './realized-edit.html',
 })
 export class RealizedEditComponent implements OnInit {
@@ -23,6 +24,7 @@ export class RealizedEditComponent implements OnInit {
   private route = inject(ActivatedRoute);
   private cdr = inject(ChangeDetectorRef);
   private api = inject(RealizedCsrApi);
+  private location = inject(Location);
 
   form!: FormGroup;
   realized: RealizedCsr | null = null;
@@ -140,6 +142,6 @@ export class RealizedEditComponent implements OnInit {
   }
 
   cancel(): void {
-    this.router.navigate(['/realized-csr']);
+    this.location.back();
   }
 }

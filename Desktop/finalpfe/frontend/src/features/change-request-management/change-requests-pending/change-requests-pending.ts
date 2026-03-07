@@ -1,13 +1,14 @@
 import { Component, OnInit, signal, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
+import { TranslateModule } from '@ngx-translate/core';
 import { ChangeRequestsApi } from '../api/change-requests-api';
 import type { ChangeRequestWithDocs } from '../api/change-requests-api';
 
 @Component({
   selector: 'app-change-requests-pending',
   standalone: true,
-  imports: [CommonModule, RouterModule],
+  imports: [CommonModule, RouterModule, TranslateModule],
   templateUrl: './change-requests-pending.html',
 })
 export class ChangeRequestsPendingComponent implements OnInit {
@@ -39,8 +40,7 @@ export class ChangeRequestsPendingComponent implements OnInit {
         this.actionLoading.set(null);
         this.load();
       },
-      error: (err) => {
-        alert(err.error?.message || 'Erreur');
+      error: () => {
         this.actionLoading.set(null);
       },
     });
@@ -55,8 +55,7 @@ export class ChangeRequestsPendingComponent implements OnInit {
         this.actionLoading.set(null);
         this.load();
       },
-      error: (err) => {
-        alert(err.error?.message || 'Erreur');
+      error: () => {
         this.actionLoading.set(null);
       },
     });

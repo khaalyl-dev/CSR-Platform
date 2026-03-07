@@ -1,7 +1,8 @@
 import { Component, inject, OnInit, OnDestroy, signal } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { CommonModule, Location } from '@angular/common';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { HttpClient } from '@angular/common/http';
+import { TranslateModule, TranslateService } from '@ngx-translate/core';
 import { CsrActivitiesApi } from '@features/realized-activity-management/api/csr-activities-api';
 import { DocumentsApi } from '@features/file-management/api/documents-api';
 import type { Document } from '@features/file-management/models/document.model';
@@ -11,16 +12,18 @@ import { BreadcrumbService } from '@core/services/breadcrumb.service';
 @Component({
   selector: 'app-planned-activity-detail',
   standalone: true,
-  imports: [CommonModule, RouterModule],
+  imports: [CommonModule, RouterModule, TranslateModule],
   templateUrl: './planned-activity-detail.html',
 })
 export class PlannedActivityDetailComponent implements OnInit, OnDestroy {
   private route = inject(ActivatedRoute);
   private router = inject(Router);
+  private location = inject(Location);
   private api = inject(CsrActivitiesApi);
   private documentsApi = inject(DocumentsApi);
   private http = inject(HttpClient);
   private breadcrumb = inject(BreadcrumbService);
+  private translate = inject(TranslateService);
 
   activity = signal<PlannedActivityListItem | null>(null);
   photos = signal<Document[]>([]);
@@ -40,11 +43,11 @@ export class PlannedActivityDetailComponent implements OnInit, OnDestroy {
   }
 
   activityTitle(): string {
-    return this.activity()?.title || (this.isPlanRealized() ? 'Activité (plan réalisé)' : 'Activité planifiée');
+    return this.activity()?.title || (this.isPlanRealized() ? this.translate.instant('PLANNED_ACTIVITY_DETAIL.TITLE_REALIZED') : this.translate.instant('PLANNED_ACTIVITY_DETAIL.TITLE_PLANNED'));
   }
 
   sectionTitle(): string {
-    return this.isPlanRealized() ? "Informations de l'activité (plan réalisé)" : "Informations de l'activité planifiée";
+    return this.isPlanRealized() ? this.translate.instant('PLANNED_ACTIVITY_DETAIL.SECTION_INFO_REALIZED') : this.translate.instant('PLANNED_ACTIVITY_DETAIL.SECTION_INFO_PLANNED');
   }
 
   ngOnInit(): void {
@@ -63,8 +66,8 @@ export class PlannedActivityDetailComponent implements OnInit, OnDestroy {
         this.activity.set(data);
         if (data.year != null) this.planYear.set(data.year);
         this.loading.set(false);
-        const siteName = data.site_name ?? data.site_code ?? 'Activité';
-        const title = (data.title ?? '').slice(0, 40) || 'Activité planifiée';
+        const siteName = data.site_name ?? data.site_code ?? this.translate.instant('PLANNED_ACTIVITY_DETAIL.ACTIVITY_FALLBACK');
+        const title = (data.title ?? '').slice(0, 40) || this.translate.instant('PLANNED_ACTIVITY_DETAIL.TITLE_PLANNED');
         this.breadcrumb.setContext([siteName, String(data.year ?? ''), title]);
         this.documentsApi.listByEntity('ACTIVITY', data.id).subscribe({
           next: (list) => {
@@ -87,7 +90,7 @@ export class PlannedActivityDetailComponent implements OnInit, OnDestroy {
       },
       error: (err) => {
         this.loading.set(false);
-        this.errorMsg.set(err.error?.message ?? 'Activité introuvable');
+        this.errorMsg.set(err.error?.message ?? this.translate.instant('PLANNED_ACTIVITY_DETAIL.NOT_FOUND'));
       },
     });
   }
@@ -107,7 +110,7 @@ export class PlannedActivityDetailComponent implements OnInit, OnDestroy {
   }
 
   back(): void {
-    this.router.navigate(['/planned-activities']);
+    this.location.back();
   }
 
   ngOnDestroy(): void {

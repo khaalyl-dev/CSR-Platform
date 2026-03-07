@@ -1,20 +1,20 @@
 <!-- Paramètres / Gestion du compte - Pro profile -->
 <div class="max-w-4xl mx-auto p-6 md:p-8">
   <div class="mb-8">
-    <h1 class="text-2xl md:text-3xl font-bold text-gray-800 tracking-tight">Paramètres</h1>
-    <p class="text-gray-500 mt-1">Gestion de votre compte et préférences</p>
+    <h1 class="text-2xl md:text-3xl font-bold text-gray-800 tracking-tight">{{ 'PROFILE_SETTINGS.TITLE' | translate }}</h1>
+    <p class="text-gray-500 mt-1">{{ 'PROFILE_SETTINGS.PAGE_SUBTITLE' | translate }}</p>
   </div>
 
   @if (loading()) {
     <div class="flex flex-col items-center justify-center py-16 bg-white rounded-2xl border border-gray-200 shadow-sm">
       <div class="w-10 h-10 border-2 border-gray-200 border-t-brand-900 rounded-full animate-spin"></div>
-      <p class="mt-4 text-sm text-gray-500">Chargement de votre profil...</p>
+      <p class="mt-4 text-sm text-gray-500">{{ 'PROFILE_SETTINGS.LOADING_PROFILE' | translate }}</p>
     </div>
   } @else if (errorMessage(); as msg) {
     <div class="flex flex-col items-center py-12 bg-red-50 border border-red-200 rounded-2xl">
       <fa-icon [icon]="faCircleXmark" class="text-2xl text-red-500 mb-3"></fa-icon>
       <p class="text-red-800 text-sm mb-4">{{ msg }}</p>
-      <button type="button" (click)="loadProfile()" class="px-4 py-2 bg-red-600 text-white text-sm font-medium rounded-xl hover:bg-red-700">Réessayer</button>
+      <button type="button" (click)="loadProfile()" class="px-4 py-2 bg-red-600 text-white text-sm font-medium rounded-xl hover:bg-red-700">{{ 'PROFILE_SETTINGS.RETRY' | translate }}</button>
     </div>
   } @else if (profile(); as p) {
     <div class="space-y-8">
@@ -24,19 +24,19 @@
           <div class="flex flex-col items-center md:items-start">
             <div class="relative group">
               @if (avatarBlobUrl()) {
-                <img [src]="avatarBlobUrl()!" alt="Photo de profil" class="w-28 h-28 rounded-2xl object-cover border-2 border-gray-100 shadow-md" />
+                <img [src]="avatarBlobUrl()!" [attr.alt]="'PROFILE_SETTINGS.PHOTO_ALT' | translate" class="w-28 h-28 rounded-2xl object-cover border-2 border-gray-100 shadow-md" />
               } @else {
                 <div class="w-28 h-28 rounded-2xl bg-gradient-to-br from-brand-800 to-brand-900 flex items-center justify-center text-white text-3xl font-semibold shadow-md">
                   {{ (fullName(p) || p.email)[0] | uppercase }}
                 </div>
               }
               <label class="absolute inset-0 flex items-center justify-center rounded-2xl bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
-                <span class="text-white text-xs font-medium px-3 py-1.5 bg-white/20 rounded-lg">Changer</span>
+                <span class="text-white text-xs font-medium px-3 py-1.5 bg-white/20 rounded-lg">{{ 'PROFILE_SETTINGS.BUTTONS.CHANGE_PICTURE' | translate }}</span>
                 <input type="file" accept="image/png,image/jpeg,image/jpg,image/gif,image/webp" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer" (change)="onPhotoSelected($event)" [disabled]="photoUploading()" />
               </label>
             </div>
             @if (photoUploading()) {
-              <p class="mt-2 text-xs text-gray-500">Envoi en cours...</p>
+              <p class="mt-2 text-xs text-gray-500">{{ 'PROFILE_SETTINGS.UPLOADING' | translate }}</p>
             }
             @if (photoError()) {
               <p class="mt-2 text-xs text-red-600">{{ photoError() }}</p>
@@ -54,7 +54,7 @@
                 [class.text-brand-800]="p.role === 'CORPORATE_USER'"
                 [class.bg-gray-100]="p.role === 'SITE_USER'"
                 [class.text-gray-700]="p.role === 'SITE_USER'">
-                {{ roleLabel(p.role) }}
+                {{ (p.role === 'CORPORATE_USER' ? 'PROFILE_SETTINGS.ACCOUNT.CORPORATE_USER' : 'PROFILE_SETTINGS.ACCOUNT.SITE_USER') | translate }}
               </span>
               <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium"
                 [class.bg-green-100]="p.is_active"
@@ -62,7 +62,7 @@
                 [class.bg-red-50]="!p.is_active"
                 [class.text-red-700]="!p.is_active">
                 <fa-icon [icon]="p.is_active ? faCircleCheck : faCircleXmark" class="text-[10px]"></fa-icon>
-                {{ p.is_active ? 'Actif' : 'Inactif' }}
+                {{ p.is_active ? ('PROFILE_SETTINGS.ACCOUNT.ACTIVE' | translate) : ('PROFILE_SETTINGS.ACCOUNT.INACTIVE' | translate) }}
               </span>
             </div>
           </div>
@@ -73,19 +73,19 @@
       <section class="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
         <div class="px-6 py-4 border-b border-gray-100 flex items-center gap-2">
           <fa-icon [icon]="faIdCard" class="text-brand-600"></fa-icon>
-          <h3 class="font-semibold text-gray-800">Informations personnelles</h3>
+          <h3 class="font-semibold text-gray-800">{{ 'PROFILE_SETTINGS.SECTIONS.ACCOUNT' | translate }}</h3>
         </div>
         <dl class="divide-y divide-gray-50">
           <div class="px-6 py-4 flex flex-col sm:flex-row sm:gap-4">
-            <dt class="text-sm font-medium text-gray-500 w-36 flex-shrink-0">Email</dt>
+            <dt class="text-sm font-medium text-gray-500 w-36 flex-shrink-0">{{ 'PROFILE_SETTINGS.FIELDS.EMAIL' | translate }}</dt>
             <dd class="text-gray-800 text-sm mt-0.5 sm:mt-0">{{ p.email }}</dd>
           </div>
           <div class="px-6 py-4 flex flex-col sm:flex-row sm:gap-4">
-            <dt class="text-sm font-medium text-gray-500 w-36 flex-shrink-0">Statut</dt>
-            <dd class="text-sm" [class.text-green-600]="p.is_active" [class.text-gray-500]="!p.is_active">{{ p.is_active ? 'Compte actif' : 'Compte désactivé' }}</dd>
+            <dt class="text-sm font-medium text-gray-500 w-36 flex-shrink-0">{{ 'PROFILE_SETTINGS.ACCOUNT.STATUS' | translate }}</dt>
+            <dd class="text-sm" [class.text-green-600]="p.is_active" [class.text-gray-500]="!p.is_active">{{ p.is_active ? ('PROFILE_SETTINGS.ACCOUNT_ACTIVE' | translate) : ('PROFILE_SETTINGS.ACCOUNT_DISABLED' | translate) }}</dd>
           </div>
           <div class="px-6 py-4 flex flex-col sm:flex-row sm:gap-4">
-            <dt class="text-sm font-medium text-gray-500 w-36 flex-shrink-0">Membre depuis</dt>
+            <dt class="text-sm font-medium text-gray-500 w-36 flex-shrink-0">{{ 'PROFILE_SETTINGS.ACCOUNT.CREATED_AT' | translate }}</dt>
             <dd class="text-gray-800 text-sm mt-0.5 sm:mt-0 flex items-center gap-1.5">
               <fa-icon [icon]="faCalendarCheck" class="text-gray-400 text-xs"></fa-icon>
               {{ formatDate(p.created_at) }}
@@ -98,7 +98,7 @@
       <section class="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
         <div class="px-6 py-4 border-b border-gray-100 flex items-center gap-2">
           <fa-icon [icon]="faKey" class="text-brand-600"></fa-icon>
-          <h3 class="font-semibold text-gray-800">Modifier le mot de passe</h3>
+          <h3 class="font-semibold text-gray-800">{{ 'PROFILE_SETTINGS.SECTIONS.SECURITY' | translate }}</h3>
         </div>
         <div class="p-6">
           @if (passwordSuccess(); as msg) {
@@ -112,29 +112,29 @@
           }
           <form [formGroup]="passwordForm" (ngSubmit)="onSubmitPassword()" class="space-y-4">
             <div>
-              <label for="current_password" class="block text-sm font-medium text-gray-700 mb-1">Mot de passe actuel</label>
+              <label for="current_password" class="block text-sm font-medium text-gray-700 mb-1">{{ 'PROFILE_SETTINGS.FIELDS.CURRENT_PASSWORD' | translate }}</label>
               <input id="current_password" type="password" formControlName="current_password" autocomplete="current-password"
-                placeholder="Entrez votre mot de passe actuel"
+                [placeholder]="'PROFILE_SETTINGS.CURRENT_PASSWORD_PLACEHOLDER' | translate"
                 class="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-brand-900 focus:border-transparent" />
             </div>
             <div>
-              <label for="new_password" class="block text-sm font-medium text-gray-700 mb-1">Nouveau mot de passe</label>
+              <label for="new_password" class="block text-sm font-medium text-gray-700 mb-1">{{ 'PROFILE_SETTINGS.FIELDS.NEW_PASSWORD' | translate }}</label>
               <input id="new_password" type="password" formControlName="new_password" autocomplete="new-password"
-                placeholder="Min. 8 caractères"
+                [placeholder]="'PROFILE_SETTINGS.NEW_PASSWORD_PLACEHOLDER' | translate"
                 class="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-brand-900 focus:border-transparent" />
               @if (passwordForm.get('new_password')?.invalid && passwordForm.get('new_password')?.touched) {
-                <p class="mt-1 text-xs text-red-600">Minimum 8 caractères</p>
+                <p class="mt-1 text-xs text-red-600">{{ 'PROFILE_SETTINGS.NEW_PASSWORD_MIN_HINT' | translate }}</p>
               }
             </div>
             <div>
-              <label for="confirm_password" class="block text-sm font-medium text-gray-700 mb-1">Confirmer le nouveau mot de passe</label>
+              <label for="confirm_password" class="block text-sm font-medium text-gray-700 mb-1">{{ 'PROFILE_SETTINGS.FIELDS.CONFIRM_PASSWORD' | translate }}</label>
               <input id="confirm_password" type="password" formControlName="confirm_password" autocomplete="new-password"
-                placeholder="Répétez le nouveau mot de passe"
+                [placeholder]="'PROFILE_SETTINGS.CONFIRM_PASSWORD_PLACEHOLDER' | translate"
                 class="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-brand-900 focus:border-transparent" />
             </div>
             <button type="submit" [disabled]="passwordForm.invalid || changingPassword()"
               class="px-5 py-2.5 bg-brand-900 text-white text-sm font-semibold rounded-xl hover:bg-brand-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
-              {{ changingPassword() ? 'Modification...' : 'Modifier le mot de passe' }}
+              {{ changingPassword() ? ('PROFILE_SETTINGS.CHANGING_PASSWORD' | translate) : ('PROFILE_SETTINGS.BUTTONS.CHANGE_PASSWORD' | translate) }}
             </button>
           </form>
         </div>
@@ -144,7 +144,7 @@
       <section class="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
         <div class="px-6 py-4 border-b border-gray-100 flex items-center gap-2">
           <fa-icon [icon]="p.role === 'SITE_USER' ? faBuilding : faShieldHalved" class="text-brand-600"></fa-icon>
-          <h3 class="font-semibold text-gray-800">{{ p.role === 'SITE_USER' ? 'Accès aux sites' : 'Accès' }}</h3>
+          <h3 class="font-semibold text-gray-800">{{ p.role === 'SITE_USER' ? ('PROFILE_SETTINGS.SITE_ACCESS' | translate) : ('PROFILE_SETTINGS.ACCESS' | translate) }}</h3>
         </div>
         <div class="p-6">
           @if (p.role === 'SITE_USER') {
@@ -154,22 +154,22 @@
                   <li class="flex items-start gap-3 py-2 border-b border-gray-50 last:border-0">
                     <span class="w-2 h-2 mt-1.5 rounded-full bg-brand-600 flex-shrink-0"></span>
                     <div>
-                      <span class="font-medium text-gray-800">{{ site.site_name || site.site_code || 'Site' }}</span>
+                      <span class="font-medium text-gray-800">{{ site.site_name || site.site_code || ('PROFILE_SETTINGS.SITE_FALLBACK' | translate) }}</span>
                       @if (site.site_code && site.site_name !== site.site_code) {
                         <span class="text-gray-500 text-sm ml-1">{{ site.site_code }}</span>
                       }
                       @if (site.granted_at) {
-                        <p class="text-xs text-gray-400 mt-0.5">Depuis {{ formatDate(site.granted_at) }}</p>
+                        <p class="text-xs text-gray-400 mt-0.5">{{ 'PROFILE_SETTINGS.SINCE_DATE' | translate:{ date: formatDate(site.granted_at) } }}</p>
                       }
                     </div>
                   </li>
                 }
               </ul>
             } @else {
-              <p class="text-gray-500 text-sm">Aucun site assigné. Contactez un administrateur pour obtenir un accès.</p>
+              <p class="text-gray-500 text-sm">{{ 'PROFILE_SETTINGS.NO_SITES_ASSIGNED' | translate }}</p>
             }
           } @else {
-            <p class="text-gray-500 text-sm">En tant qu'utilisateur Corporate, vous avez accès à l'ensemble des fonctionnalités et sites.</p>
+            <p class="text-gray-500 text-sm">{{ 'PROFILE_SETTINGS.CORPORATE_ACCESS_DESC' | translate }}</p>
           }
         </div>
       </section>

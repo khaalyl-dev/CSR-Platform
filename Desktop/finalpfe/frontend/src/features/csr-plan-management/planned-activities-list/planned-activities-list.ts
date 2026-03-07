@@ -1,12 +1,13 @@
 import { Component, computed, signal, inject, OnInit, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router, RouterModule } from '@angular/router';
+import { TranslateModule } from '@ngx-translate/core';
 import { CsrActivitiesApi, type PlannedActivityListItem } from '@features/realized-activity-management/api/csr-activities-api';
 
 @Component({
   selector: 'app-planned-activities-list',
   standalone: true,
-  imports: [CommonModule, RouterModule],
+  imports: [CommonModule, RouterModule, TranslateModule],
   templateUrl: './planned-activities-list.html',
 })
 export class PlannedActivitiesListComponent implements OnInit {
@@ -49,7 +50,7 @@ export class PlannedActivitiesListComponent implements OnInit {
         this.list.update((list) => list.filter((a) => a.id !== activity.id));
         this.closeMenu();
       },
-      error: (err) => alert(err.error?.message ?? 'Erreur lors de la suppression'),
+      error: () => {},
     });
   }
 

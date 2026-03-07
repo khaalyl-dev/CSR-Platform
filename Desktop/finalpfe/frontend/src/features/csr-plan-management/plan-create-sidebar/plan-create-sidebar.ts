@@ -1,7 +1,7 @@
-import { Component, inject, OnInit, ChangeDetectorRef } from '@angular/core';
+import { Component, inject, OnInit, Output, EventEmitter, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angular/forms';
-import { Router } from '@angular/router';
+import { TranslateModule } from '@ngx-translate/core';
 import { catchError, finalize, of, timeout, switchMap } from 'rxjs';
 import { CsrPlansApi } from '../api/csr-plans-api';
 import type { CreateCsrPlanPayload } from '../models/csr-plan.model';
@@ -12,26 +12,27 @@ import { AuthStore } from '@core/services/auth-store';
 const LOAD_TIMEOUT_MS = 8000;
 
 @Component({
-  selector: 'app-plan-create',
+  selector: 'app-plan-create-sidebar',
   standalone: true,
-  imports: [ReactiveFormsModule, CommonModule],
-  templateUrl: './plan-create.html',
+  imports: [ReactiveFormsModule, CommonModule, TranslateModule],
+  templateUrl: './plan-create-sidebar.html',
 })
-export class PlanCreateComponent implements OnInit {
+export class PlanCreateSidebarComponent implements OnInit {
   private fb = inject(FormBuilder);
-  private router = inject(Router);
   private cdr = inject(ChangeDetectorRef);
   private csrPlansApi = inject(CsrPlansApi);
   private sitesApi = inject(SitesApi);
   private authApi = inject(AuthApi);
   private authStore = inject(AuthStore);
 
+  @Output() closed = new EventEmitter<void>();
+  @Output() created = new EventEmitter<void>();
+
   planForm!: FormGroup;
   sites: Site[] = [];
   loading = false;
   currentYear = new Date().getFullYear();
   loadingSites = true;
-  errorMsg = '';
 
   ngOnInit(): void {
     this.planForm = this.fb.group({
@@ -40,7 +41,6 @@ export class PlanCreateComponent implements OnInit {
       validation_mode: ['101'],
       total_budget: [null as number | null],
     });
-
     this.loadSites();
   }
 
@@ -62,29 +62,20 @@ export class PlanCreateComponent implements OnInit {
 
   private loadSites(): void {
     this.loadingSites = true;
-    this.errorMsg = '';
     this.cdr.markForCheck();
-
     const isSiteUser = this.authStore.userRole() === 'site';
-
-    // 1) Toujours essayer le profil d'abord (sites assignés pour SITE_USER)
     this.authApi.getProfile().pipe(
       timeout(LOAD_TIMEOUT_MS),
       catchError(() => of(null)),
     ).pipe(
       switchMap((profile) => {
         const fromProfile = this.mapProfileSitesToSites(profile ?? {});
-        if (fromProfile.length > 0) {
-          return of({ sites: fromProfile, done: true });
-        }
-        if (isSiteUser) {
-          return of({ sites: [] as Site[], done: true });
-        }
-        // 2) Corporate : charger toute la liste des sites
+        if (fromProfile.length > 0) return of({ sites: fromProfile });
+        if (isSiteUser) return of({ sites: [] as Site[] });
         return this.sitesApi.list().pipe(
           timeout(LOAD_TIMEOUT_MS),
           catchError(() => of([] as Site[])),
-          switchMap((list) => of({ sites: Array.isArray(list) ? list : [], done: true })),
+          switchMap((list) => of({ sites: Array.isArray(list) ? list : [] })),
         );
       }),
       finalize(() => {
@@ -93,28 +84,18 @@ export class PlanCreateComponent implements OnInit {
       }),
     ).subscribe((result) => {
       this.sites = result.sites;
-      if (this.sites.length === 0) {
-        this.errorMsg = isSiteUser
-          ? 'Aucun site actif affecté à votre compte.'
-          : 'Impossible de charger la liste des sites. Réessayez.';
-      }
-      this.loadingSites = false;
       this.cdr.markForCheck();
     });
   }
 
-  retryLoadSites(): void {
-    this.loadSites();
+  close(): void {
+    this.closed.emit();
   }
 
   submit(): void {
-    if (this.planForm.invalid) {
-      this.planForm.markAllAsTouched();
-      return;
-    }
-
+    if (this.loading || this.planForm.invalid) return;
     this.loading = true;
-    this.errorMsg = '';
+    this.cdr.markForCheck();
     const raw = this.planForm.getRawValue();
     const payload: CreateCsrPlanPayload = {
       site_id: raw.site_id,
@@ -122,20 +103,17 @@ export class PlanCreateComponent implements OnInit {
       validation_mode: raw.validation_mode === '111' ? '111' : '101',
       total_budget: raw.total_budget != null && raw.total_budget !== '' ? Number(raw.total_budget) : null,
     };
-
-    this.csrPlansApi.create(payload).subscribe({
+    this.csrPlansApi.create(payload).pipe(
+      finalize(() => {
+        this.loading = false;
+        this.cdr.markForCheck();
+      }),
+    ).subscribe({
       next: () => {
-        this.loading = false;
-        this.router.navigate(['/csr-plans']);
+        this.created.emit();
+        this.closed.emit();
       },
-      error: (err) => {
-        this.loading = false;
-        this.errorMsg = err.error?.message || 'Erreur lors de la création du plan';
-      },
+      error: () => {},
     });
-  }
-
-  cancel(): void {
-    this.router.navigate(['/csr-plans']);
   }
 }

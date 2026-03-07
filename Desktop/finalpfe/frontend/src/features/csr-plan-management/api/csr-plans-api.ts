@@ -2,8 +2,9 @@
  * CSR Plans API – list and create plans (csr_plans table).
  */
 import { Injectable } from '@angular/core';
-import { HttpClient, HttpParams } from '@angular/common/http';
+import { HttpClient, HttpParams, HttpRequest, HttpEventType } from '@angular/common/http';
 import { Observable } from 'rxjs';
+import { filter, map, tap } from 'rxjs/operators';
 import type { CsrPlan } from '../models/csr-plan.model';
 import type { CreateCsrPlanPayload, UpdateCsrPlanPayload } from '../models/csr-plan.model';
 
@@ -108,25 +109,53 @@ export class CsrPlansApi {
 
   /**
    * Preview Excel import: returns list of plans (site_id, site_name, year) that would be created. No DB write.
+   * Optional onProgress(0-100) callback for upload progress.
    */
-  importExcelPreview(file: File, options?: { site_id?: string; year?: number }): Observable<ImportPreviewResponse> {
+  importExcelPreview(file: File, options?: { site_id?: string; year?: number; onProgress?: (percent: number) => void }): Observable<ImportPreviewResponse> {
     const form = new FormData();
     form.append('file', file);
     if (options?.site_id) form.append('site_id', options.site_id);
     if (options?.year != null) form.append('year', String(options.year));
-    return this.http.post<ImportPreviewResponse>(`${this.apiUrl}/csr-plans/import-excel-preview`, form);
+    const req = new HttpRequest('POST', `${this.apiUrl}/csr-plans/import-excel-preview`, form, { reportProgress: true });
+    return this.http.request<ImportPreviewResponse>(req).pipe(
+      tap((event) => {
+        if (options?.onProgress) {
+          if (event.type === HttpEventType.UploadProgress && event.total && event.total > 0) {
+            options.onProgress(Math.round((100 * event.loaded) / event.total));
+          } else if (event.type === HttpEventType.Sent) {
+            options.onProgress(5); // Upload started
+          }
+        }
+      }),
+      filter((event) => event.type === HttpEventType.Response),
+      map((event) => (event as any).body),
+    );
   }
 
   /**
    * Upload an Excel file and create plans/activities. validation_modes: mode per plan (required when using preview flow).
+   * Optional onProgress(0-100) callback for upload progress.
    */
-  importExcel(file: File, options?: { site_id?: string; year?: number; validation_modes?: Array<{ site_id: string; year: number; validation_mode: '101' | '111' }> }): Observable<ImportExcelResponse> {
+  importExcel(file: File, options?: { site_id?: string; year?: number; validation_modes?: Array<{ site_id: string; year: number; validation_mode: '101' | '111' }>; onProgress?: (percent: number) => void }): Observable<ImportExcelResponse> {
     const form = new FormData();
     form.append('file', file);
     if (options?.site_id) form.append('site_id', options.site_id);
     if (options?.year != null) form.append('year', String(options.year));
     if (options?.validation_modes?.length) form.append('validation_modes', JSON.stringify(options.validation_modes));
-    return this.http.post<ImportExcelResponse>(`${this.apiUrl}/csr-plans/import-excel`, form);
+    const req = new HttpRequest('POST', `${this.apiUrl}/csr-plans/import-excel`, form, { reportProgress: true });
+    return this.http.request<ImportExcelResponse>(req).pipe(
+      tap((event) => {
+        if (options?.onProgress) {
+          if (event.type === HttpEventType.UploadProgress && event.total && event.total > 0) {
+            options.onProgress(Math.round((100 * event.loaded) / event.total));
+          } else if (event.type === HttpEventType.Sent) {
+            options.onProgress(5); // Upload started
+          }
+        }
+      }),
+      filter((event) => event.type === HttpEventType.Response),
+      map((event) => (event as any).body),
+    );
   }
 }
 

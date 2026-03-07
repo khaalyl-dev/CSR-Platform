@@ -1,24 +1,27 @@
 import { Component, OnInit, OnDestroy, signal, inject } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { CommonModule, Location } from '@angular/common';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { HttpClient } from '@angular/common/http';
 import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
+import { TranslateModule, TranslateService } from '@ngx-translate/core';
 import { ChangeRequestsApi, type ChangeRequestWithDocs } from '../api/change-requests-api';
 import { AuthStore } from '@core/services/auth-store';
 
 @Component({
   selector: 'app-change-request-detail',
   standalone: true,
-  imports: [CommonModule, RouterModule],
+  imports: [CommonModule, RouterModule, TranslateModule],
   templateUrl: './change-request-detail.html',
 })
 export class ChangeRequestDetailComponent implements OnInit, OnDestroy {
   private api = inject(ChangeRequestsApi);
   private route = inject(ActivatedRoute);
   private router = inject(Router);
+  private location = inject(Location);
   private http = inject(HttpClient);
   private authStore = inject(AuthStore);
   private sanitizer = inject(DomSanitizer);
+  private translate = inject(TranslateService);
 
   request = signal<ChangeRequestWithDocs | null>(null);
   loading = signal(true);
@@ -54,8 +57,13 @@ export class ChangeRequestDetailComponent implements OnInit, OnDestroy {
   }
 
   statusLabel(s: string): string {
-    const map: Record<string, string> = { PENDING: 'En attente', APPROVED: 'Approuvée', REJECTED: 'Rejetée' };
-    return map[s] ?? s;
+    const keyMap: Record<string, string> = {
+      PENDING: 'CHANGE_REQUEST.STATUS_PENDING',
+      APPROVED: 'CHANGE_REQUEST.STATUS_APPROVED',
+      REJECTED: 'CHANGE_REQUEST.STATUS_REJECTED',
+    };
+    const key = keyMap[s];
+    return key ? this.translate.instant(key) : s;
   }
 
   downloadDocument(filePath: string, fileName?: string): void {
@@ -155,8 +163,7 @@ export class ChangeRequestDetailComponent implements OnInit, OnDestroy {
   }
 
   back(): void {
-    if (this.isCorporate) this.router.navigate(['/changes/pending']);
-    else this.router.navigate(['/changes']);
+    this.location.back();
   }
 
   ngOnDestroy(): void {

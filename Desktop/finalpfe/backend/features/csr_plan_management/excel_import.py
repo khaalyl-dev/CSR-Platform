@@ -17,6 +17,7 @@ Supported column names (examples):
   - Realization Year/Month: "Realization Year", "Year" (realization), "Month"
 """
 import re
+from decimal import Decimal
 from typing import Any, Optional
 
 from openpyxl import load_workbook

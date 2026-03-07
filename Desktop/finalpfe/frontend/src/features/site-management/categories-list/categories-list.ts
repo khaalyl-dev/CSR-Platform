@@ -1,17 +1,19 @@
 import { Component, inject, OnInit, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { TranslateModule, TranslateService } from '@ngx-translate/core';
 import { CategoriesApi } from '../api/categories-api';
 import type { Category } from '../models/category.model';
 
 @Component({
   selector: 'app-categories-list',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, TranslateModule],
   templateUrl: './categories-list.html',
 })
 export class CategoriesListComponent implements OnInit {
   private categoriesApi = inject(CategoriesApi);
+  private translate = inject(TranslateService);
 
   categories = signal<Category[]>([]);
   loading = signal(true);
@@ -33,7 +35,7 @@ export class CategoriesListComponent implements OnInit {
       },
       error: () => {
         this.loading.set(false);
-        this.errorMsg.set('Impossible de charger les catégories.');
+        this.errorMsg.set(this.translate.instant('CATEGORIES.LOAD_ERROR'));
       },
     });
   }

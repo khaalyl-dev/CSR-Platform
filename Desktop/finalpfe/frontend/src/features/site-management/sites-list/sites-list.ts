@@ -2,13 +2,14 @@ import { Component, inject, signal, computed, OnInit } from '@angular/core';
 import { Router, RouterModule } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { TranslateModule } from '@ngx-translate/core';
 import { AuthStore } from '@core/services/auth-store';
 import { SitesApi, type Site } from '../api/sites-api';
 
 @Component({
   selector: 'app-sites-list',
   standalone: true,
-  imports: [CommonModule, RouterModule, FormsModule],
+  imports: [CommonModule, RouterModule, FormsModule, TranslateModule],
   templateUrl: './sites-list.html'
 })
 export class SitesListComponent implements OnInit {
@@ -141,7 +142,6 @@ export class SitesListComponent implements OnInit {
         );
       },
       error: () => {
-        alert('Action non autorisée');
         site.is_active = originalStatus;
       }
     });

@@ -2,23 +2,27 @@ import { Component, computed, signal, inject, OnInit, HostListener } from '@angu
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterModule } from '@angular/router';
+import { TranslateModule } from '@ngx-translate/core';
 import { AuthStore } from '@core/services/auth-store';
 import { CsrPlansApi } from '../api/csr-plans-api';
 import type { ImportPreviewPlan } from '../api/csr-plans-api';
 import type { CsrPlan } from '../models/csr-plan.model';
+import { I18nService } from '@core/services/i18n.service';
+import { PlanCreateSidebarComponent } from '../plan-create-sidebar/plan-create-sidebar';
 
 export type PlanWithMode = ImportPreviewPlan & { validation_mode: '101' | '111' };
 
 @Component({
   selector: 'app-annual-plans',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule],
+  imports: [CommonModule, FormsModule, RouterModule, TranslateModule, PlanCreateSidebarComponent],
   templateUrl: './annual-plans.html'
 })
 export class AnnualPlansComponent implements OnInit {
   private authStore = inject(AuthStore);
   private csrPlansApi = inject(CsrPlansApi);
   private router = inject(Router);
+  private i18n = inject(I18nService);
 
   // ── Menu 3 points (like document action) ─────────────────────────────────
   activeMenuPlan: CsrPlan | null = null;
@@ -67,6 +71,7 @@ export class AnnualPlansComponent implements OnInit {
       (!q ||
         (plan.site_name ?? '').toLowerCase().includes(q) ||
         (plan.site_code ?? '').toLowerCase().includes(q) ||
+        (plan.site_country ?? '').toLowerCase().includes(q) ||
         String(plan.year).includes(q))
     );
     const col = this.sortColumn();
@@ -76,7 +81,7 @@ export class AnnualPlansComponent implements OnInit {
       const valB = (b as any)[col]?.toString().toLowerCase() ?? '';
       const numA = typeof (a as any)[col] === 'number' ? (a as any)[col] : parseFloat(valA) || 0;
       const numB = typeof (b as any)[col] === 'number' ? (b as any)[col] : parseFloat(valB) || 0;
-      if (col === 'year' || col === 'total_budget') {
+      if (col === 'year' || col === 'total_budget' || col === 'activities_count') {
         if (numA < numB) return dir === 'asc' ? -1 : 1;
         if (numA > numB) return dir === 'asc' ? 1 : -1;
       } else {
@@ -161,7 +166,7 @@ export class AnnualPlansComponent implements OnInit {
   bulkSubmit(): void {
     const ids = this.selectedDraftIds();
     if (!ids.length) return;
-    if (!confirm(`Soumettre ${ids.length} plan(s) pour validation ?`)) return;
+    if (!confirm(this.i18n.t('ANNUAL_PLANS.CONFIRM.BULK_SUBMIT').replace('{n}', String(ids.length)))) return;
     this.bulkActionLoading.set(true);
     this.csrPlansApi.bulkSubmit(ids).subscribe({
       next: (res) => {
@@ -173,9 +178,8 @@ export class AnnualPlansComponent implements OnInit {
           : res.message;
         alert(msg);
       },
-      error: (err) => {
+      error: () => {
         this.bulkActionLoading.set(false);
-        alert(err.error?.message || 'Erreur lors de la soumission.');
       },
     });
   }
@@ -183,7 +187,7 @@ export class AnnualPlansComponent implements OnInit {
   bulkDelete(): void {
     const ids = this.selectedDeletableIds();
     if (!ids.length) return;
-    if (!confirm(`Supprimer définitivement ${ids.length} plan(s) et toutes leurs activités ?`)) return;
+    if (!confirm(this.i18n.t('ANNUAL_PLANS.CONFIRM.BULK_DELETE').replace('{n}', String(ids.length)))) return;
     this.bulkActionLoading.set(true);
     this.csrPlansApi.bulkDelete(ids).subscribe({
       next: (res) => {
@@ -195,9 +199,8 @@ export class AnnualPlansComponent implements OnInit {
           : res.message;
         alert(msg);
       },
-      error: (err) => {
+      error: () => {
         this.bulkActionLoading.set(false);
-        alert(err.error?.message || 'Erreur lors de la suppression.');
       },
     });
   }
@@ -205,12 +208,14 @@ export class AnnualPlansComponent implements OnInit {
   /** Display label: Brouillon, Soumis, Validé, Verrouillé, Rejeté. VALIDATED + unlock_until in future = Verrouillé, else Validé. */
   getStatusLabel(plan: CsrPlan): string {
     const s = plan?.status;
-    if (s === 'DRAFT') return 'Brouillon';
-    if (s === 'SUBMITTED') return 'Soumis';
-    if (s === 'REJECTED') return 'Rejeté';
+    if (s === 'DRAFT') return this.i18n.t('ANNUAL_PLANS.STATUS.DRAFT');
+    if (s === 'SUBMITTED') return this.i18n.t('ANNUAL_PLANS.STATUS.SUBMITTED');
+    if (s === 'REJECTED') return this.i18n.t('ANNUAL_PLANS.STATUS.REJECTED');
     if (s === 'VALIDATED') {
       const u = plan?.unlock_until;
-      return (u && new Date(u) > new Date()) ? 'Verrouillé' : 'Validé';
+      return (u && new Date(u) > new Date())
+        ? this.i18n.t('ANNUAL_PLANS.STATUS.UNLOCKED')
+        : this.i18n.t('ANNUAL_PLANS.STATUS.VALIDATED');
     }
     return s ?? '';
   }
@@ -240,16 +245,16 @@ export class AnnualPlansComponent implements OnInit {
   /** Badge CSS class for plan status (for display label). */
   statusBadgeClass(plan: CsrPlan): string {
     const label = this.getStatusLabel(plan);
-    if (label === 'Brouillon') return 'bg-gray-200 text-gray-700';
-    if (label === 'Soumis') return 'bg-yellow-100 text-yellow-700';
-    if (label === 'Validé') return 'bg-green-100 text-green-700';
-    if (label === 'Verrouillé') return 'bg-amber-100 text-amber-800';
-    if (label === 'Rejeté') return 'bg-red-100 text-red-700';
+    if (label === this.i18n.t('ANNUAL_PLANS.STATUS.DRAFT')) return 'bg-gray-200 text-gray-700';
+    if (label === this.i18n.t('ANNUAL_PLANS.STATUS.SUBMITTED')) return 'bg-yellow-100 text-yellow-700';
+    if (label === this.i18n.t('ANNUAL_PLANS.STATUS.VALIDATED')) return 'bg-green-100 text-green-700';
+    if (label === this.i18n.t('ANNUAL_PLANS.STATUS.UNLOCKED')) return 'bg-amber-100 text-amber-800';
+    if (label === this.i18n.t('ANNUAL_PLANS.STATUS.REJECTED')) return 'bg-red-100 text-red-700';
     return 'bg-gray-100 text-gray-600';
   }
 
   validationModeLabel(mode: string): string {
-    return mode === '111' ? 'ALL' : 'Corporate only';
+    return mode === '111' ? 'ALL' : this.i18n.t('ANNUAL_PLANS.MODE.CORPORATE_ONLY');
   }
 
   @HostListener('document:click')
@@ -290,26 +295,28 @@ export class AnnualPlansComponent implements OnInit {
   submitFromMenu(plan: CsrPlan): void {
     if (!this.canSubmitFromList(plan)) return;
     const isResubmit = plan.status === 'VALIDATED';
-    const msg = isResubmit ? 'Soumettre les modifications pour validation ?' : 'Envoyer ce plan en validation ?';
+    const msg = isResubmit
+      ? this.i18n.t('ANNUAL_PLANS.CONFIRM.RESUBMIT')
+      : this.i18n.t('ANNUAL_PLANS.CONFIRM.SUBMIT_ONE');
     if (!confirm(msg)) return;
     this.csrPlansApi.submitForValidation(plan.id).subscribe({
       next: (updated) => {
         this.plans.update((list) => list.map((p) => (p.id === updated.id ? { ...p, ...updated } : p)));
         this.closeMenu();
       },
-      error: (err) => alert(err.error?.message || 'Erreur lors de l\'envoi pour validation'),
+      error: () => {},
     });
   }
 
   deleteFromMenu(plan: CsrPlan): void {
     if (plan.status !== 'DRAFT' && plan.status !== 'REJECTED') return;
-    if (!confirm('Supprimer définitivement ce plan et toutes ses activités ?')) return;
+    if (!confirm(this.i18n.t('ANNUAL_PLANS.CONFIRM.DELETE_ONE'))) return;
     this.csrPlansApi.delete(plan.id).subscribe({
       next: () => {
         this.plans.update((list) => list.filter((p) => p.id !== plan.id));
         this.closeMenu();
       },
-      error: (err) => alert(err.error?.message || 'Erreur lors de la suppression'),
+      error: () => {},
     });
   }
 
@@ -330,20 +337,20 @@ export class AnnualPlansComponent implements OnInit {
 
   submitForValidation(plan: CsrPlan): void {
     if (plan.status !== 'DRAFT') return;
-    if (!confirm('Envoyer ce plan en validation ?')) return;
+    if (!confirm(this.i18n.t('ANNUAL_PLANS.CONFIRM.SUBMIT_ONE'))) return;
     this.csrPlansApi.submitForValidation(plan.id).subscribe({
       next: (updated) => {
         this.plans.update((list) =>
           list.map((p) => (p.id === updated.id ? updated : p))
         );
       },
-      error: (err) => {
-        alert(err.error?.message || 'Erreur lors de l\'envoi pour validation');
-      },
+      error: () => {},
     });
   }
 
   importLoading = signal(false);
+  importProgress = signal(0);
+  private importProgressInterval: ReturnType<typeof setInterval> | null = null;
   importResult = signal<{ success: boolean; message: string; details?: string } | null>(null);
   /** After preview: file to send on confirm, and modal visibility */
   pendingImportFile = signal<File | null>(null);
@@ -357,14 +364,23 @@ export class AnnualPlansComponent implements OnInit {
     const file = input?.files?.[0];
     if (!file) return;
     if (!file.name.toLowerCase().endsWith('.xlsx')) {
-      this.importResult.set({ success: false, message: 'Veuillez sélectionner un fichier .xlsx' });
+      this.importResult.set({ success: false, message: this.i18n.t('ANNUAL_PLANS.MESSAGES.SELECT_XLSX') });
       return;
     }
     this.importLoading.set(true);
+    this.importProgress.set(0);
     this.importResult.set(null);
-    this.csrPlansApi.importExcelPreview(file).subscribe({
+    this.startSimulatedProgress();
+    this.csrPlansApi.importExcelPreview(file, {
+      onProgress: (p) => {
+        this.stopSimulatedProgress();
+        this.importProgress.set(p);
+      },
+    }).subscribe({
       next: (res) => {
+        this.stopSimulatedProgress();
         this.importLoading.set(false);
+        this.importProgress.set(100);
         const plansWithModes: PlanWithMode[] = (res.plans || []).map(p => ({ ...p, validation_mode: '101' }));
         this.pendingImportFile.set(file);
         this.importPlansWithModes.set(plansWithModes);
@@ -373,8 +389,10 @@ export class AnnualPlansComponent implements OnInit {
         input.value = '';
       },
       error: (err) => {
+        this.stopSimulatedProgress();
         this.importLoading.set(false);
-        const msg = err.error?.message || 'Erreur lors de la lecture du fichier';
+        this.importProgress.set(0);
+        const msg = err.error?.message || this.i18n.t('ANNUAL_PLANS.MESSAGES.READ_FILE_ERROR');
         const errors = err.error?.errors;
         this.importResult.set({
           success: false,
@@ -397,18 +415,28 @@ export class AnnualPlansComponent implements OnInit {
     const plans = this.importPlansWithModes();
     if (!file || !plans.length) return;
     this.importLoading.set(true);
+    this.importProgress.set(0);
+    this.startSimulatedProgress();
     const validation_modes = plans.map(p => ({ site_id: p.site_id, year: p.year, validation_mode: p.validation_mode }));
-    this.csrPlansApi.importExcel(file, { validation_modes }).subscribe({
+    this.csrPlansApi.importExcel(file, {
+      validation_modes,
+      onProgress: (p) => {
+        this.stopSimulatedProgress();
+        this.importProgress.set(p);
+      },
+    }).subscribe({
       next: (res) => {
+        this.stopSimulatedProgress();
         this.importLoading.set(false);
+        this.importProgress.set(100);
         this.showImportModal.set(false);
         this.pendingImportFile.set(null);
         this.importPlansWithModes.set([]);
         const details = [
-          `${res.plans_created} plan(s) créé(s)`,
-          `${res.activities_created} activité(s) créée(s)`,
-          res.realized_created ? `${res.realized_created} réalisation(s)` : '',
-          res.errors?.length ? `${res.errors.length} avertissement(s)` : '',
+          this.i18n.t('ANNUAL_PLANS.MESSAGES.CREATED_PLANS').replace('{n}', String(res.plans_created)),
+          this.i18n.t('ANNUAL_PLANS.MESSAGES.CREATED_ACTIVITIES').replace('{n}', String(res.activities_created)),
+          res.realized_created ? this.i18n.t('ANNUAL_PLANS.MESSAGES.CREATED_REALIZED').replace('{n}', String(res.realized_created)) : '',
+          res.errors?.length ? this.i18n.t('ANNUAL_PLANS.MESSAGES.WARNINGS').replace('{n}', String(res.errors.length)) : '',
         ].filter(Boolean).join(', ');
         this.importResult.set({
           success: true,
@@ -418,10 +446,12 @@ export class AnnualPlansComponent implements OnInit {
         this.refreshPlans();
       },
       error: (err) => {
+        this.stopSimulatedProgress();
         this.importLoading.set(false);
+        this.importProgress.set(0);
         this.importResult.set({
           success: false,
-          message: err.error?.message || 'Erreur lors de l\'import',
+          message: err.error?.message || this.i18n.t('ANNUAL_PLANS.MESSAGES.IMPORT_ERROR'),
           details: Array.isArray(err.error?.errors) ? err.error.errors.join('\n') : undefined,
         });
       },
@@ -437,5 +467,37 @@ export class AnnualPlansComponent implements OnInit {
 
   clearImportResult(): void {
     this.importResult.set(null);
+  }
+
+  private startSimulatedProgress(): void {
+    this.stopSimulatedProgress();
+    this.importProgressInterval = setInterval(() => {
+      const curr = this.importProgress();
+      if (curr < 90) {
+        this.importProgress.set(Math.min(90, curr + 2));
+      }
+    }, 400);
+  }
+
+  private stopSimulatedProgress(): void {
+    if (this.importProgressInterval) {
+      clearInterval(this.importProgressInterval);
+      this.importProgressInterval = null;
+    }
+  }
+
+  // ── Plan create sidebar ───────────────────────────────────────────────────
+  showCreateSidebar = signal(false);
+
+  openCreateSidebar(): void {
+    this.showCreateSidebar.set(true);
+  }
+
+  closeCreateSidebar(): void {
+    this.showCreateSidebar.set(false);
+  }
+
+  onPlanCreated(): void {
+    this.refreshPlans();
   }
 }

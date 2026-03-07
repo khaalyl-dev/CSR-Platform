@@ -36,14 +36,18 @@ def create_app(config_class=Config) -> Flask:
     with app.app_context():
         db.create_all()
 
-    CORS(app, resources={
-        r"/api/*": {
-            "origins": "*",
-            "methods": ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
-            "allow_headers": ["Content-Type", "Authorization", "Accept"],
-            "expose_headers": ["Content-Type", "Authorization"],
-        }
-    })
+    # Explicit origins so dev (Angular on :4200) and proxy work; add production URL when needed
+    CORS(
+        app,
+        resources={
+            r"/api/*": {
+                "origins": ["http://localhost:4200", "http://127.0.0.1:4200"],
+                "methods": ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+                "allow_headers": ["Content-Type", "Authorization", "Accept"],
+                "expose_headers": ["Content-Type", "Authorization"],
+            }
+        },
+    )
 
     # Register blueprints
     app.register_blueprint(auth_bp)

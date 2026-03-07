@@ -7,6 +7,7 @@ import { Component, inject, signal, OnInit, OnDestroy, effect } from '@angular/c
 import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
 import { HttpClient } from '@angular/common/http';
+import { TranslateModule, TranslateService } from '@ngx-translate/core';
 import { FontAwesomeModule } from '@fortawesome/angular-fontawesome';
 import {
   faEnvelope,
@@ -23,7 +24,7 @@ import { AuthApi, type ProfileResponse } from '../login/auth-api';
 @Component({
   selector: 'app-profile',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, FontAwesomeModule],
+  imports: [CommonModule, ReactiveFormsModule, FontAwesomeModule, TranslateModule],
   templateUrl: './profile.html',
   styleUrl: './profile.css',
 })
@@ -31,6 +32,7 @@ export class ProfileComponent implements OnInit, OnDestroy {
   private readonly authApi = inject(AuthApi);
   private readonly fb = inject(FormBuilder);
   private readonly http = inject(HttpClient);
+  private readonly translate = inject(TranslateService);
 
   protected readonly faEnvelope = faEnvelope;
   protected readonly faIdCard = faIdCard;
@@ -95,7 +97,7 @@ export class ProfileComponent implements OnInit, OnDestroy {
         this.loading.set(false);
       },
       error: (err) => {
-        this.errorMessage.set(err?.error?.message ?? 'Impossible de charger le profil.');
+        this.errorMessage.set(err?.error?.message ?? this.translate.instant('PROFILE_SETTINGS.LOAD_ERROR'));
         this.loading.set(false);
       },
     });
@@ -103,14 +105,17 @@ export class ProfileComponent implements OnInit, OnDestroy {
 
   /** Map backend role (CORPORATE_USER/SITE_USER) to display label */
   roleLabel(role: string): string {
-    return role === 'CORPORATE_USER' ? 'Corporate' : 'Site';
+    const key = role === 'CORPORATE_USER' ? 'PROFILE_SETTINGS.ACCOUNT.CORPORATE_USER' : 'PROFILE_SETTINGS.ACCOUNT.SITE_USER';
+    return this.translate.instant(key);
   }
 
-  /** Format ISO date string to French locale (e.g. "19 février 2026") */
+  /** Format ISO date string to current locale */
   formatDate(iso: string | null): string {
     if (!iso) return '—';
     try {
-      return new Date(iso).toLocaleDateString('fr-FR', {
+      const lang = this.translate.currentLang || this.translate.defaultLang || 'en';
+      const locale = lang.startsWith('fr') ? 'fr-FR' : 'en-US';
+      return new Date(iso).toLocaleDateString(locale, {
         day: '2-digit',
         month: 'long',
         year: 'numeric',
@@ -135,11 +140,11 @@ export class ProfileComponent implements OnInit, OnDestroy {
     if (!file) return;
     const allowed = ['image/png', 'image/jpeg', 'image/jpg', 'image/gif', 'image/webp'];
     if (!allowed.includes(file.type)) {
-      this.photoError.set('Format accepté : PNG, JPG, GIF ou WEBP.');
+      this.photoError.set(this.translate.instant('PROFILE_SETTINGS.PHOTO_FORMAT_ERROR'));
       return;
     }
     if (file.size > 5 * 1024 * 1024) {
-      this.photoError.set('Taille maximale : 5 Mo.');
+      this.photoError.set(this.translate.instant('PROFILE_SETTINGS.PHOTO_SIZE_ERROR'));
       return;
     }
     this.photoError.set(null);
@@ -152,7 +157,7 @@ export class ProfileComponent implements OnInit, OnDestroy {
       },
       error: (err) => {
         this.photoUploading.set(false);
-        this.photoError.set(err?.error?.message ?? 'Erreur lors de l\'envoi de la photo.');
+        this.photoError.set(err?.error?.message ?? this.translate.instant('PROFILE_SETTINGS.PHOTO_UPLOAD_ERROR'));
         input.value = '';
       },
     });
@@ -166,7 +171,7 @@ export class ProfileComponent implements OnInit, OnDestroy {
     const newPw = raw.new_password ?? '';
     const confirm = raw.confirm_password ?? '';
     if (newPw !== confirm) {
-      this.passwordError.set('Les deux mots de passe ne correspondent pas.');
+      this.passwordError.set(this.translate.instant('PROFILE_SETTINGS.PASSWORD_MISMATCH'));
       return;
     }
     if (!raw.current_password || !newPw) return;
@@ -174,12 +179,12 @@ export class ProfileComponent implements OnInit, OnDestroy {
     this.authApi.changePassword(raw.current_password, newPw).subscribe({
       next: (res) => {
         this.passwordForm.reset();
-        this.passwordSuccess.set(res.message ?? 'Mot de passe modifié avec succès.');
+        this.passwordSuccess.set(res.message ?? this.translate.instant('PROFILE_SETTINGS.PASSWORD_CHANGE_SUCCESS'));
         this.changingPassword.set(false);
         setTimeout(() => this.passwordSuccess.set(null), 4000);
       },
       error: (err) => {
-        this.passwordError.set(err?.error?.message ?? 'Erreur lors du changement de mot de passe.');
+        this.passwordError.set(err?.error?.message ?? this.translate.instant('PROFILE_SETTINGS.PASSWORD_CHANGE_ERROR'));
         this.changingPassword.set(false);
       },
     });

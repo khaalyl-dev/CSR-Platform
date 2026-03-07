@@ -1,25 +1,25 @@
 <div class="p-8 bg-gray-50 min-h-screen">
   <div class="mb-6">
-    <h1 class="text-3xl font-bold tracking-tight text-gray-800">Mes demandes de modification</h1>
-    <p class="text-gray-500 mt-1">Demandes de déverrouillage de plans validés</p>
+    <h1 class="text-3xl font-bold tracking-tight text-gray-800">{{ 'CHANGE_REQUEST.LIST_TITLE' | translate }}</h1>
+    <p class="text-gray-500 mt-1">{{ 'CHANGE_REQUEST.LIST_SUBTITLE' | translate }}</p>
   </div>
 
-  <div *ngIf="loading()" class="text-center py-12 text-gray-500">Chargement...</div>
+  <div *ngIf="loading()" class="text-center py-12 text-gray-500">{{ 'CHANGE_REQUEST.LOADING' | translate }}</div>
 
   <div *ngIf="!loading() && requests().length === 0" class="bg-white rounded-2xl shadow-sm border border-gray-100 p-12 text-center text-gray-500">
-    Aucune demande. Pour en créer une, ouvrez un plan validé et cliquez sur l'icône cadenas.
-    <p class="mt-4"><a routerLink="/csr-plans" class="text-brand-700 hover:underline">Voir les plans annuels</a></p>
+    {{ 'CHANGE_REQUEST.LIST_EMPTY' | translate }}
+    <p class="mt-4"><a routerLink="/csr-plans" class="text-brand-700 hover:underline">{{ 'CHANGE_REQUEST.LIST_VIEW_PLANS' | translate }}</a></p>
   </div>
 
   <div *ngIf="!loading() && requests().length > 0" class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
     <table class="w-full text-sm">
       <thead class="bg-gray-50 text-gray-600 uppercase text-xs">
         <tr>
-          <th class="p-4 text-left">Plan / Année</th>
-          <th class="p-4 text-left">Justification</th>
-          <th class="p-4 text-left">Statut</th>
-          <th class="p-4 text-left">Date</th>
-          <th class="p-4 text-right">Actions</th>
+          <th class="p-4 text-left">{{ 'CHANGE_REQUEST.PLAN_YEAR' | translate }}</th>
+          <th class="p-4 text-left">{{ 'CHANGE_REQUEST.JUSTIFICATION' | translate }}</th>
+          <th class="p-4 text-left">{{ 'CHANGE_REQUEST.STATUS' | translate }}</th>
+          <th class="p-4 text-left">{{ 'CHANGE_REQUEST.DATE' | translate }}</th>
+          <th class="p-4 text-right">{{ 'CHANGE_REQUEST.ACTIONS' | translate }}</th>
         </tr>
       </thead>
       <tbody>
@@ -34,8 +34,8 @@
           <td class="p-4 text-gray-500">{{ r.created_at | date:'short' }}</td>
           <td class="p-4 text-right">
             <div class="flex gap-3 justify-end">
-              <a [routerLink]="['/changes', r.id]" class="text-brand-700 hover:underline">Détails</a>
-              <a [routerLink]="['/csr-plans', r.entity_id]" class="text-gray-600 hover:underline">Voir le plan</a>
+              <a [routerLink]="['/changes', r.id]" class="text-brand-700 hover:underline">{{ 'CHANGE_REQUEST.DETAILS' | translate }}</a>
+              <a [routerLink]="['/csr-plans', r.entity_id]" class="text-gray-600 hover:underline">{{ 'CHANGE_REQUEST.VIEW_PLAN' | translate }}</a>
             </div>
           </td>
         </tr>

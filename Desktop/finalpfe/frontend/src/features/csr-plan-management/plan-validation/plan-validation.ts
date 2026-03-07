@@ -1,17 +1,19 @@
 import { Component, inject, OnInit, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
+import { TranslateModule, TranslateService } from '@ngx-translate/core';
 import { CsrPlansApi, CsrPlanDetail } from '../api/csr-plans-api';
 import type { CsrPlan } from '../models/csr-plan.model';
 
 @Component({
   selector: 'app-plan-validation',
   standalone: true,
-  imports: [CommonModule, RouterModule],
+  imports: [CommonModule, RouterModule, TranslateModule],
   templateUrl: './plan-validation.html',
 })
 export class PlanValidationComponent implements OnInit {
   private plansApi = inject(CsrPlansApi);
+  private translate = inject(TranslateService);
 
   plans = signal<CsrPlan[]>([]);
   loading = signal(true);
@@ -31,14 +33,14 @@ export class PlanValidationComponent implements OnInit {
     if (plan.status !== 'SUBMITTED') return '';
     const step = plan.validation_step;
     const mode = plan.validation_mode || '101';
-    if (mode === '111' && step === 1) return 'En attente validation manager';
-    if (mode === '111' && step === 2) return 'En attente validation corporate (finale)';
-    if (mode === '101') return 'En attente validation corporate';
+    if (mode === '111' && step === 1) return this.translate.instant('PLAN_VALIDATION.STEP_PENDING_MANAGER');
+    if (mode === '111' && step === 2) return this.translate.instant('PLAN_VALIDATION.STEP_PENDING_CORPORATE');
+    if (mode === '101') return this.translate.instant('PLAN_VALIDATION.STEP_PENDING_CORPORATE_ONLY');
     return '';
   }
 
   validationModeLabel(mode: string): string {
-    return mode === '111' ? 'ALL' : 'Corporate only';
+    return mode === '111' ? this.translate.instant('PLAN_VALIDATION.MODE_ALL') : this.translate.instant('PLAN_VALIDATION.MODE_CORPORATE_ONLY');
   }
 
   ngOnInit(): void {
@@ -55,7 +57,7 @@ export class PlanValidationComponent implements OnInit {
       },
       error: () => {
         this.loading.set(false);
-        this.errorMsg.set('Impossible de charger les plans en attente de validation');
+        this.errorMsg.set(this.translate.instant('PLAN_VALIDATION.LOAD_ERROR'));
       },
     });
   }
@@ -68,9 +70,8 @@ export class PlanValidationComponent implements OnInit {
         this.actionLoading.set(null);
         this.loadPlans();
       },
-      error: (err) => {
+      error: () => {
         this.actionLoading.set(null);
-        alert(err.error?.message || 'Erreur lors de l\'approbation');
       },
     });
   }
@@ -90,7 +91,7 @@ export class PlanValidationComponent implements OnInit {
       },
       error: () => {
         this.rejectModalLoading.set(false);
-        this.rejectModalError.set('Impossible de charger le détail du plan.');
+        this.rejectModalError.set(this.translate.instant('PLAN_VALIDATION.DETAIL_LOAD_ERROR'));
       },
     });
   }
@@ -143,9 +144,5 @@ export class PlanValidationComponent implements OnInit {
         this.rejectModalError.set(err.error?.message || 'Erreur lors du rejet');
       },
     });
-  }
-
-  backToList(): void {
-    window.history.back();
   }
 }

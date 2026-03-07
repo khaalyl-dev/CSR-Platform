@@ -39,15 +39,6 @@ def create_site():
         return jsonify({"message": "Nom et code sont obligatoires"}), 400
     if Site.query.filter_by(code=data["code"]).first():
         return jsonify({"message": "Code site déjà existant"}), 400
-    
-@bp.get("/<string:site_id>")
-@token_required
-def get_site(site_id):
-    """Récupérer les détails d'un site par son ID."""
-    site = Site.query.get(site_id)
-    if not site:
-        return jsonify({"message": "Site introuvable"}), 404
-    return jsonify(_site_to_json(site)), 200
 
     site = Site(
         name=data["name"],
@@ -61,6 +52,16 @@ def get_site(site_id):
     db.session.add(site)
     db.session.commit()
     return jsonify(_site_to_json(site)), 201
+
+
+@bp.get("/<string:site_id>")
+@token_required
+def get_site(site_id):
+    """Récupérer les détails d'un site par son ID."""
+    site = Site.query.get(site_id)
+    if not site:
+        return jsonify({"message": "Site introuvable"}), 404
+    return jsonify(_site_to_json(site)), 200
 
 @bp.patch("/<string:site_id>/status")
 @token_required

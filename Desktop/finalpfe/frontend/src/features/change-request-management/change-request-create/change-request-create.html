@@ -5,49 +5,49 @@
       <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
       </svg>
-      Retour
+      {{ 'CHANGE_REQUEST.CREATE_BACK' | translate }}
     </button>
   </div>
 
-  <div *ngIf="loading()" class="text-center py-12 text-gray-500">Chargement...</div>
+  <div *ngIf="loading()" class="text-center py-12 text-gray-500">{{ 'COMMON.LOADING' | translate }}</div>
   <p *ngIf="error() && !plan()" class="text-red-600">{{ error() }}</p>
 
   <div *ngIf="plan() && !loading()" class="max-w-2xl space-y-6">
     <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-      <h1 class="text-xl font-bold text-gray-800">Demande de modification</h1>
-      <p class="text-gray-500 mt-1">Plan : {{ plan()!.site_name ?? plan()!.site_code }} – {{ plan()!.year }}</p>
-      <p class="text-sm text-gray-500 mt-0.5">Accès : en cliquant sur le cadenas ouvert d’un plan validé (liste des plans ou fiche plan).</p>
-      <p class="text-sm text-amber-600 mt-1">Seul un utilisateur corporate pourra approuver cette demande. Une fois approuvée, le plan sera déverrouillé pour modification.</p>
+      <h1 class="text-xl font-bold text-gray-800">{{ 'CHANGE_REQUEST.CREATE_TITLE' | translate }}</h1>
+      <p class="text-gray-500 mt-1">{{ 'CHANGE_REQUEST.CREATE_PLAN_LABEL' | translate }} : {{ plan()!.site_name ?? plan()!.site_code }} – {{ plan()!.year }}</p>
+      <p class="text-sm text-gray-500 mt-0.5">{{ 'CHANGE_REQUEST.CREATE_ACCESS_HINT' | translate }}</p>
+      <p class="text-sm text-amber-600 mt-1">{{ 'CHANGE_REQUEST.CREATE_APPROVAL_HINT' | translate }}</p>
     </div>
 
     <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 space-y-4">
       <label class="block">
-        <span class="block text-sm font-medium text-gray-700 mb-1">Justification de la demande <span class="text-red-500">*</span></span>
+        <span class="block text-sm font-medium text-gray-700 mb-1">{{ 'CHANGE_REQUEST.JUSTIFICATION_LABEL' | translate }} <span class="text-red-500">*</span></span>
         <textarea
           [value]="reason()"
           (input)="reason.set($any($event.target).value)"
           rows="4"
           class="w-full px-3 py-2 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-          placeholder="Indiquez pourquoi vous souhaitez modifier ce plan (budget, activités, dates...)"></textarea>
+          [placeholder]="'CHANGE_REQUEST.JUSTIFICATION_PLACEHOLDER' | translate"></textarea>
       </label>
 
       <label class="block">
-        <span class="block text-sm font-medium text-gray-700 mb-1">Durée d'ouverture du plan pour modification (jours) <span class="text-red-500">*</span></span>
+        <span class="block text-sm font-medium text-gray-700 mb-1">{{ 'CHANGE_REQUEST.DURATION_LABEL' | translate }} <span class="text-red-500">*</span></span>
         <input
           type="number"
           min="1"
           max="365"
           [value]="requestedDurationDays() ?? ''"
           (input)="onDurationInput($any($event.target).value)"
-          placeholder="ex. 7, 14, 30"
+          [placeholder]="'CHANGE_REQUEST.DURATION_PLACEHOLDER' | translate"
           class="w-full max-w-xs px-3 py-2 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
         />
         <p *ngIf="durationError()" class="text-xs text-red-600 mt-1">{{ durationError() }}</p>
-        <p class="text-xs text-gray-500 mt-1">Une fois la demande approuvée, le plan sera modifiable pendant cette durée (1 à 365 jours), puis se verrouillera à nouveau.</p>
+        <p class="text-xs text-gray-500 mt-1">{{ 'CHANGE_REQUEST.DURATION_HINT' | translate }}</p>
       </label>
 
       <div>
-        <span class="block text-sm font-medium text-gray-700 mb-2">Pièces jointes (optionnel)</span>
+        <span class="block text-sm font-medium text-gray-700 mb-2">{{ 'CHANGE_REQUEST.ATTACHMENTS' | translate }}</span>
         <div
           (drop)="onDrop($event)"
           (dragover)="onDragOver($event)"
@@ -56,13 +56,13 @@
           [class.ring-blue-400]="dragOver()"
           [class.bg-brand-100]="dragOver()"
           class="border-2 border-dashed border-gray-200 rounded-xl p-8 text-center text-gray-500 transition-colors">
-          <p class="mb-2">Glissez-déposez des fichiers ici ou</p>
+          <p class="mb-2">{{ 'CHANGE_REQUEST.DROPZONE_TEXT' | translate }}</p>
           <label class="inline-flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg cursor-pointer text-sm font-medium text-gray-700">
             <i class="fas fa-upload"></i>
-            Parcourir
+            {{ 'CHANGE_REQUEST.BROWSE' | translate }}
             <input type="file" multiple class="sr-only" (change)="onFileSelect($event)" />
           </label>
-          <p class="text-xs mt-2">PDF, Word, Excel, images (max. raisonnable)</p>
+          <p class="text-xs mt-2">{{ 'CHANGE_REQUEST.FILE_TYPES_HINT' | translate }}</p>
         </div>
         <ul *ngIf="files().length" class="mt-3 space-y-2">
           <li *ngFor="let f of files(); let i = index"
@@ -80,12 +80,12 @@
       <div class="flex gap-3 pt-2">
         <button type="button" (click)="back()"
           class="px-4 py-2 rounded-xl text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200">
-          Annuler
+          {{ 'COMMON.CANCEL' | translate }}
         </button>
         <button type="button" (click)="submit()" [disabled]="submitting()"
           class="px-4 py-2 rounded-xl text-sm font-semibold text-white bg-brand-900 hover:opacity-90 disabled:opacity-50">
-          <span *ngIf="!submitting()">Soumettre la demande</span>
-          <span *ngIf="submitting()"><i class="fas fa-spinner fa-spin mr-1"></i>Envoi en cours...</span>
+          <span *ngIf="!submitting()">{{ 'CHANGE_REQUEST.SUBMIT_BUTTON' | translate }}</span>
+          <span *ngIf="submitting()"><i class="fas fa-spinner fa-spin mr-1"></i>{{ 'CHANGE_REQUEST.SENDING' | translate }}</span>
         </button>
       </div>
     </div>

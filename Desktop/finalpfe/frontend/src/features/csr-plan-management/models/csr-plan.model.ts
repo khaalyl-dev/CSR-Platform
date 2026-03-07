@@ -5,6 +5,7 @@ export interface CsrPlan {
   site_id: string;
   site_name?: string | null;
   site_code?: string | null;
+  site_country?: string | null;
   year: number;
   validation_mode: string;
   status: PlanStatus;

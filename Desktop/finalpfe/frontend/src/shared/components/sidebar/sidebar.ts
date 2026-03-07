@@ -6,11 +6,12 @@ import { AuthService } from '@core/services/auth.service';
 import { SidebarService } from '@core/services/sidebar.service';
 import { navItems, type NavSection, type NavItem } from './nav-config';
 import { FontAwesomeModule } from '@fortawesome/angular-fontawesome';
+import { TranslateModule } from '@ngx-translate/core';
 
 @Component({
   selector: 'app-sidebar',
   standalone: true,
-  imports: [CommonModule, RouterModule, FontAwesomeModule],
+  imports: [CommonModule, RouterModule, FontAwesomeModule, TranslateModule],
   templateUrl: './sidebar.html',
   styleUrls: ['./sidebar.css']
 })
@@ -47,7 +48,7 @@ export class Sidebar {
   }
 
   trackBySection(index: number, section: NavSection) {
-    return section.section;
+    return section.sectionKey;
   }
 
   trackByItem(index: number, item: NavItem) {

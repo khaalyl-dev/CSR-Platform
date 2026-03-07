@@ -1,7 +1,8 @@
 import { Component, OnInit, signal, inject } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { CommonModule, Location } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, ActivatedRoute, RouterModule } from '@angular/router';
+import { TranslateModule } from '@ngx-translate/core';
 import { ChangeRequestsApi } from '../api/change-requests-api';
 import { DocumentsApi } from '@features/file-management/api/documents-api';
 import { CsrPlansApi } from '@features/csr-plan-management/api/csr-plans-api';
@@ -10,7 +11,7 @@ import type { CsrPlanDetail } from '@features/csr-plan-management/api/csr-plans-
 @Component({
   selector: 'app-change-request-create',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule],
+  imports: [CommonModule, FormsModule, RouterModule, TranslateModule],
   templateUrl: './change-request-create.html',
 })
 export class ChangeRequestCreateComponent implements OnInit {
@@ -19,6 +20,7 @@ export class ChangeRequestCreateComponent implements OnInit {
   private csrPlansApi = inject(CsrPlansApi);
   private router = inject(Router);
   private route = inject(ActivatedRoute);
+  private location = inject(Location);
 
   plan = signal<CsrPlanDetail | null>(null);
   loading = signal(true);
@@ -148,8 +150,6 @@ export class ChangeRequestCreateComponent implements OnInit {
   }
 
   back(): void {
-    const p = this.plan();
-    if (p) this.router.navigate(['/csr-plans', p.id]);
-    else this.router.navigate(['/csr-plans']);
+    this.location.back();
   }
 }

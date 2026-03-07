@@ -100,6 +100,7 @@ def _plan_to_json(plan: CsrPlan):
         "site_id": plan.site_id,
         "site_name": plan.site.name if plan.site else None,
         "site_code": plan.site.code if plan.site else None,
+        "site_country": plan.site.country if plan.site else None,
         "year": plan.year,
         "validation_mode": plan.validation_mode or "101",
         "validation_step": getattr(plan, "validation_step", None),

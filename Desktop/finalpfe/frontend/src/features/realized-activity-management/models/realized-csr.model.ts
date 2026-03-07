@@ -6,6 +6,7 @@ export interface RealizedCsr {
   activity_id: string;
   activity_title?: string | null;
   activity_number?: string | null;
+  planned_budget?: number | null;
   plan_id?: string | null;
   site_name?: string | null;
   /** When false, plan is locked; user must submit a change request to edit/delete this realization. */

@@ -8,21 +8,18 @@ import { Dashboard } from '@features/dashboard-analytics/dashboard/dashboard';
 import { MainLayout } from '@shared/layouts/main-layout/main-layout';
 import { authGuard, roleGuard } from '@core/guards/auth.guard';
 import { AnnualPlansComponent } from '@features/csr-plan-management/annual-plans/annual-plans';
-import { PlanCreateComponent } from '@features/csr-plan-management/plan-create/plan-create';
 import { SitesListComponent } from '@features/site-management/sites-list/sites-list';
 import { UsersListComponent } from '@features/user-management/users-list/users-list';
 import { UserDetailComponent } from '@features/user-management/user-detail/user-detail';
-import { ProfileComponent } from '@features/user-management/profile/profile';
+import { ProfileSettingsComponent } from '@features/user-management/profile-settings/profile-settings';
 import { SiteFormComponent } from '@features/site-management/site-form/site-form';
 import { EditSiteComponent } from '@features/site-management/edit-site/edit-site';
 import { SiteUsersComponent } from '@features/site-management/site-users/site-users';
 import { RealizedListComponent } from '@features/realized-activity-management/realized-list/realized-list';
 import { RealizedDetailComponent } from '@features/realized-activity-management/realized-detail/realized-detail';
-import { RealizedCreateComponent } from '@features/realized-activity-management/realized-create/realized-create';
 import { PlanDetailComponent } from '@features/csr-plan-management/plan-detail/plan-detail';
 import { PlanEditComponent } from '@features/csr-plan-management/plan-edit/plan-edit';
 import { PlanValidationComponent } from '@features/csr-plan-management/plan-validation/plan-validation';
-import { PlannedActivityCreateComponent } from '@features/csr-plan-management/planned-activity-create/planned-activity-create';
 import { PlannedActivityDetailComponent } from '@features/csr-plan-management/planned-activity-detail/planned-activity-detail';
 import { PlannedActivityEditComponent } from '@features/csr-plan-management/planned-activity-edit/planned-activity-edit';
 import { PlannedActivitiesListComponent } from '@features/csr-plan-management/planned-activities-list/planned-activities-list';
@@ -47,16 +44,13 @@ export const routes: Routes = [
       { path: 'dashboard/corporate', component: Dashboard, canActivate: [roleGuard(['corporate'])] },
       { path: 'dashboard/site', component: Dashboard, canActivate: [roleGuard(['site'])] },
       { path: 'csr-plans', component: AnnualPlansComponent },
-      { path: 'csr-plans/create', component: PlanCreateComponent },
       { path: 'csr-plans/:id', component: PlanDetailComponent },
       { path: 'csr-plans/:id/edit', component: PlanEditComponent },
       { path: 'annual-plans/validation', component: PlanValidationComponent },
       { path: 'planned-activities', component: PlannedActivitiesListComponent },
-      { path: 'planned-activity/create', component: PlannedActivityCreateComponent },
       { path: 'planned-activity/:id/edit', component: PlannedActivityEditComponent },
       { path: 'planned-activity/:id', component: PlannedActivityDetailComponent },
       { path: 'realized-csr', component: RealizedListComponent },
-      { path: 'realized-csr/create', component: RealizedCreateComponent },
       { path: 'realized-csr/:id/edit', component: RealizedEditComponent },
       { path: 'realized-csr/:id', component: RealizedDetailComponent },
       { path: 'sites', component: SitesListComponent, canActivate: [roleGuard(['corporate'])] },
@@ -65,7 +59,7 @@ export const routes: Routes = [
       { path: 'sites/edit/:id', component: EditSiteComponent, canActivate: [roleGuard(['corporate'])] },
       { path: 'admin/users', component: UsersListComponent, canActivate: [roleGuard(['corporate'])] },
       { path: 'admin/users/:id', component: UserDetailComponent, canActivate: [roleGuard(['corporate'])] },
-      { path: 'account/profile', component: ProfileComponent },
+      { path: 'account/profile', component: ProfileSettingsComponent },
       {path: 'sites/:id/users', component: SiteUsersComponent},
       { path: 'documents', component: DocumentsListComponent },
       { path: 'changes', component: ChangeRequestsListComponent },

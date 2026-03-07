@@ -1,14 +1,15 @@
 import { Component, OnInit } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { CommonModule, Location } from '@angular/common';
 import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
+import { TranslateModule } from '@ngx-translate/core';
 import { SitesApi } from '../api/sites-api';
 import { PAYS } from '../models/All_countries';
 
 @Component({
   selector: 'app-edit-site',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule],
+  imports: [CommonModule, ReactiveFormsModule, TranslateModule],
   templateUrl: './edit-site.html',
   styleUrl: './edit-site.css',
 })
@@ -29,6 +30,7 @@ export class EditSiteComponent implements OnInit {
     private fb: FormBuilder,
     private route: ActivatedRoute,
     private router: Router,
+    private location: Location,
     private sitesApi: SitesApi  // ← injection API
   ) {}
 
@@ -84,6 +86,6 @@ export class EditSiteComponent implements OnInit {
   }
 
   cancel() {
-    this.router.navigate(['/sites']);
+    this.location.back();
   }
 }

@@ -1,14 +1,15 @@
 import { Component, OnInit, ChangeDetectorRef } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { CommonModule, Location } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
+import { TranslateModule } from '@ngx-translate/core';
 import { SitesApi, UserSite, AssignUserPayload, UpdateUserSitePayload } from '../api/sites-api';
 import { UsersApi, User } from '../../user-management/api/users-api';
 
 @Component({
   selector: 'app-site-users',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, TranslateModule],
   templateUrl: './site-users.html',
   styleUrls: ['./site-users.css'],
 })
@@ -73,7 +74,8 @@ export class SiteUsersComponent implements OnInit {
 
   constructor(
     private route: ActivatedRoute,      // Pour lire les paramètres de l'URL (:id)
-    private router: Router,             // Pour la navigation (retour vers /sites)
+    private router: Router,             // Pour la navigation
+    private location: Location,         // Pour le bouton Retour (historique)
     private sitesApi: SitesApi,         // Service HTTP pour les appels API sites
     private usersApi: UsersApi,         // Service HTTP pour les appels API users
     private cdr: ChangeDetectorRef      // Pour forcer Angular à re-render après les appels HTTP
@@ -265,9 +267,9 @@ export class SiteUsersComponent implements OnInit {
     return labels[grade] || '—'; // '—' si grade vide ou inconnu
   }
 
-  /** Navigue vers la liste des sites */
+  /** Retourne à la page précédente */
   goBack() {
-    this.router.navigate(['/sites']);
+    this.location.back();
   }
 
   /**

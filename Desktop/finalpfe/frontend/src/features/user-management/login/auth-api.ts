@@ -36,10 +36,20 @@ export interface ProfileResponse {
   id: string;
   first_name: string | null;
   last_name: string | null;
+  phone: string | null;
+  language: 'fr' | 'en';
+  theme: 'light' | 'dark';
+  notifications: {
+    csr_plan_validation: boolean;
+    activity_validation: boolean;
+    activity_reminders: boolean;
+    weekly_summary_email: boolean;
+  };
   email: string;
   role: string;
   is_active: boolean;
   created_at: string | null;
+  last_login: string | null;
   avatar_url: string | null;
   sites: ProfileSite[];
 }
@@ -68,6 +78,23 @@ export class AuthApi {
   /** Fetch full profile of the current user (requires auth) */
   getProfile(): Observable<ProfileResponse> {
     return this.http.get<ProfileResponse>(`${this.apiUrl}/auth/profile`);
+  }
+
+  /** Update editable profile fields for current user. Supports partial updates. */
+  updateProfile(payload: {
+    first_name?: string;
+    last_name?: string;
+    phone?: string | null;
+    language?: 'fr' | 'en';
+    theme?: 'light' | 'dark';
+    notifications?: {
+      csr_plan_validation?: boolean;
+      activity_validation?: boolean;
+      activity_reminders?: boolean;
+      weekly_summary_email?: boolean;
+    };
+  }): Observable<ProfileResponse> {
+    return this.http.put<ProfileResponse>(`${this.apiUrl}/auth/profile`, payload);
   }
 
   /** Change current user's password. Requires current password and new password (min 8 chars). */

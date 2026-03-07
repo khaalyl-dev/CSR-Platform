@@ -1,6 +1,14 @@
 <!doctype html>
 <html lang="en">
 <head>
+  <script>
+    (function(){
+      try {
+        var t = localStorage.getItem('app.theme');
+        if (t === 'dark') document.documentElement.classList.add('theme-dark');
+      } catch (e) {}
+    })();
+  </script>
   <meta charset="utf-8">
   <title>CSR Insight</title>
   <base href="/">

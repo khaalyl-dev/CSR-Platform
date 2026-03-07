@@ -8,12 +8,12 @@
     <!-- Header -->
     <header class="bg-white border-b border-gray-200 px-6 py-3 flex items-center justify-between shadow-sm">
       <div class="flex items-center gap-3 min-w-0">
-        <button type="button" (click)="toggleSidebar()" class="flex-shrink-0 p-2 text-gray-500 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors" aria-label="Réduire ou agrandir le menu">
+        <button type="button" (click)="toggleSidebar()" class="flex-shrink-0 p-2 text-gray-500 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors" [attr.aria-label]="'LAYOUT.TOGGLE_MENU' | translate">
           <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 transition-transform duration-200" [class.rotate-180]="sidebarService.isCollapsed()" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
           </svg>
         </button>
-        <nav class="flex items-center gap-1.5 text-sm text-gray-600 truncate" aria-label="Fil d'Ariane">
+        <nav class="flex items-center gap-1.5 text-sm text-gray-600 truncate" [attr.aria-label]="'LAYOUT.BREADCRUMB' | translate">
           <span *ngFor="let segment of breadcrumb(); let last = last" class="flex items-center gap-1.5">
             <span [class.font-medium]="last" [class.text-gray-900]="last">{{ segment }}</span>
             <span *ngIf="!last" class="text-gray-400">/</span>
@@ -21,9 +21,23 @@
         </nav>
       </div>
       <div class="flex items-center gap-2">
+        <button type="button" (click)="toggleTheme()"
+          class="flex h-10 w-10 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-600 shadow-sm transition hover:bg-gray-50 hover:text-brand-900"
+          [attr.aria-label]="(theme.isDark() ? 'LAYOUT.TOGGLE_LIGHT' : 'LAYOUT.TOGGLE_DARK') | translate"
+          [attr.title]="(theme.isDark() ? 'LAYOUT.TOGGLE_LIGHT' : 'LAYOUT.TOGGLE_DARK') | translate">
+          @if (theme.isDark()) {
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+            </svg>
+          } @else {
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+            </svg>
+          }
+        </button>
         <a routerLink="/account/profile" routerLinkActive="bg-gray-100"
           class="flex h-10 w-10 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-600 shadow-sm transition hover:bg-gray-50 hover:text-brand-900"
-          aria-label="Paramètres" title="Paramètres">
+          [attr.aria-label]="'LAYOUT.SETTINGS' | translate" [attr.title]="'LAYOUT.SETTINGS' | translate">
           <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
@@ -32,8 +46,9 @@
         <app-notification-bell></app-notification-bell>
       </div>
     </header>
-    <!-- Page content -->
-    <div class="flex-1 bg-gray-100 p-4 overflow-auto">
+    <!-- Page content (smooth opacity transition on language change) -->
+    <div class="flex-1 bg-gray-50 p-4 overflow-auto i18n-content-transition"
+      [class.i18n-transitioning]="langTransitioning()">
       <router-outlet></router-outlet>
     </div>
   </div>

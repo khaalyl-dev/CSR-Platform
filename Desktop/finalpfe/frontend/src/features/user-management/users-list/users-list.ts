@@ -7,6 +7,7 @@ import { Component, inject, signal, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
+import { TranslateModule, TranslateService } from '@ngx-translate/core';
 import { FontAwesomeModule } from '@fortawesome/angular-fontawesome';
 import { faUserPlus, faKey, faBan, faCheck, faBuilding } from '@fortawesome/free-solid-svg-icons';
 import { UsersApi, type User, type CreateUserPayload } from '../api/users-api';
@@ -15,13 +16,14 @@ import { SitesApi, type Site } from '@features/site-management/api/sites-api';
 @Component({
   selector: 'app-users-list',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, RouterLink, FontAwesomeModule],
+  imports: [CommonModule, ReactiveFormsModule, RouterLink, FontAwesomeModule, TranslateModule],
   templateUrl: './users-list.html',
 })
 export class UsersListComponent implements OnInit {
   private readonly usersApi = inject(UsersApi);
   private readonly sitesApi = inject(SitesApi);
   private readonly fb = inject(FormBuilder);
+  private readonly translate = inject(TranslateService);
 
   protected readonly faUserPlus = faUserPlus;
   protected readonly faKey = faKey;
@@ -64,7 +66,7 @@ export class UsersListComponent implements OnInit {
         this.loading.set(false);
       },
       error: (err) => {
-        this.errorMessage.set(err?.error?.message ?? 'Erreur lors du chargement');
+        this.errorMessage.set(err?.error?.message ?? this.translate.instant('USERS.LOAD_ERROR'));
         this.loading.set(false);
       },
     });
@@ -112,7 +114,7 @@ export class UsersListComponent implements OnInit {
       next: (user) => {
         this.users.update((list) => [...list, user]);
         this.toggleCreateForm();
-        this.successMessage.set(`Utilisateur ${user.email} créé avec succès.`);
+        this.successMessage.set(this.translate.instant('USERS.USER_CREATED_SUCCESS', { email: user.email }));
 
         if (raw.site_ids.length > 0) {
           this.usersApi.assignSites(user.id, {
@@ -125,7 +127,7 @@ export class UsersListComponent implements OnInit {
         setTimeout(() => this.successMessage.set(null), 4000);
       },
       error: (err) => {
-        this.errorMessage.set(err?.error?.message ?? 'Erreur lors de la création');
+        this.errorMessage.set(err?.error?.message ?? this.translate.instant('USERS.CREATE_ERROR'));
       },
     });
   }
@@ -154,13 +156,13 @@ export class UsersListComponent implements OnInit {
           list.map((u) => (u.id === updated.id ? updated : u))
         );
         this.successMessage.set(
-          updated.is_active ? 'Utilisateur activé.' : 'Utilisateur désactivé.'
+          updated.is_active ? this.translate.instant('USERS.USER_ACTIVATED') : this.translate.instant('USERS.USER_DEACTIVATED')
         );
         this.actionLoading.set(null);
         setTimeout(() => this.successMessage.set(null), 3000);
       },
       error: (err) => {
-        this.errorMessage.set(err?.error?.message ?? 'Erreur');
+        this.errorMessage.set(err?.error?.message ?? this.translate.instant('USERS.ERROR_GENERIC'));
         this.actionLoading.set(null);
       },
     });
@@ -179,7 +181,7 @@ export class UsersListComponent implements OnInit {
         this.actionLoading.set(null);
       },
       error: (err) => {
-        this.errorMessage.set(err?.error?.message ?? 'Erreur');
+        this.errorMessage.set(err?.error?.message ?? this.translate.instant('USERS.ERROR_GENERIC'));
         this.actionLoading.set(null);
       },
     });
@@ -202,12 +204,18 @@ export class UsersListComponent implements OnInit {
 
   /** Map role to display label */
   roleLabel(role: string): string {
-    return role === 'CORPORATE_USER' ? 'Corporate' : 'Site';
+    return role === 'CORPORATE_USER'
+      ? this.translate.instant('USERS.ROLE_CORPORATE')
+      : this.translate.instant('USERS.ROLE_SITE');
   }
 
   /** Map level to display label */
   levelLabel(level: string | null | undefined): string {
-    if (!level) return '—';
-    return level === 'level_1' ? 'Level 1' : level === 'level_0' ? 'Level 0' : level;
+    if (!level) return this.translate.instant('USERS.LEVEL_NA');
+    return level === 'level_1'
+      ? this.translate.instant('USERS.LEVEL_1')
+      : level === 'level_0'
+        ? this.translate.instant('USERS.LEVEL_0')
+        : level;
   }
 }

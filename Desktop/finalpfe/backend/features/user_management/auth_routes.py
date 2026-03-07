@@ -5,7 +5,8 @@ Endpoints:
   POST /api/auth/login          - Authenticate user, create session, return JWT
   POST /api/auth/logout         - Revoke token and delete session
   GET  /api/auth/me             - Validate token, return minimal user info
-  GET  /api/auth/profile        - Return full user profile (read-only)
+  GET  /api/auth/profile         - Return full user profile
+  PUT  /api/auth/profile         - Update current user's profile/settings
   PUT  /api/auth/change-password - Change current user's password
   POST /api/auth/profile-photo  - Upload profile photo (multipart file)
 """
@@ -21,6 +22,50 @@ from core.jwt_utils import ACCESS_TOKEN_EXPIRATION_HOURS, SECRET_KEY
 from models import User, UserSession, UserSite, Site, Document
 
 bp = Blueprint("auth", __name__, url_prefix="/api/auth")
+
+
+def _latest_login_iso(user_id: str):
+    session = UserSession.query.filter_by(user_id=user_id).order_by(UserSession.created_at.desc()).first()
+    return session.created_at.isoformat() if session and session.created_at else None
+
+
+def _profile_payload(user: User):
+    data = {
+        "id": user.id,
+        "first_name": user.first_name,
+        "last_name": user.last_name,
+        "phone": user.phone,
+        "language": user.language or "en",
+        "theme": user.theme or "light",
+        "notifications": {
+            "csr_plan_validation": bool(user.notify_csr_plan_validation),
+            "activity_validation": bool(user.notify_activity_validation),
+            "activity_reminders": bool(user.notify_activity_reminders),
+            "weekly_summary_email": bool(user.notify_weekly_summary_email),
+        },
+        "email": user.email,
+        "role": user.role,
+        "is_active": user.is_active,
+        "last_login": _latest_login_iso(user.id),
+        "created_at": user.created_at.isoformat() if user.created_at else None,
+        "avatar_url": f"/api/documents/serve/{user.avatar_url}" if getattr(user, "avatar_url", None) and user.avatar_url else None,
+    }
+
+    if user.role == "SITE_USER":
+        sites = UserSite.query.filter_by(user_id=user.id, is_active=True).all()
+        data["sites"] = [
+            {
+                "id": us.id,
+                "site_id": us.site_id,
+                "site_name": Site.query.get(us.site_id).name if Site.query.get(us.site_id) else None,
+                "site_code": Site.query.get(us.site_id).code if Site.query.get(us.site_id) else None,
+                "granted_at": us.granted_at.isoformat() if us.granted_at else None,
+            }
+            for us in sites
+        ]
+    else:
+        data["sites"] = []
+    return data
 
 
 def _get_client_info():
@@ -155,33 +200,78 @@ def profile():
     if not user:
         return jsonify({"message": "Utilisateur introuvable"}), 401
 
-    data = {
-        "id": user.id,
-        "first_name": user.first_name,
-        "last_name": user.last_name,
-        "email": user.email,
-        "role": user.role,
-        "is_active": user.is_active,
-        "created_at": user.created_at.isoformat() if user.created_at else None,
-        "avatar_url": f"/api/documents/serve/{user.avatar_url}" if getattr(user, "avatar_url", None) and user.avatar_url else None,
-    }
+    return jsonify(_profile_payload(user))
 
-    if user.role == "SITE_USER":
-        sites = UserSite.query.filter_by(user_id=user.id, is_active=True).all()
-        data["sites"] = [
-            {
-                "id": us.id,
-                "site_id": us.site_id,
-                "site_name": Site.query.get(us.site_id).name if Site.query.get(us.site_id) else None,
-                "site_code": Site.query.get(us.site_id).code if Site.query.get(us.site_id) else None,
-                "granted_at": us.granted_at.isoformat() if us.granted_at else None,
-            }
-            for us in sites
-        ]
-    else:
-        data["sites"] = []
 
-    return jsonify(data)
+@bp.put("/profile")
+@token_required
+def update_profile():
+    """
+    Update the current user's editable profile fields.
+    Supports partial updates:
+      - first_name, last_name, phone
+      - language (fr/en), theme (light/dark)
+      - notifications: csr_plan_validation, activity_validation, activity_reminders, weekly_summary_email
+    """
+    user_id = getattr(request, "user_id", None)
+    jti = getattr(request, "jti", None)
+    if not user_id:
+        return jsonify({"message": "Unauthorized"}), 401
+
+    session = UserSession.query.filter_by(refresh_token=jti, user_id=user_id).first()
+    if not session or session.expires_at < datetime.utcnow():
+        if session:
+            db.session.delete(session)
+            db.session.commit()
+        return jsonify({"message": "Session expirée"}), 401
+
+    user = User.query.get(user_id)
+    if not user:
+        return jsonify({"message": "Utilisateur introuvable"}), 401
+
+    data = request.get_json(silent=True) or {}
+    if "first_name" in data:
+        first_name = (data.get("first_name") or "").strip()
+        if not first_name:
+            return jsonify({"message": "Le prénom est obligatoire."}), 400
+        user.first_name = first_name
+
+    if "last_name" in data:
+        last_name = (data.get("last_name") or "").strip()
+        if not last_name:
+            return jsonify({"message": "Le nom est obligatoire."}), 400
+        user.last_name = last_name
+
+    if "phone" in data:
+        user.phone = (data.get("phone") or "").strip() or None
+
+    if "language" in data:
+        language = (data.get("language") or "").strip().lower()
+        if language not in ("fr", "en"):
+            return jsonify({"message": "language invalide (fr/en)."}), 400
+        user.language = language
+
+    if "theme" in data:
+        theme = (data.get("theme") or "").strip().lower()
+        if theme not in ("light", "dark"):
+            return jsonify({"message": "theme invalide (light/dark)."}), 400
+        user.theme = theme
+
+    notifications = data.get("notifications")
+    if notifications is not None:
+        if not isinstance(notifications, dict):
+            return jsonify({"message": "notifications doit être un objet."}), 400
+        if "csr_plan_validation" in notifications:
+            user.notify_csr_plan_validation = bool(notifications.get("csr_plan_validation"))
+        if "activity_validation" in notifications:
+            user.notify_activity_validation = bool(notifications.get("activity_validation"))
+        if "activity_reminders" in notifications:
+            user.notify_activity_reminders = bool(notifications.get("activity_reminders"))
+        if "weekly_summary_email" in notifications:
+            user.notify_weekly_summary_email = bool(notifications.get("weekly_summary_email"))
+
+    db.session.commit()
+    return jsonify(_profile_payload(user))
 
 
 @bp.put("/change-password")

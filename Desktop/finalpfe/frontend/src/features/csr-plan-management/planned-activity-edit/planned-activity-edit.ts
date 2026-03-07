@@ -1,7 +1,8 @@
 import { Component, inject, OnInit, OnDestroy, ChangeDetectorRef } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { CommonModule, Location } from '@angular/common';
 import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angular/forms';
 import { Router, ActivatedRoute, RouterLink } from '@angular/router';
+import { TranslateModule, TranslateService } from '@ngx-translate/core';
 import { catchError, of, switchMap, timeout } from 'rxjs';
 import { CsrActivitiesApi } from '@features/realized-activity-management/api/csr-activities-api';
 import { CategoriesApi, CATEGORY_OTHER_VALUE } from '@features/realized-activity-management/api/categories-api';
@@ -22,7 +23,7 @@ const MONTH_LABELS: Record<number, string> = {
 @Component({
   selector: 'app-planned-activity-edit',
   standalone: true,
-  imports: [ReactiveFormsModule, CommonModule, RouterLink],
+  imports: [ReactiveFormsModule, CommonModule, RouterLink, TranslateModule],
   templateUrl: './planned-activity-edit.html',
 })
 export class PlannedActivityEditComponent implements OnInit, OnDestroy {
@@ -35,6 +36,8 @@ export class PlannedActivityEditComponent implements OnInit, OnDestroy {
   private realizedApi = inject(RealizedCsrApi);
   private documentsApi = inject(DocumentsApi);
   private http = inject(HttpClient);
+  private location = inject(Location);
+  private translate = inject(TranslateService);
 
   form!: FormGroup;
   /** Photos linked to this activity. */
@@ -66,11 +69,13 @@ export class PlannedActivityEditComponent implements OnInit, OnDestroy {
   }
 
   get pageTitle(): string {
-    return this.isPlanRealized ? "Modifier l'activité (plan réalisé)" : "Modifier l'activité planifiée";
+    const key = this.isPlanRealized ? 'PLANNED_ACTIVITY_EDIT.PAGE_TITLE_REALIZED' : 'PLANNED_ACTIVITY_EDIT.PAGE_TITLE_PLANNED';
+    return this.translate.instant(key);
   }
 
   get pageSubtitle(): string {
-    return this.isPlanRealized ? "Modifier les données de l'activité" : "Modifier les données estimées de l'activité";
+    const key = this.isPlanRealized ? 'PLANNED_ACTIVITY_EDIT.PAGE_SUBTITLE_REALIZED' : 'PLANNED_ACTIVITY_EDIT.PAGE_SUBTITLE_PLANNED';
+    return this.translate.instant(key);
   }
 
   ngOnInit(): void {
@@ -365,8 +370,7 @@ export class PlannedActivityEditComponent implements OnInit, OnDestroy {
   }
 
   cancel(): void {
-    if (this.activity?.plan_id) this.router.navigate(['/csr-plans', this.activity.plan_id]);
-    else this.router.navigate(['/planned-activities']);
+    this.location.back();
   }
 
   ngOnDestroy(): void {

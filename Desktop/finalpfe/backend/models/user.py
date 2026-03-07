@@ -42,6 +42,13 @@ class User(db.Model):
         comment="Accès corporate global (tous les sites)"
     )
     avatar_url = db.Column(db.String(512), nullable=True, comment="Chemin relatif de la photo de profil (ex: profile_photos/user_id.jpg)")
+    phone = db.Column(db.String(64), nullable=True, comment="Téléphone utilisateur (avec préfixe pays)")
+    language = db.Column(db.String(10), nullable=False, default="en", comment="Préférence langue (fr/en)")
+    theme = db.Column(db.String(20), nullable=False, default="light", comment="Thème UI (light/dark)")
+    notify_csr_plan_validation = db.Column(db.Boolean, nullable=False, default=True, comment="Notification validation plan CSR")
+    notify_activity_validation = db.Column(db.Boolean, nullable=False, default=True, comment="Notification validation activité")
+    notify_activity_reminders = db.Column(db.Boolean, nullable=False, default=True, comment="Rappels d'activités")
+    notify_weekly_summary_email = db.Column(db.Boolean, nullable=False, default=True, comment="Email résumé CSR hebdomadaire")
     created_at = db.Column(db.DateTime, default=db.func.now(), comment="Date de création")
     updated_at = db.Column(
         db.DateTime, default=db.func.now(), onupdate=db.func.now(),

@@ -2,13 +2,15 @@ import { Component, OnInit, signal, computed, HostListener } from '@angular/core
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { HttpClient } from '@angular/common/http';
+import { TranslateModule } from '@ngx-translate/core';
 import { DocumentsApi } from '../api/documents-api';
 import { Document } from '../models/document.model';
+import { I18nService } from '@core/services/i18n.service';
 
 @Component({
   selector: 'app-documents-list',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, TranslateModule],
   templateUrl: './documents-list.html',
   styleUrl: './documents-list.css',
 })
@@ -94,7 +96,11 @@ export class DocumentsListComponent implements OnInit {
     }
   }
 
-  constructor(private documentsApi: DocumentsApi, private http: HttpClient) {}
+  constructor(
+    private documentsApi: DocumentsApi,
+    private http: HttpClient,
+    private i18n: I18nService,
+  ) {}
 
   ngOnInit() {
     this.loadDocuments();
@@ -114,7 +120,7 @@ export class DocumentsListComponent implements OnInit {
         this.loading.set(false);
       },
       error: () => {
-        this.error.set('Erreur lors du chargement des documents');
+        this.error.set(this.i18n.t('DOCUMENTS.MESSAGES.LOAD_ERROR'));
         this.loading.set(false);
       }
     });
@@ -180,7 +186,7 @@ export class DocumentsListComponent implements OnInit {
           docs.map(d => d.id === doc.id ? { ...d, is_pinned: res.is_pinned } : d)
         );
       },
-      error: () => this.error.set('Erreur lors de l\'épinglage')
+      error: () => this.error.set(this.i18n.t('DOCUMENTS.MESSAGES.PIN_ERROR'))
     });
     this.closeMenu();
   }
@@ -211,11 +217,11 @@ export class DocumentsListComponent implements OnInit {
         this.documents.update(docs =>
           docs.map(d => d.id === updated.id ? updated : d)
         );
-        this.success.set('Document modifié avec succès ✓');
+        this.success.set(this.i18n.t('DOCUMENTS.MESSAGES.UPDATE_SUCCESS'));
         setTimeout(() => this.success.set(''), 3000);
         this.closeEditModal();
       },
-      error: () => this.error.set('Erreur lors de la modification')
+      error: () => this.error.set(this.i18n.t('DOCUMENTS.MESSAGES.UPDATE_ERROR'))
     });
   }
 
@@ -236,11 +242,11 @@ export class DocumentsListComponent implements OnInit {
     this.documentsApi.deleteDocument(this.deletingDoc.id).subscribe({
       next: () => {
         this.documents.update(docs => docs.filter(d => d.id !== this.deletingDoc!.id));
-        this.success.set('Document supprimé avec succès ✓');
+        this.success.set(this.i18n.t('DOCUMENTS.MESSAGES.DELETE_SUCCESS'));
         setTimeout(() => this.success.set(''), 3000);
         this.closeDeleteModal();
       },
-      error: () => this.error.set('Erreur lors de la suppression')
+      error: () => this.error.set(this.i18n.t('DOCUMENTS.MESSAGES.DELETE_ERROR'))
     });
   }
 
@@ -256,7 +262,7 @@ export class DocumentsListComponent implements OnInit {
         a.click();
         window.URL.revokeObjectURL(url);
       },
-      error: () => this.error.set('Erreur lors du téléchargement')
+      error: () => this.error.set(this.i18n.t('DOCUMENTS.MESSAGES.DOWNLOAD_ERROR'))
     });
   }
 
@@ -328,7 +334,8 @@ export class DocumentsListComponent implements OnInit {
 
   formatDate(dateStr: string | null): string {
     if (!dateStr) return '—';
-    return new Date(dateStr).toLocaleDateString('fr-FR', {
+    const lang = this.profileLang();
+    return new Date(dateStr).toLocaleDateString(lang === 'fr' ? 'fr-FR' : 'en-US', {
       day: '2-digit', month: 'short', year: 'numeric'
     });
   }
@@ -338,11 +345,16 @@ export class DocumentsListComponent implements OnInit {
     const date = new Date(dateStr);
     const now = new Date();
     const diff = Math.floor((now.getTime() - date.getTime()) / 1000);
-    if (diff < 60) return 'À l\'instant';
-    if (diff < 3600) return `Il y a ${Math.floor(diff / 60)} min`;
-    if (diff < 86400) return `Il y a ${Math.floor(diff / 3600)}h`;
-    if (diff < 604800) return `Il y a ${Math.floor(diff / 86400)}j`;
+    if (diff < 60) return this.i18n.t('DOCUMENTS.TIME.JUST_NOW');
+    if (diff < 3600) return this.i18n.t('DOCUMENTS.TIME.MIN_AGO').replace('{n}', String(Math.floor(diff / 60)));
+    if (diff < 86400) return this.i18n.t('DOCUMENTS.TIME.HOUR_AGO').replace('{n}', String(Math.floor(diff / 3600)));
+    if (diff < 604800) return this.i18n.t('DOCUMENTS.TIME.DAY_AGO').replace('{n}', String(Math.floor(diff / 86400)));
     return this.formatDate(dateStr);
+  }
+
+  private profileLang(): 'fr' | 'en' {
+    const lang = (document?.documentElement?.lang || '').toLowerCase();
+    return lang.startsWith('fr') ? 'fr' : 'en';
   }
 
 }

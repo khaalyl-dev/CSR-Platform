@@ -2,7 +2,9 @@ import { CommonModule, DatePipe } from '@angular/common';
 import { Component, DestroyRef, ElementRef, HostListener, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Router } from '@angular/router';
+import { TranslateService } from '@ngx-translate/core';
 import { interval } from 'rxjs';
+import { AuthStore } from '@core/services/auth-store';
 import { NotificationsApi } from '../api/notifications-api';
 import type { Notification } from '../models/notification.model';
 
@@ -15,7 +17,7 @@ import type { Notification } from '../models/notification.model';
       <button
         type="button"
         (click)="toggleOpen()"
-        class="relative inline-flex h-10 w-10 items-center justify-center rounded-full border border-gray-200 bg-white text-brand-900 shadow-sm transition hover:bg-brand-100"
+        class="relative inline-flex h-10 w-10 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-700 shadow-sm transition hover:bg-gray-100"
         aria-label="Notifications"
         title="Notifications"
       >
@@ -24,7 +26,7 @@ import type { Notification } from '../models/notification.model';
           <path stroke-linecap="round" stroke-linejoin="round" d="M10 19a2 2 0 0 0 4 0" />
         </svg>
         @if (unreadCount() > 0) {
-          <span class="absolute -right-1 -top-1 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-brand-900 px-1 text-[11px] font-semibold text-white">
+          <span class="absolute -right-1 -top-1 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-gray-700 px-1 text-[11px] font-semibold text-white">
             {{ unreadCount() > 99 ? '99+' : unreadCount() }}
           </span>
         }
@@ -34,13 +36,13 @@ import type { Notification } from '../models/notification.model';
         <div class="absolute right-0 z-20 mt-2 w-80 rounded-2xl border border-gray-200 bg-white p-4 shadow-xl">
           <div class="mb-3 flex items-center justify-between gap-3">
             <div>
-              <h3 class="text-sm font-semibold text-brand-900">Notifications</h3>
+              <h3 class="text-sm font-semibold text-gray-800">Notifications</h3>
               <p class="text-xs text-gray-500">{{ unreadCount() }} non lue(s)</p>
             </div>
             <button
               type="button"
               (click)="markAllAsRead()"
-              class="rounded-lg bg-brand-100 px-2.5 py-1 text-xs font-medium text-brand-800 transition hover:bg-brand-700 hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
+              class="rounded-lg border border-gray-300 bg-white px-2.5 py-1 text-xs font-medium text-gray-700 transition hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50"
               [disabled]="unreadCount() === 0 || loading()"
             >
               Tout lire
@@ -59,22 +61,12 @@ import type { Notification } from '../models/notification.model';
                 <button
                   type="button"
                   (click)="openNotification(notification)"
-                  class="block w-full rounded-xl border px-3 py-3 text-left transition"
-                  [class.bg-brand-100]="!notification.is_read"
-                  [class.border-brand-700/30]="!notification.is_read"
-                  [class.bg-white]="notification.is_read"
-                  [class.border-gray-200]="notification.is_read"
+                  class="block w-full rounded-xl border border-gray-200 bg-white px-3 py-3 text-left transition hover:bg-gray-50"
                 >
                   <div class="mb-1 flex items-start justify-between gap-3">
                     <div class="flex items-center gap-2">
-                      <span
-                        class="inline-block h-2.5 w-2.5 rounded-full"
-                        [class.bg-brand-900]="notification.type === 'info'"
-                        [class.bg-green-500]="notification.type === 'success'"
-                        [class.bg-amber-500]="notification.type === 'warning'"
-                        [class.bg-red-500]="notification.type === 'error'"
-                      ></span>
-                      <span class="text-sm font-semibold text-brand-900">{{ notification.title }}</span>
+                      <span class="inline-block h-2.5 w-2.5 rounded-full bg-gray-400"></span>
+                      <span class="text-sm font-semibold text-gray-800">{{ notification.title }}</span>
                     </div>
                     <span class="shrink-0 text-[11px] text-gray-500">
                       {{ notification.created_at | date:'short' }}
@@ -92,6 +84,8 @@ import type { Notification } from '../models/notification.model';
 })
 export class NotificationBellComponent {
   private readonly notificationsApi = inject(NotificationsApi);
+  private readonly authStore = inject(AuthStore);
+  private readonly translate = inject(TranslateService);
   private readonly destroyRef = inject(DestroyRef);
   private readonly router = inject(Router);
   private readonly elementRef = inject(ElementRef<HTMLElement>);
@@ -111,12 +105,14 @@ export class NotificationBellComponent {
   protected readonly notifications = signal<Notification[]>([]);
 
   constructor() {
-    this.refreshUnreadCount();
+    if (this.authStore.token()) this.refreshUnreadCount();
     interval(30000)
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe(() => {
-        this.refreshUnreadCount();
-        if (this.isOpen()) this.loadNotifications();
+        if (this.authStore.token()) {
+          this.refreshUnreadCount();
+          if (this.isOpen()) this.loadNotifications();
+        }
       });
   }
 
@@ -139,7 +135,7 @@ export class NotificationBellComponent {
         this.unreadCount.update(count => Math.max(0, count - 1));
       },
       error: () => {
-        this.error.set("Impossible de marquer la notification comme lue.");
+        this.error.set(this.translate.instant('NOTIFICATIONS_BELL.MARK_READ_ERROR'));
       }
     });
   }
@@ -179,12 +175,13 @@ export class NotificationBellComponent {
         }
       },
       error: () => {
-        this.error.set("Impossible d'ouvrir la notification.");
+        this.error.set(this.translate.instant('NOTIFICATIONS_BELL.OPEN_ERROR'));
       }
     });
   }
 
   private loadNotifications(): void {
+    if (!this.authStore.token()) return;
     this.loading.set(true);
     this.error.set(null);
     this.notificationsApi.list().subscribe({
@@ -194,13 +191,14 @@ export class NotificationBellComponent {
         this.loading.set(false);
       },
       error: () => {
-        this.error.set("Impossible de charger les notifications.");
+        this.error.set(this.translate.instant('NOTIFICATIONS_BELL.LOAD_ERROR'));
         this.loading.set(false);
       }
     });
   }
 
   private refreshUnreadCount(): void {
+    if (!this.authStore.token()) return;
     this.notificationsApi.unreadCount().subscribe({
       next: ({ count }) => this.unreadCount.set(count),
       error: () => this.unreadCount.set(0)

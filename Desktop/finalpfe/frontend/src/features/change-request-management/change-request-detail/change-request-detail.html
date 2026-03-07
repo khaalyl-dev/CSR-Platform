@@ -7,52 +7,50 @@
       </svg>
     </button>
     <nav class="flex items-center gap-2 text-sm text-gray-500">
-      <a routerLink="/changes" class="text-gray-500 hover:text-gray-800 transition-colors">Apps</a>
+      <a routerLink="/changes" class="text-gray-500 hover:text-gray-800 transition-colors">{{ 'BREADCRUMB.CHANGES' | translate }}</a>
       <span class="text-gray-300">/</span>
-      <a routerLink="/changes" class="text-gray-500 hover:text-gray-800 transition-colors">CMS</a>
-      <span class="text-gray-300">/</span>
-      <span class="text-gray-800 font-medium">Detail</span>
+      <span class="text-gray-800 font-medium">{{ 'BREADCRUMB.DETAIL' | translate }}</span>
     </nav>
   </div>
 
-  <div *ngIf="loading()" class="text-center py-12 text-gray-500">Chargement...</div>
+  <div *ngIf="loading()" class="text-center py-12 text-gray-500">{{ 'CHANGE_REQUEST.LOADING' | translate }}</div>
   <p *ngIf="error()" class="text-red-600 mb-4">{{ error() }}</p>
 
   <div *ngIf="request() && !loading()" class="max-w-3xl space-y-6">
     <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-      <h1 class="text-xl font-bold text-gray-800">Détail de la demande de modification</h1>
+      <h1 class="text-xl font-bold text-gray-800">{{ 'CHANGE_REQUEST.DETAIL_TITLE' | translate }}</h1>
       <div class="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
         <div>
-          <p class="text-gray-500 uppercase tracking-wider text-xs">Plan concerné</p>
+          <p class="text-gray-500 uppercase tracking-wider text-xs">{{ 'CHANGE_REQUEST.PLAN_CONCERNED' | translate }}</p>
           <a *ngIf="request()!.entity_id" [routerLink]="['/csr-plans', request()!.entity_id]"
             class="text-brand-700 hover:underline font-medium">
             {{ request()!.plan_site_name ?? request()!.site_name ?? request()!.site_id }} – {{ request()!.plan_year ?? request()!.year }}
           </a>
         </div>
         <div>
-          <p class="text-gray-500 uppercase tracking-wider text-xs">Demandeur</p>
+          <p class="text-gray-500 uppercase tracking-wider text-xs">{{ 'CHANGE_REQUEST.REQUESTER' | translate }}</p>
           <p class="text-gray-800">{{ request()!.requested_by_name ?? '–' }}</p>
         </div>
         <div>
-          <p class="text-gray-500 uppercase tracking-wider text-xs">Date de demande</p>
+          <p class="text-gray-500 uppercase tracking-wider text-xs">{{ 'CHANGE_REQUEST.REQUEST_DATE' | translate }}</p>
           <p class="text-gray-800">{{ request()!.created_at | date:'medium' }}</p>
         </div>
         <div *ngIf="request()!.requested_duration">
-          <p class="text-gray-500 uppercase tracking-wider text-xs">Durée d'ouverture demandée</p>
+          <p class="text-gray-500 uppercase tracking-wider text-xs">{{ 'CHANGE_REQUEST.DURATION_REQUESTED' | translate }}</p>
           <p class="text-gray-800">{{ request()!.requested_duration }}</p>
         </div>
         <div>
-          <p class="text-gray-500 uppercase tracking-wider text-xs">Statut</p>
+          <p class="text-gray-500 uppercase tracking-wider text-xs">{{ 'CHANGE_REQUEST.STATUS' | translate }}</p>
           <span [class]="request()!.status === 'PENDING' ? 'text-amber-600' : request()!.status === 'APPROVED' ? 'text-green-600' : 'text-red-600'"
             class="font-medium">{{ statusLabel(request()!.status) }}</span>
         </div>
         <ng-container *ngIf="request()!.status !== 'PENDING'">
           <div>
-            <p class="text-gray-500 uppercase tracking-wider text-xs">Décision par</p>
+            <p class="text-gray-500 uppercase tracking-wider text-xs">{{ 'CHANGE_REQUEST.DECISION_BY' | translate }}</p>
             <p class="text-gray-800">{{ request()!.reviewed_by_name ?? '–' }}</p>
           </div>
           <div>
-            <p class="text-gray-500 uppercase tracking-wider text-xs">Date de décision</p>
+            <p class="text-gray-500 uppercase tracking-wider text-xs">{{ 'CHANGE_REQUEST.DECISION_DATE' | translate }}</p>
             <p class="text-gray-800">{{ request()!.reviewed_at | date:'medium' }}</p>
           </div>
         </ng-container>
@@ -60,12 +58,12 @@
     </div>
 
     <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-      <h2 class="text-lg font-semibold text-gray-800 mb-3">Justification</h2>
+      <h2 class="text-lg font-semibold text-gray-800 mb-3">{{ 'CHANGE_REQUEST.JUSTIFICATION_HEADER' | translate }}</h2>
       <p class="text-gray-700 whitespace-pre-wrap">{{ request()!.reason || '–' }}</p>
     </div>
 
     <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-      <h2 class="text-lg font-semibold text-gray-800 mb-3">Documents joints</h2>
+      <h2 class="text-lg font-semibold text-gray-800 mb-3">{{ 'CHANGE_REQUEST.DOCUMENTS_JOINED' | translate }}</h2>
       <ul *ngIf="request()!.documents?.length" class="space-y-2">
         <li *ngFor="let d of request()!.documents"
           class="flex items-center justify-between py-2 px-3 bg-gray-50 rounded-lg">
@@ -75,16 +73,16 @@
           <div class="flex items-center gap-3">
             <button *ngIf="isPreviewableType(d)" type="button" (click)="openPreview(d)"
               class="text-sm font-medium text-brand-900 hover:underline">
-              <i class="fas fa-eye mr-1"></i>Prévisualiser
+              <i class="fas fa-eye mr-1"></i>{{ 'CHANGE_REQUEST.PREVIEW' | translate }}
             </button>
             <button type="button" (click)="downloadDocument(d.file_path, d.file_name)"
               class="text-sm font-medium text-brand-900 hover:underline">
-              <i class="fas fa-download mr-1"></i>Télécharger
+              <i class="fas fa-download mr-1"></i>{{ 'CHANGE_REQUEST.DOWNLOAD' | translate }}
             </button>
           </div>
         </li>
       </ul>
-      <p *ngIf="!request()!.documents?.length" class="text-gray-500">Aucun document joint.</p>
+      <p *ngIf="!request()!.documents?.length" class="text-gray-500">{{ 'CHANGE_REQUEST.NO_DOCUMENTS_JOINED' | translate }}</p>
     </div>
 
     <!-- Document preview modal -->
@@ -97,7 +95,7 @@
           </button>
         </div>
         <div class="flex-1 min-h-0 overflow-auto p-4 flex items-center justify-center bg-gray-100">
-          <p *ngIf="previewLoading()" class="text-gray-500">Chargement de l'aperçu...</p>
+          <p *ngIf="previewLoading()" class="text-gray-500">{{ 'CHANGE_REQUEST.PREVIEW_LOADING' | translate }}</p>
           <img *ngIf="!previewLoading() && previewBlobUrl() && isImage(previewDoc()!)" [src]="previewBlobUrl()!" [alt]="previewDoc()!.file_name" class="max-w-full max-h-[70vh] object-contain" />
           <iframe *ngIf="!previewLoading() && previewSafeUrl() && isPdf(previewDoc()!)" [src]="previewSafeUrl()!" class="w-full h-[70vh] border-0 rounded-lg" title="Aperçu PDF"></iframe>
         </div>
@@ -107,11 +105,11 @@
     <div *ngIf="isCorporate && request()!.status === 'PENDING'" class="flex gap-3">
       <button type="button" (click)="approve()" [disabled]="actionLoading()"
         class="px-4 py-2 rounded-xl text-sm font-semibold text-white bg-brand-900 hover:opacity-90 disabled:opacity-50">
-        Approuver la demande
+        {{ 'CHANGE_REQUEST.APPROVE_BUTTON' | translate }}
       </button>
       <button type="button" (click)="reject()" [disabled]="actionLoading()"
         class="px-4 py-2 rounded-xl text-sm font-semibold bg-white text-brand-900 border-2 border-brand-900 hover:bg-gray-50 disabled:opacity-50">
-        Rejeter la demande
+        {{ 'CHANGE_REQUEST.REJECT_BUTTON' | translate }}
       </button>
     </div>
   </div>
