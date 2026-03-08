@@ -26,19 +26,22 @@ export interface NavSection {
   sectionKey: string;
   roles: ('site' | 'corporate')[];
   isDropdown?: boolean;
+  /** When true, do not show section header (e.g. Dashboard first). */
+  hideSectionLabel?: boolean;
   items: NavItem[];
 }
 
 export const navItems: NavSection[] = [
   {
-    sectionKey: 'NAV.SECTIONS.PILOTAGE',
+    sectionKey: '',
     roles: ['site', 'corporate'],
+    hideSectionLabel: true,
     items: [
-      { labelKey: 'NAV.ITEMS.OVERVIEW', path: '/dashboard', roles: ['site', 'corporate'], icon: faTachometerAlt },
+      { labelKey: 'NAV.ITEMS.DASHBOARD', path: '/dashboard', roles: ['site', 'corporate'], icon: faChartLine },
     ],
   },
   {
-    sectionKey: 'NAV.SECTIONS.CSR_MANAGEMENT',
+    sectionKey: 'NAV.SECTIONS.PLANS_ACTIVITIES',
     roles: ['site', 'corporate'],
     isDropdown: true,
     items: [
@@ -49,18 +52,18 @@ export const navItems: NavSection[] = [
     ],
   },
   {
-    sectionKey: 'NAV.SECTIONS.WORKFLOW',
+    sectionKey: 'NAV.SECTIONS.APPROVALS',
     roles: ['site', 'corporate'],
     isDropdown: true,
     items: [
-      { labelKey: 'NAV.ITEMS.PLAN_VALIDATION', path: '/annual-plans/validation', roles: ['site', 'corporate'], icon: faCheckSquare },
+      { labelKey: 'NAV.ITEMS.VALIDATE_PLANS', path: '/annual-plans/validation', roles: ['site', 'corporate'], icon: faCheckSquare },
       { labelKey: 'NAV.ITEMS.MY_REQUESTS', path: '/changes', roles: ['site'], icon: faEnvelopeOpenText },
       { labelKey: 'NAV.ITEMS.PENDING_REQUESTS', path: '/changes/pending', roles: ['corporate'], icon: faHourglassHalf },
-      { labelKey: 'NAV.ITEMS.REQUEST_HISTORY', path: '/changes/history', roles: ['corporate'], icon: faHistory },
+      { labelKey: 'NAV.ITEMS.CHANGE_HISTORY', path: '/changes/history', roles: ['corporate'], icon: faHistory },
     ],
   },
   {
-    sectionKey: 'NAV.SECTIONS.ADMINISTRATION',
+    sectionKey: 'NAV.SECTIONS.SETTINGS',
     roles: ['corporate'],
     isDropdown: true,
     items: [
@@ -68,13 +71,6 @@ export const navItems: NavSection[] = [
       { labelKey: 'NAV.ITEMS.CSR_CATEGORIES', path: '/categories', roles: ['corporate'], icon: faFolderTree },
       { labelKey: 'NAV.ITEMS.USERS', path: '/admin/users', roles: ['corporate'], icon: faUser },
       { labelKey: 'NAV.ITEMS.AUDIT_LOG', path: '/admin/audit', roles: ['corporate'], icon: faClipboardList },
-    ],
-  },
-  {
-    sectionKey: 'NAV.SECTIONS.ACCOUNT',
-    roles: ['site', 'corporate'],
-    items: [
-      { labelKey: 'NAV.ITEMS.MY_PROFILE', path: '/account/profile', roles: ['site', 'corporate'], icon: faUser },
     ],
   },
 ];

@@ -2,12 +2,11 @@
   Users list page: header, create form (collapsible), users table, password modal.
   Table: user name (link to detail), email, role badge, status, actions (activate, generate pwd, manage).
 -->
-<div class="p-6 lg:p-8 max-w-7xl mx-auto space-y-6">
+<div class="p-8 bg-gray-50 min-h-screen">
   <!-- Header -->
-  <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+  <div class="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
     <div>
-      <h1 class="text-2xl font-bold text-gray-900">{{ 'USERS.TITLE' | translate }}</h1>
-      <p class="mt-1 text-sm text-gray-500">{{ 'USERS.SUBTITLE' | translate }}</p>
+      <h1 class="text-2xl font-bold tracking-tight text-gray-800">{{ 'USERS.TITLE' | translate }}</h1>
     </div>
     <button
       type="button"
@@ -19,6 +18,7 @@
     </button>
   </div>
 
+  <div class="max-w-7xl mx-auto space-y-6">
   @if (successMessage(); as msg) {
     <div class="p-4 bg-emerald-50 border border-emerald-200 rounded-lg text-emerald-800 text-sm flex items-center gap-2">
       <fa-icon [icon]="faCheck" class="text-emerald-600"></fa-icon>
@@ -35,7 +35,6 @@
     <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
       <div class="px-6 py-4 border-b border-gray-100 bg-gray-50">
         <h2 class="text-lg font-semibold text-gray-900">{{ 'USERS.CREATE_USER' | translate }}</h2>
-        <p class="text-sm text-gray-500 mt-0.5">{{ 'USERS.CREATE_SUBTITLE' | translate }}</p>
       </div>
       <form [formGroup]="createForm" (ngSubmit)="onSubmitCreate()" class="p-6 space-y-5">
         <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
@@ -208,10 +207,10 @@
       @if (users().length === 0) {
         <div class="p-12 text-center text-gray-500">
           <p class="font-medium">{{ 'USERS.EMPTY_TITLE' | translate }}</p>
-          <p class="text-sm mt-1">{{ 'USERS.EMPTY_SUBTITLE' | translate }}</p>
         </div>
       }
     }
+  </div>
   </div>
 </div>
 

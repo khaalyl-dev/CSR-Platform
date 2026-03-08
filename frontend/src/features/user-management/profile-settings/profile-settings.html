@@ -170,15 +170,24 @@
           <form [formGroup]="notificationForm" class="settings-list">
             <div class="settings-item settings-item--toggle">
               <span>{{ 'PROFILE_SETTINGS.NOTIFICATIONS.CSR_PLAN' | translate }}</span>
-              <p-toggleswitch formControlName="csrPlanValidation" />
+              <label class="toggle-switch">
+                <input type="checkbox" formControlName="csrPlanValidation" />
+                <span class="toggle-slider"></span>
+              </label>
             </div>
             <div class="settings-item settings-item--toggle">
               <span>{{ 'PROFILE_SETTINGS.NOTIFICATIONS.ACTIVITY_VALIDATION' | translate }}</span>
-              <p-toggleswitch formControlName="activityValidation" />
+              <label class="toggle-switch">
+                <input type="checkbox" formControlName="activityValidation" />
+                <span class="toggle-slider"></span>
+              </label>
             </div>
             <div class="settings-item settings-item--toggle">
               <span>{{ 'PROFILE_SETTINGS.NOTIFICATIONS.ACTIVITY_REMINDERS' | translate }}</span>
-              <p-toggleswitch formControlName="activityReminders" />
+              <label class="toggle-switch">
+                <input type="checkbox" formControlName="activityReminders" />
+                <span class="toggle-slider"></span>
+              </label>
             </div>
             @if (settingsError(); as msg) {
               <p class="form-message form-message--error">{{ msg }}</p>
@@ -186,9 +195,6 @@
             @if (settingsSuccess(); as msg) {
               <p class="form-message form-message--ok">{{ msg }}</p>
             }
-            <button type="button" class="btn btn-primary" (click)="onSaveNotifications()" [disabled]="savingNotifications()">
-              {{ savingNotifications() ? ('COMMON.SAVING' | translate) : ('PROFILE_SETTINGS.BUTTONS.SAVE_NOTIFICATIONS' | translate) }}
-            </button>
           </form>
         </section>
       }
@@ -223,9 +229,6 @@
             @if (settingsSuccess(); as msg) {
               <p class="form-message form-message--ok">{{ msg }}</p>
             }
-            <button type="button" class="btn btn-primary" (click)="onSavePreferences()" [disabled]="savingPreferences()">
-              {{ savingPreferences() ? ('COMMON.SAVING' | translate) : ('PROFILE_SETTINGS.BUTTONS.SAVE_PREFERENCES' | translate) }}
-            </button>
           </form>
         </section>
       }

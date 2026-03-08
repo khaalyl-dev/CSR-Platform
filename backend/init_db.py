@@ -6,7 +6,8 @@ Run this script once when setting up a new database:
     python init_db.py
 
 What it does:
-1. Creates all tables (users, sites, categories, etc.) if they don't exist
+1. Drops all existing tables
+2. Creates all tables (users, sites, categories, etc.)
 2. Adds default CSR categories (Environment, Social, Gouvernance, etc.)
 3. Adds sample users (admin@test.com, user@test.com, john@example.com)
 4. Adds sample sites (Tianjin, Durrango, etc.)
@@ -21,13 +22,16 @@ from models import User, Site, UserSite, Category
 
 def init_db():
     """
-    Initialize the database: create tables and seed with default categories, users, and sites.
+    Initialize the database: drop all tables, create them, then seed with default categories, users, and sites.
 
-    Safe to run multiple times - skips adding data that already exists.
+    WARNING: This destroys all existing data. Use for fresh setup or reset only.
     """
     # Create the Flask app so we can use db.create_all() and db.session
     app = create_app()
     with app.app_context():
+        # Drop all tables, then recreate them (fresh database)
+        db.drop_all()
+        print("✓ All tables dropped")
         # Create all tables defined in models (users, sites, categories, etc.)
         db.create_all()
         print("✓ Database tables created")

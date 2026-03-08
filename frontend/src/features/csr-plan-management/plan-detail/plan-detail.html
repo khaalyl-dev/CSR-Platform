@@ -16,8 +16,7 @@
     <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
       <div class="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 class="text-2xl font-bold text-gray-800">{{ plan()!.site_name ?? plan()!.site_code }} – {{ plan()!.year }}</h1>
-          <p class="text-gray-500 mt-1">{{ 'PLAN_DETAIL.MODE' | translate }} {{ validationModeLabel(plan()!.validation_mode) }} – {{ statusLabel(plan()!.status) }}</p>
+          <h1 class="text-2xl font-bold tracking-tight text-gray-800">{{ plan()!.site_name ?? plan()!.site_code }} – {{ plan()!.year }}</h1>
           <p *ngIf="validationStepLabel()" class="text-amber-600 text-sm font-medium mt-1">{{ validationStepLabel() }}</p>
           <p *ngIf="plan()!.unlock_until && isUnlockUntilFuture()" class="text-sm text-green-700 font-medium mt-1">
             <i class="fas fa-unlock-alt mr-1"></i>{{ 'PLAN_DETAIL.OPEN_FOR_EDIT_UNTIL' | translate }} {{ plan()!.unlock_until | date:'longDate' }} ({{ 'PLAN_DETAIL.THEN_AUTO_LOCK' | translate }})
@@ -143,15 +142,26 @@
         </ng-container>
       </div>
       <div class="overflow-x-auto">
-        <!-- Plan planifié (année en cours ou future) : colonnes activité planifiée uniquement -->
-        <table *ngIf="isPlanPlanned" class="w-full text-sm">
+        <!-- Plan planifié (année en cours ou future) : toutes les colonnes -->
+        <table *ngIf="isPlanPlanned" class="w-full text-sm min-w-[1000px]">
           <thead class="bg-gray-50 text-gray-600 uppercase text-xs whitespace-nowrap">
             <tr>
               <th class="p-3 text-left min-w-[7rem] w-28">N°</th>
+              <th class="p-3 text-left">{{ 'PLAN_DETAIL.REGION' | translate }}</th>
+              <th class="p-3 text-left">{{ 'PLAN_DETAIL.COUNTRY' | translate }}</th>
               <th class="p-3 text-left">{{ 'PLAN_DETAIL.TITLE' | translate }}</th>
               <th class="p-3 text-left max-w-[200px]">{{ 'PLAN_DETAIL.DESCRIPTION' | translate }}</th>
               <th class="p-3 text-left">{{ 'PLANNED_ACTIVITIES.CATEGORY' | translate }}</th>
+              <th class="p-3 text-left">{{ 'PLAN_DETAIL.COLLAB_NATURE' | translate }}</th>
+              <th class="p-3 text-left">{{ 'PLAN_DETAIL.ORGANISATION' | translate }}</th>
+              <th class="p-3 text-left">{{ 'PLAN_DETAIL.ORGANIZER' | translate }}</th>
+              <th class="p-3 text-left">{{ 'PLAN_DETAIL.EDITION' | translate }}</th>
+              <th class="p-3 text-left">{{ 'PLAN_DETAIL.START_YEAR' | translate }}</th>
+              <th class="p-3 text-right">{{ 'PLAN_DETAIL.VOLUNTEERS_PLANNED' | translate }}</th>
               <th class="p-3 text-right">{{ 'PLAN_DETAIL.BUDGET_PLANNED' | translate }}</th>
+              <th class="p-3 text-right">{{ 'PLAN_DETAIL.TARGET_IMPACT' | translate }}</th>
+              <th class="p-3 text-left">{{ 'PLAN_DETAIL.IMPACT_UNIT' | translate }}</th>
+              <th class="p-3 text-left">{{ 'PLAN_DETAIL.EXTERNAL_PARTNER' | translate }}</th>
               <th class="p-3 text-center w-48">{{ 'COMMON.ACTION' | translate }}</th>
             </tr>
           </thead>
@@ -166,10 +176,21 @@
                 <span *ngIf="a.modified_during_unlock && !a.added_during_unlock" class="text-xs text-amber-700 mr-1" [attr.title]="'PLAN_DETAIL.MODIFIED_TITLE' | translate">✎</span>
                 {{ a.activity_number }}
               </td>
+              <td class="p-3">{{ plan()!.site_region || '–' }}</td>
+              <td class="p-3">{{ plan()!.site_country || '–' }}</td>
               <td class="p-3">{{ a.title }}</td>
               <td class="p-3 text-gray-600 max-w-[200px] truncate" [title]="a.description">{{ a.description || '–' }}</td>
               <td class="p-3">{{ a.category_name || '–' }}</td>
+              <td class="p-3">{{ a.collaboration_nature || '–' }}</td>
+              <td class="p-3">{{ a.organization || '–' }}</td>
+              <td class="p-3">{{ a.organizer || '–' }}</td>
+              <td class="p-3">{{ a.edition != null ? a.edition : '–' }}</td>
+              <td class="p-3">{{ a.start_year != null ? a.start_year : '–' }}</td>
+              <td class="p-3 text-right">{{ a.planned_volunteers != null ? a.planned_volunteers : '–' }}</td>
               <td class="p-3 text-right">{{ a.planned_budget != null ? (a.planned_budget | number:'1.0-0') + ' €' : '–' }}</td>
+              <td class="p-3 text-right">{{ a.action_impact_target != null ? a.action_impact_target : '–' }}</td>
+              <td class="p-3">{{ a.action_impact_unit || '–' }}</td>
+              <td class="p-3">{{ a.external_partner_name || '–' }}</td>
               <td class="p-3 text-center">
                 <div class="relative flex items-center justify-center">
                   <button type="button" (click)="toggleActivityMenu($event, a.id)"
@@ -181,7 +202,7 @@
               </td>
             </tr>
             <tr *ngIf="!plan()!.activities?.length" class="border-t">
-              <td colspan="6" class="p-8 text-center text-gray-500">
+              <td colspan="16" class="p-8 text-center text-gray-500">
                 {{ 'PLAN_DETAIL.NO_ACTIVITIES_IN_PLAN' | translate }}
                 <ng-container *ngIf="canEditPlan()">
                   <button type="button" (click)="addActivity()" class="text-brand-700 hover:underline">{{ 'PLAN_DETAIL.ADD_ACTIVITY' | translate }}</button>
@@ -191,23 +212,31 @@
             </tr>
           </tbody>
         </table>
-        <!-- Plan réalisé (année passée) : toutes les colonnes -->
-        <table *ngIf="!isPlanPlanned" class="w-full text-sm min-w-[1200px]">
+        <!-- Plan réalisé (année passée) : toutes les colonnes Excel -->
+        <table *ngIf="!isPlanPlanned" class="w-full text-sm min-w-[1400px]">
           <thead class="bg-gray-50 text-gray-600 uppercase text-xs whitespace-nowrap">
             <tr>
               <th class="p-3 text-left min-w-[7rem] w-28">N°</th>
+              <th class="p-3 text-left">{{ 'PLAN_DETAIL.REGION' | translate }}</th>
+              <th class="p-3 text-left">{{ 'PLAN_DETAIL.COUNTRY' | translate }}</th>
               <th class="p-3 text-left">{{ 'PLAN_DETAIL.TITLE' | translate }}</th>
               <th class="p-3 text-left max-w-[200px]">{{ 'PLAN_DETAIL.DESCRIPTION' | translate }}</th>
               <th class="p-3 text-left">{{ 'PLANNED_ACTIVITIES.CATEGORY' | translate }}</th>
               <th class="p-3 text-left">{{ 'PLAN_DETAIL.COLLAB_NATURE' | translate }}</th>
               <th class="p-3 text-left">{{ 'PLAN_DETAIL.ORGANISATION' | translate }}</th>
               <th class="p-3 text-left">{{ 'PLAN_DETAIL.ORGANIZER' | translate }}</th>
-              <th class="p-3 text-right">{{ 'PLAN_DETAIL.BUDGET_PLANNED' | translate }}</th>
+              <th class="p-3 text-left">{{ 'PLAN_DETAIL.EDITION' | translate }}</th>
+              <th class="p-3 text-left">{{ 'PLAN_DETAIL.START_YEAR' | translate }}</th>
               <th class="p-3 text-right">{{ 'PLAN_DETAIL.VOLUNTEERS_PLANNED' | translate }}</th>
+              <th class="p-3 text-right">{{ 'PLAN_DETAIL.BUDGET_PLANNED' | translate }}</th>
               <th class="p-3 text-right">{{ 'PLAN_DETAIL.TARGET_IMPACT' | translate }}</th>
               <th class="p-3 text-left">{{ 'PLAN_DETAIL.IMPACT_UNIT' | translate }}</th>
+              <th class="p-3 text-left">{{ 'PLAN_DETAIL.EXTERNAL_PARTNER' | translate }}</th>
               <th class="p-3 text-right">{{ 'PLAN_DETAIL.BUDGET_REALIZED' | translate }}</th>
               <th class="p-3 text-right">{{ 'REALIZED.PARTICIPANTS' | translate }}</th>
+              <th class="p-3 text-right">{{ 'PLAN_DETAIL.TOTAL_HC' | translate }}</th>
+              <th class="p-3 text-right">{{ 'PLAN_DETAIL.PERCENTAGE_EMPLOYEES' | translate }}</th>
+              <th class="p-3 text-right">{{ 'PLAN_DETAIL.NUMBER_EXTERNAL_PARTNERS' | translate }}</th>
               <th class="p-3 text-right">{{ 'PLAN_DETAIL.IMPACT_REALIZED' | translate }}</th>
               <th class="p-3 text-left">{{ 'PLAN_DETAIL.UNIT_REALIZED' | translate }}</th>
               <th class="p-3 text-center">{{ 'PLAN_DETAIL.REALIZATIONS' | translate }}</th>
@@ -225,18 +254,26 @@
                 <span *ngIf="a.modified_during_unlock && !a.added_during_unlock" class="text-xs text-amber-700 mr-1" [attr.title]="'PLAN_DETAIL.MODIFIED_TITLE' | translate">✎</span>
                 {{ a.activity_number }}
               </td>
+              <td class="p-3">{{ plan()!.site_region || '–' }}</td>
+              <td class="p-3">{{ plan()!.site_country || '–' }}</td>
               <td class="p-3">{{ a.title }}</td>
               <td class="p-3 text-gray-600 max-w-[200px] truncate" [title]="a.description">{{ a.description || '–' }}</td>
               <td class="p-3">{{ a.category_name || '–' }}</td>
               <td class="p-3">{{ a.collaboration_nature || '–' }}</td>
               <td class="p-3">{{ a.organization || '–' }}</td>
               <td class="p-3">{{ a.organizer || '–' }}</td>
-              <td class="p-3 text-right">{{ a.planned_budget != null ? (a.planned_budget | number:'1.0-0') + ' €' : '–' }}</td>
+              <td class="p-3">{{ a.edition != null ? a.edition : '–' }}</td>
+              <td class="p-3">{{ a.start_year != null ? a.start_year : '–' }}</td>
               <td class="p-3 text-right">{{ a.planned_volunteers != null ? a.planned_volunteers : '–' }}</td>
+              <td class="p-3 text-right">{{ a.planned_budget != null ? (a.planned_budget | number:'1.0-0') + ' €' : '–' }}</td>
               <td class="p-3 text-right">{{ a.action_impact_target != null ? a.action_impact_target : '–' }}</td>
               <td class="p-3">{{ a.action_impact_unit || '–' }}</td>
+              <td class="p-3">{{ a.external_partner_name || '–' }}</td>
               <td class="p-3 text-right">{{ a.realized_budget != null ? (a.realized_budget | number:'1.0-0') + ' €' : '–' }}</td>
               <td class="p-3 text-right">{{ a.participants != null ? a.participants : '–' }}</td>
+              <td class="p-3 text-right">{{ a.total_hc != null ? a.total_hc : '–' }}</td>
+              <td class="p-3 text-right">{{ a.percentage_employees != null ? (a.percentage_employees | number:'1.0-2') + '%' : '–' }}</td>
+              <td class="p-3 text-right">{{ a.number_external_partners != null ? a.number_external_partners : '–' }}</td>
               <td class="p-3 text-right">{{ a.action_impact_actual != null ? a.action_impact_actual : '–' }}</td>
               <td class="p-3">{{ a.action_impact_unit_realized || '–' }}</td>
               <td class="p-3 text-center">{{ a.realization_count ?? 0 }}</td>
@@ -251,7 +288,7 @@
               </td>
             </tr>
             <tr *ngIf="!plan()!.activities?.length" class="border-t">
-              <td colspan="17" class="p-8 text-center text-gray-500">
+              <td colspan="25" class="p-8 text-center text-gray-500">
                 {{ 'PLAN_DETAIL.NO_ACTIVITIES_IN_PLAN' | translate }}
                 <ng-container *ngIf="canEditPlan()">
                   <button type="button" (click)="addActivity()" class="text-brand-700 hover:underline">{{ 'PLAN_DETAIL.ADD_ACTIVITY' | translate }}</button>

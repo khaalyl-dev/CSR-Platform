@@ -94,3 +94,8 @@ class CsrActivity(db.Model):
         foreign_keys=[plan_id],
     )
     category = db.relationship("Category", backref=db.backref("csr_activities", lazy="dynamic"))
+    external_partner = db.relationship(
+        "ExternalPartner",
+        foreign_keys=[external_partner_id],
+        backref=db.backref("csr_activities", lazy="dynamic"),
+    )

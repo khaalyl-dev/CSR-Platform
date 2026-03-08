@@ -11,7 +11,7 @@ from datetime import datetime
 from flask import Blueprint, request, jsonify
 
 from core import db, token_required
-from models import CsrPlan, CsrActivity, RealizedCsr, Site, Category, UserSite, Document, User
+from models import CsrPlan, CsrActivity, RealizedCsr, Site, Category, ExternalPartner, UserSite, Document, User
 from .excel_import import parse_excel_rows
 
 # Same media root as file_management so downloads work (project root/frontend/src/media)
@@ -72,6 +72,28 @@ def _resolve_category_cached(name: str, category_cache: dict, created_cats: dict
     category_cache[key] = cat
     created_cats[key] = cat
     return cat
+
+
+def _resolve_external_partner_cached(name: str, partner_cache: dict, created_partners: dict):
+    """Resolve external partner from cache. Create if not found and cache it (type=OTHER)."""
+    if not name or not str(name).strip():
+        return None
+    n = str(name).strip()
+    key = n.lower()
+    if key in partner_cache:
+        return partner_cache[key]
+    partner = ExternalPartner.query.filter(db.func.lower(ExternalPartner.name) == key).first()
+    if partner:
+        partner_cache[key] = partner
+        return partner
+    if key in created_partners:
+        return created_partners[key]
+    partner = ExternalPartner(name=n, type="OTHER")
+    db.session.add(partner)
+    db.session.flush()
+    partner_cache[key] = partner
+    created_partners[key] = partner
+    return partner
 
 
 def _safe_int(val):
@@ -312,6 +334,8 @@ def import_excel():
         site_cache = _build_site_cache()
         category_cache = {}  # name_lower -> Category
         created_cats = {}
+        external_partner_cache = {}  # name_lower -> ExternalPartner
+        created_partners = {}
         activity_numbers_cache = {}  # plan_id -> {activity_number -> activity}
 
         for i, row in enumerate(rows):
@@ -383,6 +407,21 @@ def import_excel():
             existing_act = activity_numbers_cache[plan.id].get(activity_number)
             if existing_act:
                 activity = existing_act
+                # Update planned volunteers, impact target, impact unit, external partner when present in row
+                pv = _safe_int(row.get("planned_volunteers"))
+                it = _safe_float(row.get("impact_target"))
+                iu = _safe_str(row.get("impact_unit"), 100)
+                ep_name = _safe_str(row.get("external_partner"), 255)
+                if pv is not None or it is not None or iu is not None or ep_name is not None:
+                    if pv is not None:
+                        activity.planned_volunteers = pv
+                    if it is not None:
+                        activity.action_impact_target = it
+                    if iu is not None:
+                        activity.action_impact_unit = iu
+                    if ep_name is not None:
+                        ep = _resolve_external_partner_cached(ep_name, external_partner_cache, created_partners)
+                        activity.external_partner_id = ep.id if ep else None
             else:
                 collab_raw = _safe_str(row.get("collaboration_nature"), 50)
                 collab = None
@@ -396,6 +435,8 @@ def import_excel():
                         collab = "SPONSORSHIP"
                     else:
                         collab = "OTHERS"
+                ep_name = _safe_str(row.get("external_partner"), 255)
+                ep = _resolve_external_partner_cached(ep_name, external_partner_cache, created_partners) if ep_name else None
                 activity = CsrActivity(
                     plan_id=plan.id,
                     category_id=category.id,
@@ -407,6 +448,11 @@ def import_excel():
                     contract_type=_safe_str(row.get("contract_type"), 30) or "ONE_SHOT",
                     collaboration_nature=collab,
                     organizer=_safe_str(row.get("organizer"), 255),
+                    edition=_safe_int(row.get("edition")),
+                    planned_volunteers=_safe_int(row.get("planned_volunteers")),
+                    action_impact_target=_safe_float(row.get("impact_target")),
+                    action_impact_unit=_safe_str(row.get("impact_unit"), 100),
+                    external_partner_id=ep.id if ep else None,
                     status="DRAFT",
                 )
                 db.session.add(activity)
@@ -427,6 +473,8 @@ def import_excel():
                     month=min(12, max(1, real_month)),
                     realized_budget=real_budget,
                     participants=participants,
+                    total_hc=_safe_int(row.get("total_hc")),
+                    percentage_employees=_safe_float(row.get("percentage_employees")),
                     action_impact_actual=impact_actual,
                     action_impact_unit=_safe_str(row.get("impact_unit"), 100),
                     volunteer_hours=_safe_float(row.get("volunteer_hours")),

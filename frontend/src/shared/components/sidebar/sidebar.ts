@@ -1,12 +1,12 @@
-import { Component, inject, computed } from '@angular/core';
+import { Component, inject, computed, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule, Router } from '@angular/router';
+import { TranslateModule, TranslateService } from '@ngx-translate/core';
 import { AuthStore } from '@core/services/auth-store';
 import { AuthService } from '@core/services/auth.service';
 import { SidebarService } from '@core/services/sidebar.service';
 import { navItems, type NavSection, type NavItem } from './nav-config';
 import { FontAwesomeModule } from '@fortawesome/angular-fontawesome';
-import { TranslateModule } from '@ngx-translate/core';
 
 @Component({
   selector: 'app-sidebar',
@@ -15,17 +15,21 @@ import { TranslateModule } from '@ngx-translate/core';
   templateUrl: './sidebar.html',
   styleUrls: ['./sidebar.css']
 })
-export class Sidebar {
+export class Sidebar implements OnDestroy {
   private authStore = inject(AuthStore);
   private authService = inject(AuthService);
   private router = inject(Router);
+  private translate = inject(TranslateService);
   sidebarService = inject(SidebarService);
 
   isCollapsed = this.sidebarService.isCollapsed;
+  avatarDisplayUrl = this.authStore.avatarDisplayUrl;
 
   constructor() {
     this.sidebarService.initFromStorage();
   }
+
+  ngOnDestroy(): void {}
 
   filteredNavItems = computed(() => {
     const role = this.authStore.userRole();
@@ -53,6 +57,20 @@ export class Sidebar {
 
   trackByItem(index: number, item: NavItem) {
     return item.path;
+  }
+
+  userInitials(): string {
+    const u = this.authStore.user();
+    if (!u?.email) return '?';
+    const local = u.email.split('@')[0] || '';
+    return local.slice(0, 2).toUpperCase() || '?';
+  }
+
+  roleLabel(role?: 'site' | 'corporate' | null): string {
+    if (!role) return '';
+    return role === 'corporate'
+      ? this.translate.instant('PROFILE_SETTINGS.ACCOUNT.CORPORATE_USER')
+      : this.translate.instant('PROFILE_SETTINGS.ACCOUNT.SITE_USER');
   }
 
   logout() {

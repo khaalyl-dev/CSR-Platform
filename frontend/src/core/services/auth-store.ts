@@ -52,8 +52,16 @@ export class AuthStore {
 
   readonly token = signal<string | null>(AuthStore.initialToken);
   readonly user = signal<User | null>(AuthStore.initialUser);
+  /** Display-ready avatar URL (blob URL) – set by profile settings after successful fetch. */
+  readonly avatarDisplayUrl = signal<string | null>(null);
   readonly isAuthenticated = computed(() => !!this.token());
   readonly userRole = computed(() => this.user()?.role ?? null);
+
+  setAvatarDisplayUrl(url: string | null): void {
+    const prev = this.avatarDisplayUrl();
+    if (prev) URL.revokeObjectURL(prev);
+    this.avatarDisplayUrl.set(url);
+  }
 
   setAuth(token: string, user: User, remember = true): void {
     this.token.set(token);
@@ -69,6 +77,9 @@ export class AuthStore {
   }
 
   clearAuth(): void {
+    const prev = this.avatarDisplayUrl();
+    if (prev) URL.revokeObjectURL(prev);
+    this.avatarDisplayUrl.set(null);
     this.token.set(null);
     this.user.set(null);
     this.clearStorage();

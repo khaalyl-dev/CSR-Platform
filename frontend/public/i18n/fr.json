@@ -61,7 +61,15 @@
     "REALIZATIONS": "Réalisations",
     "MODIFIED_TITLE": "Modifié",
     "ACTIONS_TITLE": "Action",
-    "VIEW_PLAN": "Voir le plan"
+    "VIEW_PLAN": "Voir le plan",
+    "EDITION": "Édition",
+    "START_YEAR": "Année début",
+    "EXTERNAL_PARTNER": "Partenaire externe",
+    "REGION": "Région",
+    "COUNTRY": "Pays",
+    "TOTAL_HC": "Effectif total",
+    "PERCENTAGE_EMPLOYEES": "% employés",
+    "NUMBER_EXTERNAL_PARTNERS": "Nb partenaires externes"
   },
   "LANGUAGES": {
     "ENGLISH": "Anglais",
@@ -150,23 +158,32 @@
       "CSR_MANAGEMENT": "Gestion CSR",
       "WORKFLOW": "Workflow",
       "ADMINISTRATION": "Administration",
-      "ACCOUNT": "Compte"
+      "ACCOUNT": "Compte",
+      "PLANS_ACTIVITIES": "Plans & activités",
+      "APPROVALS": "Approbations",
+      "SETTINGS": "Paramètres"
     },
     "ITEMS": {
       "OVERVIEW": "Vue générale",
+      "DASHBOARD": "Tableau de bord",
+      "PLAN_VALIDATION": "Validation des plans",
+      "REQUEST_HISTORY": "Historique des demandes",
+      "MY_PROFILE": "Mon profil",
+      "ANNUAL_PLANS": "Plans annuels",
       "ANNUAL_PLANS": "Plans annuels",
       "PLANNED_ACTIVITIES": "Activités planifiées",
-      "REALIZED_ACTIVITIES": "Activités réalisées",
+      "REALIZED_ACTIVITIES": "Réalisations",
       "DOCUMENTS": "Documents",
-      "PLAN_VALIDATION": "Validation des plans",
+      "VALIDATE_PLANS": "Valider les plans",
       "MY_REQUESTS": "Mes demandes",
       "PENDING_REQUESTS": "Demandes en attente",
-      "REQUEST_HISTORY": "Historique des demandes",
+      "CHANGE_HISTORY": "Historique des modifications",
       "SITES": "Sites",
-      "CSR_CATEGORIES": "Catégories CSR",
+      "CSR_CATEGORIES": "Gestion des catégories",
       "USERS": "Utilisateurs",
       "AUDIT_LOG": "Journal d'audit",
-      "MY_PROFILE": "Mon profil",
+      "MY_PROFILE": "Profil",
+      "SIGN_OUT": "Déconnexion",
       "REPORTS": "Rapports",
       "SETTINGS": "Paramètres"
     }
@@ -357,7 +374,7 @@
     }
   },
   "CATEGORIES": {
-    "TITLE": "Gestion des catégories CSR",
+    "TITLE": "Gestion des catégories",
     "SUBTITLE": "Catégories d'activités (Environnement, Social, etc.)",
     "NEW_CATEGORY": "Nouvelle catégorie",
     "CATEGORIES_COUNT": "Catégories ({{n}})",
@@ -365,7 +382,20 @@
     "PLACEHOLDER_NAME": "ex. Biodiversité, Santé...",
     "ADD_BUTTON": "Ajouter",
     "EMPTY_MESSAGE": "Aucune catégorie. Cliquez sur « Nouvelle catégorie » pour en ajouter une.",
-    "LOAD_ERROR": "Impossible de charger les catégories."
+    "LOAD_ERROR": "Impossible de charger les catégories.",
+    "DELETE": "Supprimer",
+    "DELETE_TITLE": "Supprimer la catégorie",
+    "DELETE_CONFIRM": "Voulez-vous vraiment supprimer « {{name}} » ?",
+    "RELATED_ACTIVITIES": "Activités liées ({{n}})",
+    "RELATED_ACTIVITIES_EMPTY": "Aucune activité n'utilise cette catégorie.",
+    "DELETE_RELATED_LABEL": "Supprimer aussi les activités liées",
+    "DELETE_RELATED_HINT": "Seules les activités dont le plan est modifiable seront supprimées. Les autres seront réassignées à « Uncategorized ».",
+    "DELETE_BUTTON": "Supprimer la catégorie",
+    "DELETE_SUCCESS": "Catégorie supprimée.",
+    "DELETE_REASSIGNED": "{{n}} activité(s) réassignée(s) à Uncategorized.",
+    "DELETE_DELETED": "{{n}} activité(s) supprimée(s).",
+    "PLAN_LOCKED": "Validé / verrouillé",
+    "PLAN_EDITABLE": "Modifiable"
   },
   "AUDIT_LOG": {
     "TITLE": "Journal d'audit",
@@ -706,7 +736,7 @@
     "PDF_PREVIEW_TITLE": "Aperçu PDF",
     "LIST_TITLE": "Mes demandes de modification",
     "LIST_SUBTITLE": "Demandes de déverrouillage de plans validés",
-    "LIST_EMPTY": "Aucune demande. Pour en créer une, ouvrez un plan validé et cliquez sur l'icône cadenas.",
+    "LIST_EMPTY": "Aucune demande de modification",
     "LIST_VIEW_PLANS": "Voir les plans annuels",
     "CREATE_BACK": "Retour",
     "CREATE_TITLE": "Demande de modification",
@@ -1029,6 +1059,7 @@
     }
   },
   "SITES": {
+    "TITLE": "Gestion des sites",
     "CREATE_SITE": "Créer un site",
     "NEW_SITE": "Nouveau site",
     "SITE_INFO": "Informations du site",

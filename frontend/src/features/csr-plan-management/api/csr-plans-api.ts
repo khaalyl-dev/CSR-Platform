@@ -19,12 +19,18 @@ export interface CsrPlanActivityDetail {
   organization?: string;
   contract_type?: string;
   organizer?: string;
+  edition?: number | null;
+  start_year?: number | null;
+  external_partner_name?: string | null;
   planned_budget?: number | null;
   planned_volunteers?: number | null;
   action_impact_target?: number | null;
   action_impact_unit?: string;
   realized_budget?: number | null;
   participants?: number | null;
+  total_hc?: number | null;
+  percentage_employees?: number | null;
+  number_external_partners?: number | null;
   action_impact_actual?: number | null;
   action_impact_unit_realized?: string;
   realization_count?: number;

@@ -1,11 +1,8 @@
-<div class="min-h-screen bg-gray-50">
-  <!-- Header: title + filters only -->
-  <header class=" px-6 py-4 ">
-    <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-      <div>
-        <h1 class="text-2xl font-bold tracking-tight text-gray-800">{{ 'BREADCRUMB.DASHBOARD' | translate }}</h1>
-        <p class="mt-0.5 text-sm text-gray-500">{{ 'DASHBOARD.SUBTITLE' | translate }}</p>
-      </div>
+<div class="p-8 bg-gray-50 min-h-screen">
+  <div class="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+    <div>
+      <h1 class="text-2xl font-bold tracking-tight text-gray-800">{{ 'BREADCRUMB.DASHBOARD' | translate }}</h1>
+    </div>
       <div class="flex flex-wrap items-center gap-4">
         <!-- Year -->
         <div class="relative w-[140px] flex-shrink-0">
@@ -83,10 +80,9 @@
           {{ 'DASHBOARD.QUICK_ACTIONS.EXPORT_CSR_REPORT' | translate }}
         </button>
       </div>
-    </div>
-  </header>
+  </div>
 
-  <main class="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
+  <main class="mx-auto max-w-7xl">
     @if (errorMessage()) {
       <div class="mb-6 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">
         {{ errorMessage() }}

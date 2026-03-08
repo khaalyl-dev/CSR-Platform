@@ -1,10 +1,11 @@
 import { CommonModule } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
 import { Component, OnDestroy, OnInit, effect, inject, signal, untracked } from '@angular/core';
+import { Subject } from 'rxjs';
+import { debounceTime, skip, takeUntil } from 'rxjs/operators';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { FontAwesomeModule } from '@fortawesome/angular-fontawesome';
 import { TranslateModule } from '@ngx-translate/core';
-import { ToggleSwitchModule } from 'primeng/toggleswitch';
 import {
   faBell,
   faCalendarCheck,
@@ -18,6 +19,7 @@ import {
   faMessage,
   faUserCog,
 } from '@fortawesome/free-solid-svg-icons';
+import { AuthStore } from '@core/services/auth-store';
 import { I18nService } from '@core/services/i18n.service';
 import { ThemeService } from '@core/services/theme.service';
 import { AuthApi, type ProfileResponse } from '../login/auth-api';
@@ -38,12 +40,13 @@ const COUNTRY_PREFIXES: CountryPrefix[] = ((allCountriesData as { countries?: Ar
 @Component({
   selector: 'app-profile-settings',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, FontAwesomeModule, TranslateModule, ToggleSwitchModule],
+  imports: [CommonModule, ReactiveFormsModule, FontAwesomeModule, TranslateModule],
   templateUrl: './profile-settings.html',
   styleUrl: './profile-settings.css',
 })
 export class ProfileSettingsComponent implements OnInit, OnDestroy {
   private readonly authApi = inject(AuthApi);
+  private readonly authStore = inject(AuthStore);
   private readonly i18n = inject(I18nService);
   private readonly theme = inject(ThemeService);
   private readonly fb = inject(FormBuilder);
@@ -80,6 +83,7 @@ export class ProfileSettingsComponent implements OnInit, OnDestroy {
   avatarBlobUrl = signal<string | null>(null);
   activeTab = signal<SettingsTab>('profile');
   countryPrefixes = COUNTRY_PREFIXES;
+  private readonly destroyed$ = new Subject<void>();
 
   profileForm = this.fb.group({
     first_name: ['', [Validators.required, Validators.maxLength(255)]],
@@ -111,15 +115,25 @@ export class ProfileSettingsComponent implements OnInit, OnDestroy {
       const p = this.profile();
       const prev = untracked(() => this.avatarBlobUrl());
       if (prev) {
-        URL.revokeObjectURL(prev);
-        untracked(() => this.avatarBlobUrl.set(null));
+        untracked(() => {
+          this.avatarBlobUrl.set(null);
+          this.authStore.setAvatarDisplayUrl(null);
+        });
       }
       if (p?.avatar_url) {
         const sep = p.avatar_url.includes('?') ? '&' : '?';
         this.http.get(`${p.avatar_url}${sep}t=${Date.now()}`, { responseType: 'blob' }).subscribe({
-          next: (blob) => untracked(() => this.avatarBlobUrl.set(URL.createObjectURL(blob))),
+          next: (blob) => {
+            const blobUrl = URL.createObjectURL(blob);
+            untracked(() => {
+              this.avatarBlobUrl.set(blobUrl);
+              this.authStore.setAvatarDisplayUrl(blobUrl);
+            });
+          },
           error: () => {},
         });
+      } else {
+        this.authStore.setAvatarDisplayUrl(null);
       }
     });
     effect(() => {
@@ -130,11 +144,19 @@ export class ProfileSettingsComponent implements OnInit, OnDestroy {
 
   ngOnInit(): void {
     this.loadProfile();
+    this.notificationForm.valueChanges
+      .pipe(skip(1), debounceTime(400), takeUntil(this.destroyed$))
+      .subscribe(() => this.onSaveNotifications());
+    this.preferencesForm.valueChanges
+      .pipe(skip(1), debounceTime(400), takeUntil(this.destroyed$))
+      .subscribe(() => this.onSavePreferences());
   }
 
   ngOnDestroy(): void {
-    const url = this.avatarBlobUrl();
-    if (url) URL.revokeObjectURL(url);
+    this.destroyed$.next();
+    this.destroyed$.complete();
+    this.avatarBlobUrl.set(null);
+    /* Do not revoke – avatar blob URL is shared with AuthStore for sidebar display. */
   }
 
   loadProfile(): void {

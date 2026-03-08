@@ -73,11 +73,6 @@ export class PlannedActivityEditComponent implements OnInit, OnDestroy {
     return this.translate.instant(key);
   }
 
-  get pageSubtitle(): string {
-    const key = this.isPlanRealized ? 'PLANNED_ACTIVITY_EDIT.PAGE_SUBTITLE_REALIZED' : 'PLANNED_ACTIVITY_EDIT.PAGE_SUBTITLE_PLANNED';
-    return this.translate.instant(key);
-  }
-
   ngOnInit(): void {
     this.form = this.fb.group({
       category_id: ['', Validators.required],
