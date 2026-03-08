@@ -38,6 +38,8 @@ export interface CsrPlanActivityDetail {
   added_during_unlock?: boolean;
   /** True if this activity was modified during the last change-request unlock period. */
   modified_during_unlock?: boolean;
+  /** True if this activity can be edited (plan or activity individually unlocked). */
+  activity_editable?: boolean;
 }
 
 export interface CsrPlanDetail extends CsrPlan {

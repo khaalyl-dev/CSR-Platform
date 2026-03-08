@@ -23,6 +23,10 @@ export class ChangeRequestCreateComponent implements OnInit {
   private location = inject(Location);
 
   plan = signal<CsrPlanDetail | null>(null);
+  /** When set, this is an activity-level change request. */
+  activityId = signal<string | null>(null);
+  /** Activity label for display (e.g. "CSR-1 – Title"). */
+  activityLabel = signal<string>('');
   loading = signal(true);
   error = signal('');
   reason = signal('');
@@ -34,17 +38,25 @@ export class ChangeRequestCreateComponent implements OnInit {
 
   ngOnInit(): void {
     const planId = this.route.snapshot.queryParamMap.get('planId') ?? this.route.snapshot.paramMap.get('planId');
+    const activityId = this.route.snapshot.queryParamMap.get('activityId') ?? null;
     if (!planId) {
       this.error.set('Identifiant du plan manquant.');
       this.loading.set(false);
       return;
     }
+    this.activityId.set(activityId);
     this.csrPlansApi.get(planId).subscribe({
       next: (p) => {
         if (p.status !== 'VALIDATED') {
           this.error.set('Seuls les plans validés peuvent faire l\'objet d\'une demande de modification.');
         } else {
           this.plan.set(p);
+          if (activityId && p.activities) {
+            const act = p.activities.find((a) => a.id === activityId);
+            if (act) {
+              this.activityLabel.set(`${act.activity_number ?? act.id} – ${act.title ?? ''}`);
+            }
+          }
         }
         this.loading.set(false);
       },
@@ -109,11 +121,11 @@ export class ChangeRequestCreateComponent implements OnInit {
     this.error.set('');
     this.durationError.set('');
     this.submitting.set(true);
-    this.changeRequestsApi.create({
-      plan_id: p.id,
-      reason,
-      requested_duration: days,
-    }).subscribe({
+    const aid = this.activityId();
+    const payload = aid
+      ? { activity_id: aid, reason, requested_duration: days }
+      : { plan_id: p.id, reason, requested_duration: days };
+    this.changeRequestsApi.create(payload).subscribe({
       next: (cr) => {
         const fileList = this.files();
         if (fileList.length === 0) {

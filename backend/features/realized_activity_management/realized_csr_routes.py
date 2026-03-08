@@ -28,10 +28,22 @@ def _plan_is_editable(plan: CsrPlan) -> bool:
     return False
 
 
+def _activity_is_editable(activity: CsrActivity) -> bool:
+    """True if this activity can be edited: plan editable OR activity individually unlocked."""
+    if not activity or not activity.plan:
+        return False
+    if _plan_is_editable(activity.plan):
+        return True
+    unlock_until = getattr(activity, "unlock_until", None)
+    if unlock_until and datetime.utcnow() <= unlock_until:
+        return True
+    return False
+
+
 def _realized_to_json(r: RealizedCsr):
     act = r.activity
     plan = act.plan if act else None
-    plan_editable = _plan_is_editable(plan) if plan else False
+    plan_editable = _activity_is_editable(act) if act else (plan and _plan_is_editable(plan))
     return {
         "id": r.id,
         "activity_id": r.activity_id,
@@ -158,8 +170,7 @@ def create_realized():
     if allowed is not None and activity_id not in allowed:
         return jsonify({"message": "Vous n'avez pas accès à cette activité"}), 403
 
-    plan = activity.plan
-    if not plan or not _plan_is_editable(plan):
+    if not _activity_is_editable(activity):
         return jsonify({
             "message": "Le plan de cette activité est verrouillé. Soumettez une demande de modification pour ouvrir le plan avant d'ajouter une réalisation."
         }), 403
@@ -245,8 +256,7 @@ def update_realized(realized_id: str):
     allowed = _allowed_activity_ids(request.user_id, getattr(request, "role", ""))
     if allowed is not None and r.activity_id not in allowed:
         return jsonify({"message": "Vous n'avez pas accès à cette réalisation"}), 403
-    plan = r.activity.plan if r.activity else None
-    if not plan or not _plan_is_editable(plan):
+    if not _activity_is_editable(r.activity):
         return jsonify({
             "message": "Le plan est verrouillé. Soumettez une demande de modification pour modifier cette réalisation."
         }), 403
@@ -334,8 +344,7 @@ def delete_realized(realized_id: str):
     allowed = _allowed_activity_ids(request.user_id, getattr(request, "role", ""))
     if allowed is not None and r.activity_id not in allowed:
         return jsonify({"message": "Vous n'avez pas accès à cette réalisation"}), 403
-    plan = r.activity.plan if r.activity else None
-    if not plan or not _plan_is_editable(plan):
+    if not _activity_is_editable(r.activity):
         return jsonify({
             "message": "Le plan est verrouillé. Soumettez une demande de modification pour supprimer cette réalisation."
         }), 403

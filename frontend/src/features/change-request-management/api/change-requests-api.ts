@@ -10,6 +10,9 @@ export interface ChangeRequestWithDocs extends ChangeRequest {
   documents?: { id: string; file_name: string; file_path: string; file_type: string; uploaded_at: string | null }[];
   plan_site_name?: string;
   plan_year?: number;
+  plan_id?: string;
+  activity_title?: string;
+  activity_number?: string;
   requested_by_name?: string;
   requested_duration?: string | null;
   reviewed_by_name?: string;
@@ -22,7 +25,7 @@ export class ChangeRequestsApi {
 
   constructor(private http: HttpClient) {}
 
-  create(payload: { plan_id: string; reason: string; requested_duration?: number }): Observable<ChangeRequestWithDocs> {
+  create(payload: { plan_id?: string; activity_id?: string; reason: string; requested_duration?: number }): Observable<ChangeRequestWithDocs> {
     return this.http.post<ChangeRequestWithDocs>(`${this.apiUrl}/change-requests`, payload);
   }
 

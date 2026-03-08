@@ -22,10 +22,14 @@
       <div class="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
         <div>
           <p class="text-gray-500 uppercase tracking-wider text-xs">{{ 'CHANGE_REQUEST.PLAN_CONCERNED' | translate }}</p>
-          <a *ngIf="request()!.entity_id" [routerLink]="['/csr-plans', request()!.entity_id]"
+          <a *ngIf="planIdForLink()" [routerLink]="['/csr-plans', planIdForLink()]"
             class="text-brand-700 hover:underline font-medium">
             {{ request()!.plan_site_name ?? request()!.site_name ?? request()!.site_id }} – {{ request()!.plan_year ?? request()!.year }}
           </a>
+          <p *ngIf="request()!.entity_type === 'ACTIVITY' && (request()!.activity_title || request()!.activity_number)"
+            class="mt-1 text-sm text-gray-600">
+            {{ 'CHANGE_REQUEST.CREATE_ACTIVITY_LABEL' | translate }}: {{ request()!.activity_number }} – {{ request()!.activity_title }}
+          </p>
         </div>
         <div>
           <p class="text-gray-500 uppercase tracking-wider text-xs">{{ 'CHANGE_REQUEST.REQUESTER' | translate }}</p>

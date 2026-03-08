@@ -170,7 +170,12 @@
                 class="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">
                 <i class="fas fa-ellipsis-vertical text-sm"></i>
               </button>
-              <span *ngIf="!r.plan_editable" class="p-2 text-gray-400 cursor-default" [attr.title]="'PLAN_LOCKED_TITLE' | translate">
+              <button *ngIf="canRequestChange(r)" type="button" (click)="toggleRequestChangeMenu(r, $event)"
+                class="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                [attr.title]="'CHANGE_REQUEST.REQUEST_ACTIVITY_CHANGE' | translate">
+                <i class="fas fa-lock-open text-sm"></i>
+              </button>
+              <span *ngIf="!r.plan_editable && !canRequestChange(r)" class="p-2 text-gray-400 cursor-default" [attr.title]="'PLAN_LOCKED_TITLE' | translate">
                 <i class="fas fa-lock text-sm"></i>
               </span>
             </div>
@@ -182,6 +187,19 @@
       </tbody>
     </table>
   </div>
+</div>
+
+<!-- Dropdown 3 points (Request change) - when plan locked and VALIDATED -->
+<div *ngIf="activeRequestChangeRealized"
+  class="fixed bg-white border border-gray-200 rounded-xl shadow-xl z-[9999] w-56 py-1 overflow-hidden"
+  [style.top.px]="menuPosition.top"
+  [style.left.px]="menuPosition.left"
+  (click)="$event.stopPropagation()">
+  <button (click)="goToChangeRequest(activeRequestChangeRealized!)"
+    class="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors">
+    <i class="fas fa-lock-open w-4 text-center text-brand-700"></i>
+    {{ 'CHANGE_REQUEST.REQUEST_ACTIVITY_CHANGE' | translate }}
+  </button>
 </div>
 
 <!-- Dropdown 3 points (Modifier, Supprimer) - only when plan_editable -->

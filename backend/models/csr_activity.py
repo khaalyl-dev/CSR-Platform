@@ -87,6 +87,14 @@ class CsrActivity(db.Model):
         db.DateTime, default=db.func.now(), onupdate=db.func.now(),
         comment="Dernière mise à jour"
     )
+    unlock_until = db.Column(
+        db.DateTime, nullable=True,
+        comment="Date limite de modification (après approbation d'une demande de modification activité); au-delà l'activité redevient verrouillée"
+    )
+    unlock_since = db.Column(
+        db.DateTime, nullable=True,
+        comment="Date de début de la dernière ouverture (approbation demande de modification activité)"
+    )
 
     plan = db.relationship(
         "CsrPlan",

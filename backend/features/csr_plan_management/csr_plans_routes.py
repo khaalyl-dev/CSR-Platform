@@ -431,9 +431,23 @@ def get_plan(plan_id):
 
     from models import CsrActivity, RealizedCsr
     activities = CsrActivity.query.filter_by(plan_id=plan.id).order_by(CsrActivity.activity_number).all()
+    # Clear expired activity-level unlocks
+    for a in activities:
+        au = getattr(a, "unlock_until", None)
+        if au and now > au:
+            a.unlock_until = None
+            a.unlock_since = None
+    db.session.commit()
     out = _plan_to_json(plan)
     role_str = (getattr(request, "role", "") or "").upper()
     out["can_approve"] = out["can_reject"] = _compute_can_approve(plan, request.user_id, role_str)
+
+    def _activity_is_editable(a):
+        """True if activity can be edited: plan editable OR activity individually unlocked."""
+        if _plan_is_editable(plan):
+            return True
+        unlock_until = getattr(a, "unlock_until", None)
+        return unlock_until is not None and now <= unlock_until
 
     # Reference: timestamp when the change request was approved (validation approved) for this plan.
     # We compare this with each activity's created_at and updated_at from csr_activities.
@@ -508,6 +522,7 @@ def get_plan(plan_id):
             "realization_count": len(realizations),
             "added_during_unlock": added_during_unlock,
             "modified_during_unlock": modified_during_unlock,
+            "activity_editable": _activity_is_editable(a),
         })
     return jsonify(out), 200
 

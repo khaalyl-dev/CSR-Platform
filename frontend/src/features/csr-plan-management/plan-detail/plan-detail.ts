@@ -118,6 +118,14 @@ export class PlanDetailComponent implements OnInit, OnDestroy {
     return this.translate.instant('PLAN_DETAIL.SUBMIT_FOR_VALIDATION');
   }
 
+  /** True if this specific activity can be edited (plan editable or activity individually unlocked). */
+  canEditActivity(activityId: string): boolean {
+    const p = this.plan();
+    if (!p?.activities) return false;
+    const a = p.activities.find((x) => x.id === activityId);
+    return a?.activity_editable ?? false;
+  }
+
   /** True if plan can be edited: DRAFT/REJECTED (and not past unlock_until), or VALIDATED with unlock_until in the future. */
   canEditPlan(): boolean {
     const p = this.plan();
@@ -316,6 +324,18 @@ export class PlanDetailComponent implements OnInit, OnDestroy {
 
   goToChangeRequest(planId: string): void {
     this.router.navigate(['/changes/create'], { queryParams: { planId } });
+  }
+
+  /** Navigate to change request create for a specific activity (plan must be VALIDATED and locked). */
+  goToChangeRequestForActivity(planId: string, activityId: string): void {
+    this.closeActivityMenu();
+    this.router.navigate(['/changes/create'], { queryParams: { planId, activityId } });
+  }
+
+  /** True if user can request a change for the plan or an activity (plan validated and locked). */
+  canRequestChange(): boolean {
+    const p = this.plan();
+    return !!(p && p.status === 'VALIDATED' && !this.isUnlockUntilFuture());
   }
 
   @HostListener('document:click')

@@ -6,7 +6,7 @@ Change requests endpoints.
 """
 from flask import Blueprint, jsonify, request
 from core import db, token_required, role_required
-from models import ChangeRequest, CsrPlan, Document, UserSite
+from models import ChangeRequest, CsrActivity, CsrPlan, Document, UserSite
 from features.notification_management.notification_helper import notify_corporate, notify_user
 from features.audit_history_management.audit_helper import write_audit
 
@@ -54,6 +54,15 @@ def _change_request_to_json(cr: ChangeRequest, include_documents=False):
         if plan:
             out["plan_site_name"] = plan.site.name if plan.site else None
             out["plan_year"] = plan.year
+    # Activity summary when entity_type is ACTIVITY
+    if cr.entity_type == "ACTIVITY" and cr.entity_id:
+        activity = CsrActivity.query.get(cr.entity_id)
+        if activity and activity.plan:
+            out["plan_site_name"] = activity.plan.site.name if activity.plan.site else None
+            out["plan_year"] = activity.plan.year
+            out["plan_id"] = activity.plan_id
+            out["activity_title"] = activity.title or ""
+            out["activity_number"] = activity.activity_number or ""
     return out
 
 
@@ -73,24 +82,40 @@ def _parse_duration_days(raw) -> int:
 @bp.post("")
 @token_required
 def create_change_request():
-    """Create a change request for a validated plan. Body: plan_id, reason (required), requested_duration (optional, days)."""
+    """Create a change request for a validated plan or activity. Body: plan_id or activity_id, reason (required), requested_duration (optional, days)."""
     data = request.get_json(silent=True)
     if not data:
         return jsonify({"message": "Données manquantes"}), 400
     plan_id = (data.get("plan_id") or "").strip()
+    activity_id = (data.get("activity_id") or "").strip()
     reason = (data.get("reason") or "").strip()
     requested_duration = data.get("requested_duration")
-    if not plan_id:
-        return jsonify({"message": "plan_id obligatoire"}), 400
+    if not plan_id and not activity_id:
+        return jsonify({"message": "plan_id ou activity_id obligatoire"}), 400
+    if activity_id and plan_id:
+        return jsonify({"message": "Indiquez soit plan_id soit activity_id, pas les deux"}), 400
     if not reason:
         return jsonify({"message": "La justification (reason) est obligatoire"}), 400
-    plan = CsrPlan.query.get(plan_id)
+    role = (getattr(request, "role", "") or "").upper()
+    user_id = request.user_id
+    plan = None
+    entity_type = "PLAN"
+    entity_id = plan_id
+    if activity_id:
+        activity = CsrActivity.query.get(activity_id)
+        if not activity:
+            return jsonify({"message": "Activité introuvable"}), 404
+        plan = activity.plan
+        entity_type = "ACTIVITY"
+        entity_id = activity.id
+    else:
+        plan = CsrPlan.query.get(plan_id)
+        if not plan:
+            return jsonify({"message": "Plan introuvable"}), 404
     if not plan:
         return jsonify({"message": "Plan introuvable"}), 404
     if plan.status != "VALIDATED":
         return jsonify({"message": "Seuls les plans validés peuvent faire l'objet d'une demande de modification"}), 400
-    role = (getattr(request, "role", "") or "").upper()
-    user_id = request.user_id
     if role in ("SITE_USER", "SITE"):
         if not _user_can_access_site(user_id, plan.site_id):
             return jsonify({"message": "Vous n'avez pas accès à ce site"}), 403
@@ -98,8 +123,8 @@ def create_change_request():
     duration_label = f"{duration_days} jours"
     cr = ChangeRequest(
         site_id=plan.site_id,
-        entity_type="PLAN",
-        entity_id=plan.id,
+        entity_type=entity_type,
+        entity_id=entity_id,
         year=plan.year,
         reason=reason,
         status="PENDING",
@@ -108,23 +133,26 @@ def create_change_request():
     )
     db.session.add(cr)
     db.session.flush()
+    desc = f"Demande de modification plan {plan.year}" if entity_type == "PLAN" else f"Demande de modification activité {entity_id}: {reason[:150]}"
     write_audit(
         user_id=request.user_id,
         site_id=plan.site_id,
         action="REQUEST_MODIFICATION",
-        entity_type="PLAN",
-        entity_id=plan_id,
-        description=f"Demande de modification plan {plan.year}: {reason[:200]}",
+        entity_type=entity_type,
+        entity_id=entity_id,
+        description=desc,
     )
     db.session.commit()
 
     site_name = plan.site.name if plan.site else "Site inconnu"
+    msg = f"Le site {site_name} a demande une modification pour le plan CSR {plan.year}. Motif: {reason}"
+    if entity_type == "ACTIVITY":
+        act = CsrActivity.query.get(entity_id)
+        act_label = f"{act.activity_number} – {act.title}" if act else entity_id
+        msg = f"Le site {site_name} a demande une modification pour l'activité {act_label}. Motif: {reason}"
     notify_corporate(
         title="Nouvelle demande de modification",
-        message=(
-            f"Le site {site_name} a demande une modification pour le plan CSR {plan.year}. "
-            f"Motif: {reason}"
-        ),
+        message=msg,
         type="warning",
         site_id=plan.site_id,
         entity_type="CHANGE_REQUEST",
@@ -188,23 +216,25 @@ def approve_change_request(cr_id):
     cr.status = "APPROVED"
     cr.reviewed_by = request.user_id
     cr.reviewed_at = datetime.utcnow()
+    plan = None
     if cr.entity_type == "PLAN" and cr.entity_id:
         plan = CsrPlan.query.get(cr.entity_id)
         if plan:
-            # Keep status VALIDATED (verrouillé); set unlock_until and unlock_since for highlighting
             now = datetime.utcnow()
             days = _parse_duration_days(cr.requested_duration)
             plan.unlock_until = now + timedelta(days=days)
             plan.unlock_since = now
-    plan = CsrPlan.query.get(cr.entity_id) if (cr.entity_type == "PLAN" and cr.entity_id) else None
-    write_audit(
-        request.user_id,
-        cr.site_id,
-        "APPROVE",
-        "PLAN",
-        cr.entity_id,
-        f"Demande de modification approuvée (plan {plan.year})" if plan else "Demande de modification approuvée",
-    )
+    elif cr.entity_type == "ACTIVITY" and cr.entity_id:
+        activity = CsrActivity.query.get(cr.entity_id)
+        if activity:
+            plan = activity.plan
+            # Unlock only this activity, not the whole plan
+            now = datetime.utcnow()
+            days = _parse_duration_days(cr.requested_duration)
+            activity.unlock_until = now + timedelta(days=days)
+            activity.unlock_since = now
+    desc = f"Demande de modification approuvée (plan {plan.year})" if plan else "Demande de modification approuvée"
+    write_audit(request.user_id, cr.site_id, "APPROVE", cr.entity_type, cr.entity_id, desc)
     db.session.commit()
 
     site_name = cr.site.name if cr.site else "Site inconnu"
@@ -244,14 +274,8 @@ def reject_change_request(cr_id):
     cr.reviewed_at = datetime.utcnow()
     if comment:
         cr.reason = (cr.reason or "") + "\n[Rejet: " + comment + "]"
-    write_audit(
-        request.user_id,
-        cr.site_id,
-        "REJECT",
-        "PLAN",
-        cr.entity_id,
-        f"Demande de modification rejetée: {comment[:200]}" if comment else "Demande de modification rejetée",
-    )
+    desc = f"Demande de modification rejetée: {comment[:200]}" if comment else "Demande de modification rejetée"
+    write_audit(request.user_id, cr.site_id, "REJECT", cr.entity_type, cr.entity_id, desc)
     db.session.commit()
 
     site_name = cr.site.name if cr.site else "Site inconnu"

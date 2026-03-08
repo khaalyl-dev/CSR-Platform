@@ -23,8 +23,9 @@
       <tbody>
         <tr *ngFor="let r of requests()" class="border-t hover:bg-gray-50">
           <td class="p-4 font-medium">
-            <a [routerLink]="['/csr-plans', r.entity_id]" class="text-brand-700 hover:underline">
+            <a [routerLink]="['/csr-plans', r.entity_type === 'ACTIVITY' && r.plan_id ? r.plan_id : r.entity_id]" class="text-brand-700 hover:underline">
               {{ r.plan_site_name ?? r.site_name ?? r.site_id }} – {{ r.plan_year ?? r.year }}
+              <ng-container *ngIf="r.entity_type === 'ACTIVITY' && (r.activity_number || r.activity_title)"> ({{ r.activity_number }} – {{ r.activity_title }})</ng-container>
             </a>
           </td>
           <td class="p-4 text-gray-600">{{ r.requested_by_name ?? '–' }}</td>

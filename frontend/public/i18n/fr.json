@@ -742,6 +742,8 @@
     "CREATE_BACK": "Retour",
     "CREATE_TITLE": "Demande de modification",
     "CREATE_PLAN_LABEL": "Plan",
+    "CREATE_ACTIVITY_LABEL": "Activité",
+    "REQUEST_ACTIVITY_CHANGE": "Demander une modification pour cette activité",
     "CREATE_ACCESS_HINT": "Accès : en cliquant sur le cadenas ouvert d'un plan validé (liste des plans ou fiche plan).",
     "CREATE_APPROVAL_HINT": "Seul un utilisateur corporate pourra approuver cette demande. Une fois approuvée, le plan sera déverrouillé pour modification.",
     "JUSTIFICATION_LABEL": "Justification de la demande",

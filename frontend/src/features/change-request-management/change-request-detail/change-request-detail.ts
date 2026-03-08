@@ -56,6 +56,14 @@ export class ChangeRequestDetailComponent implements OnInit, OnDestroy {
     });
   }
 
+  /** Plan ID for the "View plan" link (entity_id for PLAN, plan_id for ACTIVITY). */
+  planIdForLink(): string | null {
+    const r = this.request();
+    if (!r) return null;
+    const withExt = r as ChangeRequestWithDocs;
+    return (r.entity_type === 'ACTIVITY' && withExt.plan_id) ? withExt.plan_id : (r.entity_id ?? null);
+  }
+
   statusLabel(s: string): string {
     const keyMap: Record<string, string> = {
       PENDING: 'CHANGE_REQUEST.STATUS_PENDING',

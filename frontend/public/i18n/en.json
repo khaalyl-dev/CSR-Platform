@@ -782,6 +782,8 @@
     "CREATE_BACK": "Back",
     "CREATE_TITLE": "Request a plan change",
     "CREATE_PLAN_LABEL": "Plan",
+    "CREATE_ACTIVITY_LABEL": "Activity",
+    "REQUEST_ACTIVITY_CHANGE": "Request change for this activity",
     "CREATE_ACCESS_HINT": "To request a change, open an approved plan and click the lock icon.",
     "CREATE_APPROVAL_HINT": "A corporate user must approve this request. Once approved, the plan will be temporarily unlocked for editing.",
     "JUSTIFICATION_LABEL": "Why are you requesting this change?",

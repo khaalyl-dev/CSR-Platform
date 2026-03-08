@@ -26,6 +26,19 @@ def _plan_is_editable(plan: CsrPlan) -> bool:
         return True
     return False
 
+
+def _activity_is_editable(activity: CsrActivity) -> bool:
+    """True if this activity can be edited: plan editable OR activity individually unlocked."""
+    if not activity or not activity.plan:
+        return False
+    if _plan_is_editable(activity.plan):
+        return True
+    # Activity-level unlock (change request approved for this activity only)
+    unlock_until = getattr(activity, "unlock_until", None)
+    if unlock_until and datetime.utcnow() <= unlock_until:
+        return True
+    return False
+
 bp = Blueprint("csr_activities", __name__, url_prefix="/api/csr-activities")
 
 
@@ -57,7 +70,7 @@ def _activity_to_json_with_plan(a: CsrActivity):
         out["site_code"] = a.plan.site.code if a.plan.site else None
         out["year"] = a.plan.year
         out["plan_status"] = a.plan.status
-        out["plan_editable"] = _plan_is_editable(a.plan)
+        out["plan_editable"] = _activity_is_editable(a)
     else:
         out["site_id"] = None
         out["site_name"] = out["site_code"] = None
@@ -247,8 +260,7 @@ def update_activity(activity_id: str):
         return jsonify({"message": "Activité introuvable"}), 404
     if not _user_can_access_plan(request.user_id, a.plan_id, getattr(request, "role", "")):
         return jsonify({"message": "Vous n'avez pas accès à cette activité"}), 403
-    plan = CsrPlan.query.get(a.plan_id)
-    if plan and not _plan_is_editable(plan):
+    if not _activity_is_editable(a):
         return jsonify({"message": "Plan validé (verrouillé) ou période d'ouverture expirée. Utilisez une demande de modification."}), 403
 
     data = request.get_json()
@@ -327,8 +339,7 @@ def delete_activity(activity_id: str):
         return jsonify({"message": "Activité introuvable"}), 404
     if not _user_can_access_plan(request.user_id, a.plan_id, getattr(request, "role", "")):
         return jsonify({"message": "Vous n'avez pas accès à cette activité"}), 403
-    plan = CsrPlan.query.get(a.plan_id)
-    if plan and not _plan_is_editable(plan):
+    if not _activity_is_editable(a):
         return jsonify({"message": "Plan validé (verrouillé) ou période d'ouverture expirée. Utilisez une demande de modification."}), 403
     old_snapshot = snapshot_activity(a)
     audit_delete(

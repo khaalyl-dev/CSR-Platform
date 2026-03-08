@@ -18,11 +18,45 @@ export class RealizedListComponent implements OnInit {
   private route = inject(ActivatedRoute);
 
   activeMenuRealized: RealizedCsr | null = null;
+  activeRequestChangeRealized: RealizedCsr | null = null;
   menuPosition = { top: 0, left: 0 };
+
+  /** True if user can request a change for this realization (plan validated and locked, has plan_id and activity_id). */
+  canRequestChange(r: RealizedCsr): boolean {
+    return !!(
+      !r.plan_editable &&
+      r.plan_status === 'VALIDATED' &&
+      r.plan_id &&
+      r.activity_id
+    );
+  }
 
   @HostListener('document:click')
   onDocumentClick(): void {
     this.closeMenu();
+    this.closeRequestChangeMenu();
+  }
+
+  toggleRequestChangeMenu(r: RealizedCsr, event: MouseEvent): void {
+    event.stopPropagation();
+    if (this.activeRequestChangeRealized?.id === r.id) {
+      this.closeRequestChangeMenu();
+      return;
+    }
+    const btn = event.target as HTMLElement;
+    const rect = btn.getBoundingClientRect();
+    this.menuPosition = { top: rect.bottom + 4, left: rect.right - 224 };
+    this.activeRequestChangeRealized = r;
+  }
+
+  closeRequestChangeMenu(): void {
+    this.activeRequestChangeRealized = null;
+  }
+
+  goToChangeRequest(r: RealizedCsr): void {
+    if (!r.plan_id || !r.activity_id) return;
+    this.closeRequestChangeMenu();
+    this.router.navigate(['/changes/create'], { queryParams: { planId: r.plan_id, activityId: r.activity_id } });
   }
 
   toggleMenu(r: RealizedCsr, event: MouseEvent): void {
