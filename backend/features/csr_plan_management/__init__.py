@@ -1,3 +1,4 @@
+"""CSR plan management - annual plans, activities, Excel import."""
 from .csr_plans_routes import bp as csr_plans_bp
 from .csr_activities_routes import bp as csr_activities_bp
 from .excel_import_routes import bp as csr_import_bp

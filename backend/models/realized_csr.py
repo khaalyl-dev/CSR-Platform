@@ -1,8 +1,8 @@
 """
-RealizedCsr model - aligned with schema.dbml realized_csr table.
+RealizedCsr model - stores the actual results of a CSR activity after it is done.
 
-Activités RÉALISÉES : une ligne realized_csr = une réalisation d'une activité
-(csr_activities), avec budget réalisé, participants, impact, date, etc.
+Each row links to a csr_activity and records: realized budget, participants, volunteer hours,
+impact achieved, realization date. One activity can have multiple realized_csr rows (e.g. monthly reports).
 """
 import uuid
 
@@ -12,6 +12,7 @@ from core.db import db
 
 
 def _uuid_default():
+    """Generate a new UUID string for the primary key."""
     return str(uuid.uuid4())
 
 

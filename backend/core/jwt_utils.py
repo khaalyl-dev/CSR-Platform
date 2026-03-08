@@ -1,5 +1,11 @@
 """
-JWT Token utilities for authentication.
+JWT (JSON Web Token) utilities - used to log users in and protect API routes.
+
+What this file does:
+- generate_access_token: creates a token when user logs in
+- verify_access_token: checks if a token is valid (not expired, not revoked)
+- token_required: decorator to require a valid token for an endpoint
+- role_required: decorator to restrict an endpoint to certain roles (e.g. corporate only)
 """
 import jwt
 import os
@@ -15,7 +21,17 @@ REVOKED_TOKENS_FILE = os.environ.get("REVOKED_TOKENS_FILE", "revoked_tokens.txt"
 
 
 def generate_access_token(user_id, email: str, role: str = "SITE_USER") -> str:
-    """Generate a JWT access token for a user."""
+    """
+    Create a new JWT token for a user after successful login.
+
+    Args:
+        user_id: The user's UUID from the database
+        email: The user's email (for display/audit)
+        role: User role - SITE_USER or CORPORATE_USER
+
+    Returns:
+        A string token to send to the frontend in the Authorization header
+    """
     from datetime import datetime
 
     jti = uuid.uuid4().hex
@@ -31,7 +47,11 @@ def generate_access_token(user_id, email: str, role: str = "SITE_USER") -> str:
 
 
 def verify_access_token(token: str) -> dict:
-    """Verify and decode a JWT access token."""
+    """
+    Check if a token is valid and return the payload (user_id, email, role).
+
+    Raises jwt.InvalidTokenError if the token is expired, revoked, or invalid.
+    """
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
         jti = payload.get("jti")
@@ -47,7 +67,10 @@ def verify_access_token(token: str) -> dict:
 
 
 def _load_revoked_jtis() -> set:
-    """Return a set of revoked JTIs from the revocation file."""
+    """
+    Load the list of revoked token IDs from a file (used when user logs out).
+    JTI = "JWT ID" - unique ID per token so we can revoke it without invalidating all tokens.
+    """
     try:
         with open(REVOKED_TOKENS_FILE, "r") as f:
             return {line.strip() for line in f if line.strip()}
@@ -56,7 +79,10 @@ def _load_revoked_jtis() -> set:
 
 
 def revoke_jti(jti: str) -> None:
-    """Persistently revoke a token by its JTI."""
+    """
+    Add a token's JTI to the revoked list so it can no longer be used (logout).
+    The token stays in the file until it would have expired anyway.
+    """
     if not jti:
         return
     try:
@@ -70,7 +96,12 @@ def revoke_jti(jti: str) -> None:
 
 
 def token_required(f):
-    """Decorator to protect endpoints that require authentication."""
+    """
+    Decorator to protect an API endpoint - user must send a valid token in the Authorization header.
+
+    Usage: @token_required before your route. After this runs, request.user_id, request.email,
+    request.role, and request.jti are available in your route.
+    """
     @wraps(f)
     def decorated_function(*args, **kwargs):
         token = None
@@ -95,7 +126,10 @@ def token_required(f):
 
 
 def _role_matches(user_role: str, allowed: str) -> bool:
-    """Check if user_role matches allowed (supports SITE_USER/site and CORPORATE_USER/corporate)."""
+    """
+    Check if the user's role matches the required role.
+    Handles SITE_USER = "site" and CORPORATE_USER = "corporate" for flexibility.
+    """
     if user_role == allowed:
         return True
     norm = {"SITE_USER": "site", "site": "site", "CORPORATE_USER": "corporate", "corporate": "corporate"}
@@ -103,7 +137,10 @@ def _role_matches(user_role: str, allowed: str) -> bool:
 
 
 def role_required(*allowed_roles):
-    """Decorator to protect endpoints that require specific roles. Use after @token_required."""
+    """
+    Decorator to restrict an endpoint to certain roles (e.g. corporate only).
+    Must be used after @token_required. Example: @role_required("corporate")
+    """
     def decorator(f):
         @wraps(f)
         def decorated_function(*args, **kwargs):

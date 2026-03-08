@@ -1,11 +1,16 @@
 #!/usr/bin/env python
 """
-Initialize MySQL database with tables and test data.
+Initialize the database - creates all tables and loads test data.
 
-Run once for fresh setup:
+Run this script once when setting up a new database:
     python init_db.py
 
-Schema: ../Database/TABLES_ET_COLONNES.md, ../Database/schema.dbml
+What it does:
+1. Creates all tables (users, sites, categories, etc.) if they don't exist
+2. Adds default CSR categories (Environment, Social, Gouvernance, etc.)
+3. Adds sample users (admin@test.com, user@test.com, john@example.com)
+4. Adds sample sites (Tianjin, Durrango, etc.)
+5. Assigns sites to users with validation grades (level_1, level_2)
 """
 from datetime import datetime
 
@@ -15,8 +20,15 @@ from models import User, Site, UserSite, Category
 
 
 def init_db():
+    """
+    Initialize the database: create tables and seed with default categories, users, and sites.
+
+    Safe to run multiple times - skips adding data that already exists.
+    """
+    # Create the Flask app so we can use db.create_all() and db.session
     app = create_app()
     with app.app_context():
+        # Create all tables defined in models (users, sites, categories, etc.)
         db.create_all()
         print("✓ Database tables created")
 

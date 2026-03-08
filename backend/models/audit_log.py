@@ -1,5 +1,8 @@
 """
-AuditLog model - aligned with schema.dbml audit_logs table.
+AuditLog model - audit trail of who did what (create, update, approve, reject, etc.).
+
+Each row records: who (user_id), what action (CREATE, UPDATE, DELETE, APPROVE...),
+which entity (plan or activity), when. Used for compliance and debugging.
 """
 import uuid
 
@@ -9,6 +12,7 @@ from core.db import db
 
 
 def _uuid_default():
+    """Generate a new UUID string for the primary key."""
     return str(uuid.uuid4())
 
 

@@ -1,9 +1,9 @@
 """
-CsrActivity model - aligned with schema.dbml csr_activities table.
+CsrActivity model - represents a planned CSR activity (not yet realized).
 
-Activités NON RÉALISÉES (planifiées) : stockées uniquement dans csr_activities.
-Une fois réalisées, les données de réalisation (budget réel, participants, impact, etc.)
-sont enregistrées dans realized_csr (lié par activity_id).
+Each activity belongs to a plan, a category (Environment, Social, etc.), and optionally an external partner.
+Planned budget, dates, impact targets are here. When the activity is done, the actual results go in
+realized_csr (linked by activity_id). is_off_plan=True for activities outside the annual plan.
 """
 import uuid
 
@@ -13,6 +13,7 @@ from core.db import db
 
 
 def _uuid_default():
+    """Generate a new UUID string for the primary key."""
     return str(uuid.uuid4())
 
 

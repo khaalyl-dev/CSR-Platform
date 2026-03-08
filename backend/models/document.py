@@ -1,5 +1,8 @@
 """
-Document model - aligned with schema.dbml documents table.
+Document model - uploaded files (profile photos, attachments for activities, change requests).
+
+Stores file path, type (PDF, PNG, etc.), and links to site, entity (plan/activity), or
+change_request. Files are stored on disk; this table just holds metadata.
 """
 import uuid
 import os
@@ -8,6 +11,7 @@ from core.db import db
 
 
 def _uuid_default():
+    """Generate a new UUID string for the primary key."""
     return str(uuid.uuid4())
 
 
@@ -69,7 +73,7 @@ class Document(db.Model):
     # ── Helper ────────────────────────────────────────────────────────────────
     @property
     def file_type_upper(self):
-        """Retourne le type en majuscules ex: PDF, DOCX"""
+        """Return file type in uppercase (e.g. PDF, DOCX) for display or MIME lookup."""
         if self.file_type:
             return self.file_type.upper()
         ext = os.path.splitext(self.file_name)[1].lstrip('.').upper()

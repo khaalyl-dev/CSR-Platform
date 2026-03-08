@@ -1,5 +1,7 @@
 """
-ChatbotLog model - aligned with schema.dbml chatbot_logs table.
+ChatbotLog model - stores chat history between users and the CSR assistant chatbot.
+
+Each row = one Q&A pair. Used to improve the chatbot and for user history.
 """
 import uuid
 
@@ -9,6 +11,7 @@ from core.db import db
 
 
 def _uuid_default():
+    """Generate a new UUID string for the primary key."""
     return str(uuid.uuid4())
 
 

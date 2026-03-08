@@ -1,5 +1,8 @@
 """
-Site model - aligned with schema.dbml sites table.
+Site model - represents a plant or factory (physical location where CSR activities happen).
+
+Each site has a name, code (e.g. COFMX), region, country, and location. Users are granted
+access to specific sites via the user_sites table. CSR plans and activities are tied to sites.
 """
 import uuid
 
@@ -9,6 +12,7 @@ from core.db import db
 
 
 def _uuid_default():
+    """Generate a new UUID string for the primary key."""
     return str(uuid.uuid4())
 
 

@@ -1,3 +1,9 @@
+"""
+Notification helper - create notifications for users (in-app alerts).
+
+Used when a plan is validated, an activity is approved/rejected, etc. Keeps max 100
+notifications per user. Respects user preferences (e.g. notify_csr_plan_validation).
+"""
 import uuid
 from core import db
 from models import Notification, User, UserSite
@@ -6,7 +12,7 @@ def _uuid():
     return str(uuid.uuid4())
 
 def _trim_user_notifications(user_id: str):
-    """Keep at most 100 notifications per user."""
+    """Delete oldest notifications so user has at most 100 (prevents unlimited growth)."""
     count = Notification.query.filter_by(user_id=user_id).count()
     if count < 100:
         return

@@ -1,5 +1,8 @@
 """
-Notification model - aligned with schema.dbml notifications table.
+Notification model - in-app notifications (alerts, reminders, validation results).
+
+Each notification is sent to one user, optionally linked to a site and entity (plan, activity,
+change_request). type: info, success, warning, error. is_read = user has seen it.
 """
 import uuid
 
@@ -9,6 +12,7 @@ from core.db import db
 
 
 def _uuid_default():
+    """Generate a new UUID string for the primary key."""
     return str(uuid.uuid4())
 
 

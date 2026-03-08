@@ -1,11 +1,9 @@
 """
-UserSite model - many-to-many association between User and Site.
+UserSite model - links users to sites (who has access to which site).
 
-Aligned with schema.dbml user_sites table. Represents site access granted to a user.
-- user_id, site_id: unique pair (one record per user-site)
-- grade: optional validation level (level_0, level_1, level_2)
-- is_active: soft delete (revoked access sets is_active=False)
-- granted_by, granted_at: audit of who granted access and when
+Each row means: "User X has access to Site Y". The grade (level_0, level_1, level_2) indicates
+the validation level for that user on that site. A corporate user with level_2 can approve plans.
+A site user with level_1 can create/submit plans. is_active=False means access was revoked.
 """
 import uuid
 

@@ -1,3 +1,4 @@
+"""Site management - sites, categories, external partners CRUD."""
 from .sites_routes import bp as sites_bp
 from .categories_routes import bp as categories_bp
 from .external_partners_routes import bp as external_partners_bp

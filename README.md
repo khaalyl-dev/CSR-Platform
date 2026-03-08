@@ -35,8 +35,8 @@ Plateforme de gestion des activités de responsabilité sociétale des entrepris
 ### 1. Cloner le dépôt
 
 ```bash
-git clone https://github.com/khaalyl-dev/CSR-Platform.git
-cd CSR-Platform
+git clone https://github.com/khaalyl-dev/Csr_Insight.git
+cd Csr_Insight
 ```
 
 *(Si vous travaillez déjà dans le projet, restez à la racine du dépôt.)*

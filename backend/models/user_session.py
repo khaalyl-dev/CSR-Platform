@@ -1,5 +1,8 @@
 """
-UserSession model - aligned with schema.dbml user_sessions table.
+UserSession model - stores refresh tokens and session metadata (for token refresh flow).
+
+When user logs in, we can store a refresh token here. Used for JWT refresh (getting a new
+access token without re-login). ip_address and user_agent help with security tracking.
 """
 import uuid
 
@@ -9,6 +12,7 @@ from core.db import db
 
 
 def _uuid_default():
+    """Generate a new UUID string for the primary key."""
     return str(uuid.uuid4())
 
 

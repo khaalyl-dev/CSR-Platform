@@ -1,5 +1,9 @@
 """
-Helpers to write audit_logs and entity_history. Call from plan/activity/change_request routes.
+Audit helper - write audit_logs and entity_history rows when plans/activities change.
+
+Import these functions in route files and call them after create/update/delete.
+write_audit() adds a row to audit_logs (who did what). write_entity_history() stores
+before/after JSON for rollback or debugging.
 """
 import uuid
 from datetime import datetime

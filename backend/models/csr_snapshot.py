@@ -1,5 +1,8 @@
 """
-CsrSnapshot model - aligned with schema.dbml csr_snapshots table.
+CsrSnapshot model - aggregated CSR stats per site/month for Power BI dashboards.
+
+Each row = one site, one year, one month: total budget, realized amount, activity count,
+completion rate. Updated periodically so Power BI can show charts without heavy queries.
 """
 import uuid
 
@@ -9,6 +12,7 @@ from core.db import db
 
 
 def _uuid_default():
+    """Generate a new UUID string for the primary key."""
     return str(uuid.uuid4())
 
 

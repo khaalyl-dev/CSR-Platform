@@ -1,5 +1,8 @@
 """
-ExternalPartner model - aligned with schema.dbml external_partners table.
+ExternalPartner model - external organizations (NGO, school, association, etc.) for CSR activities.
+
+When a CSR activity involves a partner (e.g. planting trees with an NGO), we link it via
+external_partner_id. Type can be NGO, SCHOOL, ASSOCIATION, SUPPLIER, GOVERNMENT, OTHER.
 """
 import uuid
 
@@ -9,6 +12,7 @@ from core.db import db
 
 
 def _uuid_default():
+    """Generate a new UUID string for the primary key."""
     return str(uuid.uuid4())
 
 

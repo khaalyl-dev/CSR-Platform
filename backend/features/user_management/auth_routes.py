@@ -1,5 +1,8 @@
 """
-Auth endpoints: login, logout, session validation, profile, change password, profile photo.
+Auth API routes - login, logout, profile, change password, profile photo.
+
+This file defines all authentication-related API endpoints. When the frontend needs to
+log in, get user profile, or change settings, it calls these routes.
 
 Endpoints:
   POST /api/auth/login          - Authenticate user, create session, return JWT
@@ -25,11 +28,13 @@ bp = Blueprint("auth", __name__, url_prefix="/api/auth")
 
 
 def _latest_login_iso(user_id: str):
+    """Get the user's most recent login timestamp as ISO string, or None if no session."""
     session = UserSession.query.filter_by(user_id=user_id).order_by(UserSession.created_at.desc()).first()
     return session.created_at.isoformat() if session and session.created_at else None
 
 
 def _profile_payload(user: User):
+    """Build the full profile JSON (info, sites for SITE_USER, notification settings) to send to frontend."""
     data = {
         "id": user.id,
         "first_name": user.first_name,

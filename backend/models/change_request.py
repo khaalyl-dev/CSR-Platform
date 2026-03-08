@@ -1,5 +1,8 @@
 """
-ChangeRequest model - aligned with schema.dbml change_requests table.
+ChangeRequest model - request to edit a plan or activity after it was locked.
+
+When a period is closed (plan validated), a site user can request to change it. Corporate
+reviews and approves or rejects. requested_duration = how long to unlock (e.g. 30 days).
 """
 import uuid
 
@@ -9,6 +12,7 @@ from core.db import db
 
 
 def _uuid_default():
+    """Generate a new UUID string for the primary key."""
     return str(uuid.uuid4())
 
 

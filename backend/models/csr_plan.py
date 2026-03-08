@@ -1,5 +1,8 @@
 """
-CsrPlan model - aligned with schema.dbml csr_plans table.
+CsrPlan model - represents an annual CSR plan for a site.
+
+Each site has one plan per year (e.g. Site A, 2024). The plan has a status (DRAFT -> SUBMITTED -> VALIDATED).
+Validation mode 101 or 111 defines the approval flow. Activities belong to a plan via csr_activities.plan_id.
 """
 import uuid
 
@@ -9,6 +12,7 @@ from core.db import db
 
 
 def _uuid_default():
+    """Generate a new UUID string for the primary key."""
     return str(uuid.uuid4())
 
 

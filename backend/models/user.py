@@ -1,5 +1,9 @@
 """
-User model - aligned with schema.dbml users table.
+User model - represents a user account in the system.
+
+A user can be SITE_USER (manages one or more sites) or CORPORATE_USER (admin with global access).
+This table stores login credentials (email, password hash), profile info (name, avatar, phone),
+preferences (language, theme), and notification settings.
 """
 import uuid
 
@@ -10,6 +14,7 @@ from core.db import db
 
 
 def _uuid_default():
+    """Generate a new UUID string for the primary key (e.g. 'a1b2c3d4-e5f6-...')."""
     return str(uuid.uuid4())
 
 
@@ -56,8 +61,10 @@ class User(db.Model):
     )
 
     def verify_password(self, password: str) -> bool:
+        """Check if the given plain-text password matches the stored hash. Returns True/False."""
         return bcrypt.checkpw(password.encode("utf-8"), self.password_hash.encode("utf-8"))
 
     @staticmethod
     def hash_password(password: str) -> str:
+        """Convert a plain-text password to a secure hash (for storing in DB, never store plain passwords)."""
         return bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")

@@ -1,5 +1,8 @@
 """
-Categories endpoints.
+Categories API routes - list and create CSR activity categories.
+
+Categories (Environment, Social, Education, etc.) are used to classify activities.
+Used in dropdowns when creating activities. Create is idempotent (returns existing if name exists).
 """
 from flask import Blueprint, jsonify, request
 

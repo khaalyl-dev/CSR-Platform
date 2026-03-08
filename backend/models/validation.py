@@ -1,5 +1,8 @@
 """
-Validation model - aligned with schema.dbml validations table.
+Validation model - records approval/rejection of a plan or activity.
+
+Each row represents one validation step (e.g. Level 1 approved a plan). entity_type is PLAN or ACTIVITY,
+entity_id points to the plan/activity, grade is level_1 or level_2. status: PENDING, APPROVED, REJECTED.
 """
 import uuid
 
@@ -9,6 +12,7 @@ from core.db import db
 
 
 def _uuid_default():
+    """Generate a new UUID string for the primary key."""
     return str(uuid.uuid4())
 
 

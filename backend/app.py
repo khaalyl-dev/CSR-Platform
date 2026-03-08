@@ -1,5 +1,9 @@
 """
-Flask application factory.
+Flask application factory - main entry point of the backend.
+
+This file creates the Flask app, loads configuration, connects to the database,
+and registers all API blueprints (features). When you run 'python app.py', it
+starts the server on port 5001.
 """
 import logging
 import os
@@ -28,15 +32,27 @@ from features.health import health_bp
 
 
 def create_app(config_class=Config) -> Flask:
+    """
+    Create and configure the Flask application.
+
+    Args:
+        config_class: Configuration class (from config.py) containing DB URL, SECRET_KEY, etc.
+
+    Returns:
+        The configured Flask app ready to serve API requests.
+    """
+    # Create the Flask app and load settings (database, secret key, etc.)
     app = Flask(__name__)
     app.config.from_object(config_class)
 
+    # Connect SQLAlchemy to our app so we can use db.session, db.Model, etc.
     db.init_app(app)
 
+    # Create all database tables if they don't exist yet
     with app.app_context():
         db.create_all()
 
-    # Explicit origins so dev (Angular on :4200) and proxy work; add production URL when needed
+    # Allow the Angular frontend (running on port 4200) to call our API from a different origin
     CORS(
         app,
         resources={
@@ -49,7 +65,7 @@ def create_app(config_class=Config) -> Flask:
         },
     )
 
-    # Register blueprints
+    # Register blueprints - each blueprint adds API routes (e.g. /api/auth/login, /api/users, etc.)
     app.register_blueprint(auth_bp)
     app.register_blueprint(users_bp)
     app.register_blueprint(dashboard_bp)
@@ -76,9 +92,14 @@ app = create_app()
 
 
 class SuppressServeLogFilter(logging.Filter):
-    """Suppress request logs for /api/documents/serve/ (e.g. profile photos) to reduce terminal noise."""
+    """
+    Filter to hide logs for document-serve requests (e.g. profile photo loads).
+
+    This reduces terminal noise when the frontend loads many small images.
+    """
 
     def filter(self, record: logging.LogRecord) -> bool:
+        """Return False to hide this log, True to show it."""
         try:
             msg = record.getMessage()
         except Exception:

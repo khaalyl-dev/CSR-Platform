@@ -1,3 +1,9 @@
+"""
+Sites API routes - list, create, update sites; assign users to sites.
+
+All routes require a valid token. Only corporate users can create/update sites
+and toggle status. Site users see only sites they have access to.
+"""
 from datetime import datetime
 from flask import Blueprint, request, jsonify
 from core import db, token_required
@@ -6,6 +12,7 @@ from models import Site, User, UserSite
 bp = Blueprint("sites", __name__, url_prefix="/api/sites")
 
 def _site_to_json(site: Site):
+    """Convert a Site model to a JSON dict for API responses."""
     return {
         "id": site.id,
         "name": site.name,
@@ -22,6 +29,7 @@ def _site_to_json(site: Site):
 @bp.get("")
 @token_required
 def list_sites():
+    """List all sites (optionally only active ones). Use ?active=true to filter."""
     active_only = request.args.get("active") == "true"
     q = Site.query
     if active_only:
@@ -32,6 +40,7 @@ def list_sites():
 @bp.post("")
 @token_required
 def create_site():
+    """Create a new site. Requires name and code. Corporate only for full access."""
     data = request.get_json()
     if not data:
         return jsonify({"message": "Données manquantes"}), 400
@@ -66,6 +75,7 @@ def get_site(site_id):
 @bp.patch("/<string:site_id>/status")
 @token_required
 def toggle_site_status(site_id):
+    """Enable or disable a site (toggle is_active). Corporate only."""
     if request.role.upper() != "CORPORATE_USER":
         return jsonify({"message": "Accès interdit"}), 403
     site = Site.query.get(site_id)

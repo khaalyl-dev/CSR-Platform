@@ -1,6 +1,8 @@
 """
-EntityHistory model - aligned with schema.dbml entity_history table.
-Stores old_data/new_data for rollback (CREATE=old null, DELETE=new null, UPDATE=both).
+EntityHistory model - stores before/after data for each change (for rollback or audit).
+
+For CREATE: old_data=null, new_data=json. For DELETE: old_data=json, new_data=null.
+For UPDATE: both have the JSON. audit_logs can link to this via entity_history_id.
 """
 import uuid
 
@@ -11,6 +13,7 @@ from core.db import db
 
 
 def _uuid_default():
+    """Generate a new UUID string for the primary key."""
     return str(uuid.uuid4())
 
 

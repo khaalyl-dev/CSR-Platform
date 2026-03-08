@@ -1,5 +1,8 @@
 """
-Category model - aligned with schema.dbml categories table.
+Category model - CSR activity categories (Environment, Social, Education, etc.).
+
+Each CSR activity belongs to one category. Categories are used to group and filter activities
+(e.g. show all Environment activities). Created by init_db.py (Environment, Social, Gouvernance, etc.).
 """
 import uuid
 
@@ -9,6 +12,7 @@ from core.db import db
 
 
 def _uuid_default():
+    """Generate a new UUID string for the primary key."""
     return str(uuid.uuid4())
 
 

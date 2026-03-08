@@ -1,6 +1,8 @@
 """
-Database models - aligned with schema.dbml.
-Import all models for db.create_all().
+Models - all database table definitions (User, Site, CsrPlan, etc.).
+
+Each model maps to a MySQL table. app.py imports this module so db.create_all()
+creates all tables. Import models as: from models import User, Site
 """
 from .user import User
 from .user_session import UserSession

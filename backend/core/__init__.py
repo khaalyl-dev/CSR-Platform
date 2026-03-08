@@ -1,3 +1,8 @@
+"""
+Core - shared utilities (database, JWT, auth decorators).
+
+Import from here: from core import db, token_required, role_required, generate_access_token
+"""
 from .db import db
 from .jwt_utils import (
     generate_access_token,
