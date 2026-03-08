@@ -1,0 +1,234 @@
+<div class="min-h-screen bg-gray-50 p-6">
+
+  <!-- Header -->
+  <div class="mb-6 flex items-center justify-between">
+    <div class="flex items-center gap-3">
+      <button (click)="goBack()"
+        class="flex items-center gap-2 text-gray-500 hover:text-gray-700 transition-colors">
+        <i class="fas fa-arrow-left"></i>
+        <span>{{ 'SITE_USERS.BACK' | translate }}</span>
+      </button>
+      <h1 class="text-2xl font-bold text-gray-800">
+        <i class="fas fa-users mr-2 text-gray-800"></i>
+        {{ 'SITE_USERS.TITLE' | translate }}
+      </h1>
+    </div>
+    <button (click)="openAssignModal()"
+      class="flex items-center gap-2 bg-gray-800 hover:bg-gray-600 text-white px-4 py-2 rounded-lg transition-colors">
+      <i class="fas fa-user-plus"></i>
+      {{ 'SITE_USERS.ASSIGN_USER' | translate }}
+    </button>
+  </div>
+
+  <!-- Alertes -->
+  <div *ngIf="success"
+    class="mb-4 flex items-center gap-2 bg-green-50 border border-green-200 text-brand-800 px-4 py-3 rounded-lg">
+    <i class="fas fa-check-circle"></i>
+    {{ success }}
+  </div>
+  <div *ngIf="error"
+    class="mb-4 flex items-center gap-2 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
+    <i class="fas fa-exclamation-circle"></i>
+    {{ error }}
+  </div>
+
+  <!-- Loading -->
+  <div *ngIf="loading" class="flex justify-center items-center py-16">
+    <i class="fas fa-spinner fa-spin text-brand-700 text-3xl"></i>
+  </div>
+
+  <!-- Table -->
+  <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+    <table class="w-full">
+      <thead class="bg-gray-50 border-b border-gray-200">
+        <tr>
+          <th class="text-left px-6 py-4 text-sm font-semibold text-gray-600">{{ 'SITE_USERS.USER' | translate }}</th>
+          <th class="text-left px-6 py-4 text-sm font-semibold text-gray-600">{{ 'SITE_USERS.EMAIL' | translate }}</th>
+          <th class="text-left px-6 py-4 text-sm font-semibold text-gray-600">{{ 'SITE_USERS.GRADE' | translate }}</th>
+          <th class="text-left px-6 py-4 text-sm font-semibold text-gray-600">{{ 'SITE_USERS.ASSIGNED_AT' | translate }}</th>
+          <th class="text-center px-6 py-4 text-sm font-semibold text-gray-600">{{ 'SITE_USERS.ACTIONS' | translate }}</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let user of users"
+          class="border-b border-gray-100 hover:bg-gray-50 transition-colors">
+          <td class="px-6 py-4">
+            <div class="flex items-center gap-3">
+              <div class="w-9 h-9 rounded-full bg-brand-100 flex items-center justify-center">
+                <span class="text-brand-800 font-semibold text-sm">
+                  {{ user.user_first_name[0] }}{{ user.user_last_name[0] }}
+                </span>
+              </div>
+              <span class="font-medium text-gray-800">
+                {{ user.user_first_name }} {{ user.user_last_name }}
+              </span>
+            </div>
+          </td>
+          <td class="px-6 py-4 text-gray-600 text-sm">{{ user.user_email }}</td>
+          <td class="px-6 py-4">
+            <span *ngIf="user.grade" class="px-3 py-1 rounded-full text-xs font-semibold bg-purple-100 text-purple-700">
+              {{ getGradeLabel(user.grade) }}
+            </span>
+            <span *ngIf="!user.grade" class="text-gray-400 text-sm">—</span>
+          </td>
+          <td class="px-6 py-4 text-gray-500 text-sm">
+            {{ user.granted_at ? (user.granted_at | date:'dd/MM/yyyy') : '—' }}
+          </td>
+          <td class="px-6 py-4">
+            <div class="flex items-center justify-center gap-2">
+              <button (click)="openEditModal(user)"
+                class="p-2 text-brand-700 hover:bg-brand-100 rounded-lg transition-colors"
+                [attr.title]="'SITE_USERS.EDIT_TITLE' | translate">
+                <i class="fas fa-edit"></i>
+              </button>
+              <button (click)="openRevokeModal(user)"
+                class="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                [attr.title]="'SITE_USERS.REVOKE_TITLE' | translate">
+                <i class="fas fa-user-times"></i>
+              </button>
+            </div>
+          </td>
+        </tr>
+        <tr *ngIf="users.length === 0">
+          <td colspan="5" class="px-6 py-16 text-center text-gray-400">
+            <i class="fas fa-users text-4xl mb-3 block"></i>
+            {{ 'SITE_USERS.NO_USERS_ASSIGNED' | translate }}
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+</div>
+
+<!-- ── Modal Affecter ──────────────────────────────────────────────────────── -->
+<div *ngIf="showAssignModal"
+  class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+  <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md">
+    <div class="flex items-center justify-between p-6 border-b border-gray-100">
+      <h2 class="text-lg font-bold text-gray-800">
+        <i class="fas fa-user-plus mr-2 text-gray-600"></i>
+        {{ 'SITE_USERS.ASSIGN_USER' | translate }}
+      </h2>
+      <button (click)="closeAssignModal()" class="text-gray-400 hover:text-gray-600">
+        <i class="fas fa-times text-xl"></i>
+      </button>
+    </div>
+    <div class="p-6 space-y-4">
+
+      <!-- Sélection user -->
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">{{ 'SITE_USERS.USER_REQ' | translate }}</label>
+        <select [(ngModel)]="assignForm.user_id"
+          class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-500">
+          <option value="">{{ 'SITE_USERS.SELECT_PLACEHOLDER' | translate }}</option>
+          <option *ngFor="let u of unassignedUsers" [value]="u.id">
+            {{ u.first_name }} {{ u.last_name }} ({{ u.email }})
+          </option>
+        </select>
+      </div>
+
+      <!-- Grade -->
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">{{ 'SITE_USERS.GRADE' | translate }}</label>
+        <select [(ngModel)]="assignForm.grade"
+          class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+          <option [ngValue]="null">{{ 'SITE_USERS.NO_GRADE' | translate }}</option>
+          <option value="level_0">{{ 'SITE_USERS.LEVEL_0' | translate }}</option>
+          <option value="level_1">{{ 'SITE_USERS.LEVEL_1' | translate }}</option>
+          <option value="level_2">{{ 'SITE_USERS.LEVEL_2' | translate }}</option>
+        </select>
+      </div>
+
+    </div>
+    <div class="flex gap-3 p-6 pt-0">
+      <button (click)="closeAssignModal()"
+        class="flex-1 border border-gray-300 text-gray-700 py-2 rounded-lg hover:bg-gray-50 transition-colors">
+        {{ 'COMMON.CANCEL' | translate }}
+      </button>
+      <button (click)="submitAssign()"
+        class="flex-1 bg-gray-800 hover:bg-gray-700 text-white py-2 rounded-lg transition-colors">
+        {{ 'SITE_USERS.ASSIGN_BUTTON' | translate }}
+      </button>
+    </div>
+  </div>
+</div>
+
+
+<div *ngIf="showEditModal"
+  class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+  <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md">
+    <div class="flex items-center justify-between p-6 border-b border-gray-100">
+      <h2 class="text-lg font-bold text-gray-800">
+        <i class="fas fa-edit mr-2 text-brand-700"></i>
+        {{ 'SITE_USERS.EDIT_ACCESS' | translate }}
+      </h2>
+      <button (click)="closeEditModal()" class="text-gray-400 hover:text-gray-600">
+        <i class="fas fa-times text-xl"></i>
+      </button>
+    </div>
+    <div class="p-6 space-y-4">
+
+      <div *ngIf="editingUser" class="flex items-center gap-3 bg-gray-50 rounded-lg p-3">
+        <div class="w-9 h-9 rounded-full bg-brand-100 flex items-center justify-center">
+          <span class="text-brand-800 font-semibold text-sm">
+            {{ editingUser.user_first_name[0] }}{{ editingUser.user_last_name[0] }}
+          </span>
+        </div>
+        <div>
+          <p class="font-medium text-gray-800 text-sm">{{ editingUser.user_first_name }} {{ editingUser.user_last_name }}</p>
+          <p class="text-gray-500 text-xs">{{ editingUser.user_email }}</p>
+        </div>
+      </div>
+
+      <!-- Grade -->
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">{{ 'SITE_USERS.GRADE' | translate }}</label>
+        <select [(ngModel)]="editForm.grade"
+          class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+          <option [ngValue]="null">{{ 'SITE_USERS.NO_GRADE' | translate }}</option>
+          <option value="level_0">{{ 'SITE_USERS.LEVEL_0' | translate }}</option>
+          <option value="level_1">{{ 'SITE_USERS.LEVEL_1' | translate }}</option>
+          <option value="level_2">{{ 'SITE_USERS.LEVEL_2' | translate }}</option>
+        </select>
+      </div>
+
+    </div>
+    <div class="flex gap-3 p-6 pt-0">
+      <button (click)="closeEditModal()"
+        class="flex-1 border border-gray-300 text-gray-700 py-2 rounded-lg hover:bg-gray-50 transition-colors">
+        {{ 'COMMON.CANCEL' | translate }}
+      </button>
+      <button (click)="submitEdit()"
+        class="flex-1 bg-gray-600 hover:bg-gray-700 text-white py-2 rounded-lg transition-colors">
+        {{ 'EDIT_SITE.SAVE' | translate }}
+      </button>
+    </div>
+  </div>
+</div>
+
+
+<div *ngIf="showRevokeModal"
+  class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+  <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm">
+    <div class="p-6 text-center">
+      <div class="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+        <i class="fas fa-user-times text-red-600 text-2xl"></i>
+      </div>
+      <h2 class="text-lg font-bold text-gray-800 mb-2">{{ 'SITE_USERS.REVOKE_ACCESS' | translate }}</h2>
+      <p class="text-gray-500 text-sm mb-6">
+        {{ 'SITE_USERS.REVOKE_CONFIRM' | translate:{ name: (revokingUser?.user_first_name + ' ' + revokingUser?.user_last_name) || '' } }}
+      </p>
+      <div class="flex gap-3">
+        <button (click)="closeRevokeModal()"
+          class="flex-1 border border-gray-300 text-gray-700 py-2 rounded-lg hover:bg-gray-50 transition-colors">
+          {{ 'COMMON.CANCEL' | translate }}
+        </button>
+        <button (click)="confirmRevoke()"
+          class="flex-1 bg-red-600 hover:bg-red-700 text-white py-2 rounded-lg transition-colors">
+          {{ 'SITE_USERS.REVOKE_BUTTON' | translate }}
+        </button>
+      </div>
+    </div>
+  </div>
+</div>

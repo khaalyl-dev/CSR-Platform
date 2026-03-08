@@ -1,0 +1,66 @@
+<div class="flex flex-col h-full">
+  <!-- Header -->
+  <div class="flex items-center justify-between px-6 py-4 border-b border-gray-200 flex-shrink-0">
+    <h2 class="text-lg font-bold text-gray-800">{{ 'ANNUAL_PLANS.NEW_PLAN' | translate }}</h2>
+    <button type="button" (click)="close()"
+      class="p-2 rounded-full text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
+      [attr.aria-label]="'COMMON.CLOSE' | translate">
+      <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12"/>
+      </svg>
+    </button>
+  </div>
+  <!-- Form -->
+  <form [formGroup]="planForm" (ngSubmit)="submit()" class="flex flex-col flex-1 overflow-hidden">
+    <div class="flex-1 overflow-auto px-6 py-6 space-y-5">
+      <div *ngIf="loadingSites" class="py-8 text-center text-gray-500 text-sm">{{ 'PLAN_CREATE.LOADING_SITES' | translate }}</div>
+      <ng-container *ngIf="!loadingSites">
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1.5">{{ 'PLAN_CREATE.SITE_REQ' | translate }}</label>
+          <select formControlName="site_id"
+            class="w-full pl-9 pr-10 py-2.5 bg-gray-100 border-0 rounded-xl text-sm text-gray-700 font-medium focus:ring-2 focus:ring-blue-500 focus:bg-white focus:outline-none transition-all appearance-none cursor-pointer hover:bg-gray-200"
+            [class.border]="planForm.get('site_id')?.touched && planForm.get('site_id')?.invalid"
+            [class.border-red-400]="planForm.get('site_id')?.touched && planForm.get('site_id')?.invalid">
+            <option value="">{{ 'PLAN_CREATE.CHOOSE_SITE' | translate }}</option>
+            <option *ngFor="let site of sites" [value]="site.id">{{ site.name }} ({{ site.code }})</option>
+          </select>
+          <p class="text-xs text-red-500 mt-1" *ngIf="planForm.get('site_id')?.touched && planForm.get('site_id')?.invalid">
+            Le site est obligatoire
+          </p>
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1.5">{{ 'PLAN_CREATE.YEAR_REQ' | translate }}</label>
+          <input type="number" formControlName="year" min="2000" max="2100"
+            class="w-full px-4 py-2.5 border border-gray-300 rounded-xl text-sm text-gray-700 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+            [class.border-red-400]="planForm.get('year')?.touched && planForm.get('year')?.invalid"/>
+          <p class="text-xs text-red-500 mt-1" *ngIf="planForm.get('year')?.touched && planForm.get('year')?.invalid">
+            Année invalide (2000–2100)
+          </p>
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1.5">{{ 'PLAN_CREATE.VALIDATION_MODE' | translate }}</label>
+          <select formControlName="validation_mode"
+            class="w-full pl-9 pr-10 py-2.5 bg-gray-100 border-0 rounded-xl text-sm text-gray-700 font-medium focus:ring-2 focus:ring-blue-500 focus:bg-white focus:outline-none transition-all appearance-none cursor-pointer hover:bg-gray-200">
+            <option value="101">{{ 'ANNUAL_PLANS.MODE.CORPORATE_ONLY' | translate }}</option>
+            <option value="111">{{ 'ANNUAL_PLANS.MODE.ALL' | translate }}</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1.5">{{ 'PLAN_CREATE.TOTAL_BUDGET' | translate }}</label>
+          <input type="number" formControlName="total_budget" min="0" step="0.01" [attr.placeholder]="'COMMON.OPTIONAL' | translate"
+            class="w-full px-4 py-2.5 border border-gray-300 rounded-xl text-sm text-gray-700 focus:ring-2 focus:ring-blue-500 focus:outline-none"/>
+        </div>
+      </ng-container>
+    </div>
+    <div class="flex-shrink-0 px-6 py-4 border-t border-gray-200 flex gap-3">
+      <button type="button" (click)="close()"
+        class="flex-1 px-4 py-2.5 rounded-xl border border-gray-300 text-gray-700 hover:bg-gray-50 transition text-sm font-medium">
+        {{ 'COMMON.CANCEL' | translate }}
+      </button>
+      <button type="submit" [disabled]="loading || loadingSites || planForm.invalid"
+        class="flex-1 px-4 py-2.5 rounded-xl bg-brand-900 hover:bg-brand-800 disabled:opacity-60 disabled:cursor-not-allowed text-white transition text-sm font-semibold">
+        {{ loading ? 'Création...' : 'Créer le plan' }}
+      </button>
+    </div>
+  </form>
+</div>

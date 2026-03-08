@@ -1,0 +1,14 @@
+.sidebar a .label {
+  transition: width 0.3s, opacity 0.3s, margin 0.3s;
+}
+.sidebar.collapsed a .label {
+  width: 0;
+  opacity: 0;
+  margin-left: 0;
+  overflow: hidden;
+}
+.sidebar a .icon span {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}

@@ -1,0 +1,45 @@
+<div class="p-8 bg-gray-50 min-h-screen">
+  <div class="mb-6">
+    <h1 class="text-3xl font-bold tracking-tight text-gray-800">{{ 'CHANGE_REQUEST.HISTORY_TITLE' | translate }}</h1>
+    <p class="text-gray-500 mt-1">{{ 'CHANGE_REQUEST.HISTORY_SUBTITLE' | translate }}</p>
+  </div>
+
+  <div *ngIf="loading()" class="text-center py-12 text-gray-500">{{ 'CHANGE_REQUEST.LOADING' | translate }}</div>
+
+  <div *ngIf="!loading() && requests().length === 0" class="bg-white rounded-2xl shadow-sm border border-gray-100 p-12 text-center text-gray-500">
+    {{ 'CHANGE_REQUEST.HISTORY_EMPTY' | translate }}
+  </div>
+
+  <div *ngIf="!loading() && requests().length > 0" class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+    <table class="w-full text-sm">
+      <thead class="bg-gray-50 text-gray-600 uppercase text-xs">
+        <tr>
+          <th class="p-4 text-left">{{ 'CHANGE_REQUEST.PLAN_YEAR' | translate }}</th>
+          <th class="p-4 text-left">{{ 'CHANGE_REQUEST.REQUESTER' | translate }}</th>
+          <th class="p-4 text-left">{{ 'CHANGE_REQUEST.STATUS' | translate }}</th>
+          <th class="p-4 text-left">{{ 'CHANGE_REQUEST.DECISION_BY' | translate }}</th>
+          <th class="p-4 text-left">{{ 'CHANGE_REQUEST.DATE' | translate }}</th>
+          <th class="p-4 text-right">{{ 'CHANGE_REQUEST.ACTIONS' | translate }}</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let r of requests()" class="border-t hover:bg-gray-50">
+          <td class="p-4 font-medium">
+            <a [routerLink]="['/csr-plans', r.entity_id]" class="text-brand-700 hover:underline">
+              {{ r.plan_site_name ?? r.site_name ?? r.site_id }} – {{ r.plan_year ?? r.year }}
+            </a>
+          </td>
+          <td class="p-4 text-gray-600">{{ r.requested_by_name ?? '–' }}</td>
+          <td class="p-4">
+            <span [class]="r.status === 'APPROVED' ? 'text-green-600' : 'text-red-600'">{{ statusLabel(r.status) }}</span>
+          </td>
+          <td class="p-4 text-gray-600">{{ r.reviewed_by_name ?? '–' }}</td>
+          <td class="p-4 text-gray-500">{{ r.reviewed_at | date:'short' }}</td>
+          <td class="p-4 text-right">
+            <a [routerLink]="['/csr-plans', r.entity_id]" class="text-brand-700 hover:underline">{{ 'CHANGE_REQUEST.VIEW_PLAN' | translate }}</a>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>

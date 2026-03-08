@@ -1,0 +1,101 @@
+import { Component, inject, OnInit, OnDestroy, signal, computed } from '@angular/core';
+import { CommonModule, Location } from '@angular/common';
+import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angular/forms';
+import { Router, ActivatedRoute } from '@angular/router';
+import { RouterLink } from '@angular/router';
+import { TranslateModule } from '@ngx-translate/core';
+import { CsrPlansApi } from '../api/csr-plans-api';
+import type { CsrPlan, UpdateCsrPlanPayload } from '../models/csr-plan.model';
+import { BreadcrumbService } from '@core/services/breadcrumb.service';
+
+@Component({
+  selector: 'app-plan-edit',
+  standalone: true,
+  imports: [ReactiveFormsModule, CommonModule, RouterLink, TranslateModule],
+  templateUrl: './plan-edit.html',
+})
+export class PlanEditComponent implements OnInit, OnDestroy {
+  private fb = inject(FormBuilder);
+  private router = inject(Router);
+  private route = inject(ActivatedRoute);
+  private location = inject(Location);
+  private csrPlansApi = inject(CsrPlansApi);
+  private breadcrumb = inject(BreadcrumbService);
+
+  planForm!: FormGroup;
+  plan = signal<CsrPlan | null>(null);
+  loading = true;
+  saving = false;
+  errorMsg = '';
+  currentYear = new Date().getFullYear();
+
+  planId = computed(() => this.route.snapshot.paramMap.get('id'));
+
+  ngOnInit(): void {
+    this.planForm = this.fb.group({
+      year: [this.currentYear, [Validators.required, Validators.min(2000), Validators.max(2100)]],
+      validation_mode: ['101'],
+    });
+
+    const id = this.planId();
+    if (!id) {
+      this.router.navigate(['/csr-plans']);
+      return;
+    }
+    this.csrPlansApi.get(id).subscribe({
+      next: (p) => {
+        const plan = p as CsrPlan;
+        if (plan.status !== 'DRAFT' && plan.status !== 'REJECTED') {
+          this.errorMsg = 'Seuls les plans en brouillon ou rejetés peuvent être modifiés.';
+          this.loading = false;
+          return;
+        }
+        this.plan.set(plan);
+        this.planForm.patchValue({
+          year: plan.year,
+          validation_mode: plan.validation_mode || '101',
+        });
+        this.loading = false;
+        const siteName = plan.site_name ?? plan.site_code ?? plan.site_id ?? 'Plan';
+        this.breadcrumb.setContext([siteName, String(plan.year)]);
+      },
+      error: () => {
+        this.errorMsg = 'Plan introuvable.';
+        this.loading = false;
+      },
+    });
+  }
+
+  ngOnDestroy(): void {
+    this.breadcrumb.clearContext();
+  }
+
+  submit(): void {
+    if (this.planForm.invalid || !this.plan()) {
+      this.planForm.markAllAsTouched();
+      return;
+    }
+    const p = this.plan()!;
+    this.saving = true;
+    this.errorMsg = '';
+    const raw = this.planForm.getRawValue();
+    const payload: UpdateCsrPlanPayload = {
+      year: Number(raw.year),
+      validation_mode: raw.validation_mode === '111' ? '111' : '101',
+    };
+    this.csrPlansApi.update(p.id, payload).subscribe({
+      next: () => {
+        this.saving = false;
+        this.router.navigate(['/csr-plans', p.id]);
+      },
+      error: (err) => {
+        this.saving = false;
+        this.errorMsg = err.error?.message || 'Erreur lors de la mise à jour du plan.';
+      },
+    });
+  }
+
+  cancel(): void {
+    this.location.back();
+  }
+}

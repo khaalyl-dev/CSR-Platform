@@ -1,0 +1,66 @@
+<div class="p-8 bg-gray-50 min-h-screen">
+  <div class="flex items-center justify-between mb-6">
+    <div>
+      <h1 class="text-2xl font-bold text-gray-800">{{ 'CATEGORIES.TITLE' | translate }}</h1>
+      <p class="text-gray-500 mt-1">{{ 'CATEGORIES.SUBTITLE' | translate }}</p>
+    </div>
+    <button type="button" (click)="openAdd()"
+      class="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl font-medium text-white bg-brand-900 hover:bg-brand-800 shadow-sm transition">
+      <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 20 20" fill="currentColor">
+        <path d="M10.75 4.75a.75.75 0 00-1.5 0v4.5h-4.5a.75.75 0 000 1.5h4.5v4.5a.75.75 0 001.5 0v-4.5h4.5a.75.75 0 000-1.5h-4.5v-4.5z" />
+      </svg>
+      {{ 'CATEGORIES.NEW_CATEGORY' | translate }}
+    </button>
+  </div>
+
+  <div *ngIf="errorMsg()" class="mb-4 p-4 bg-red-50 border border-red-200 rounded-xl text-red-700 text-sm">
+    {{ errorMsg() }}
+  </div>
+
+  <div *ngIf="loading()" class="py-12 text-center text-gray-500">{{ 'COMMON.LOADING' | translate }}</div>
+
+  <div *ngIf="!loading()" class="space-y-4">
+    <!-- Formulaire ajout (inline) -->
+    <div *ngIf="adding()" class="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
+      <h2 class="text-lg font-semibold text-gray-800 mb-4">{{ 'CATEGORIES.NEW_CATEGORY' | translate }}</h2>
+      <div class="flex flex-wrap items-end gap-3">
+        <div class="min-w-[200px] flex-1">
+          <label class="block text-sm font-medium text-gray-700 mb-1.5">{{ 'CATEGORIES.NAME_LABEL' | translate }}</label>
+          <input type="text" [(ngModel)]="newName" [placeholder]="'CATEGORIES.PLACEHOLDER_NAME' | translate"
+            class="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
+            (keydown.enter)="submitAdd()"/>
+        </div>
+        <div class="flex gap-2">
+          <button type="button" (click)="submitAdd()" [disabled]="!newName.trim()"
+            class="px-4 py-2.5 rounded-xl font-medium text-white bg-brand-900 hover:bg-brand-800 disabled:opacity-50 disabled:cursor-not-allowed">
+            {{ 'CATEGORIES.ADD_BUTTON' | translate }}
+          </button>
+          <button type="button" (click)="cancelAdd()"
+            class="px-4 py-2.5 rounded-xl font-medium border border-gray-300 text-gray-700 hover:bg-gray-50">
+            {{ 'COMMON.CANCEL' | translate }}
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Liste -->
+    <div class="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+      <div class="px-6 py-4 border-b border-gray-100">
+        <h2 class="text-lg font-semibold text-gray-800">{{ 'CATEGORIES.CATEGORIES_COUNT' | translate:{ n: categories().length } }}</h2>
+      </div>
+      <ul class="divide-y divide-gray-100">
+        <li *ngFor="let c of categories()" class="px-6 py-4 flex items-center gap-4 hover:bg-gray-50/50">
+          <span class="flex items-center justify-center w-10 h-10 rounded-xl bg-brand-100 text-brand-900 font-semibold text-sm">
+            {{ (c.name || '').charAt(0).toUpperCase() }}
+          </span>
+          <div class="flex-1 min-w-0">
+            <p class="font-medium text-gray-800">{{ c.name }}</p>
+          </div>
+        </li>
+        <li *ngIf="!categories().length" class="px-6 py-12 text-center text-gray-500">
+          {{ 'CATEGORIES.EMPTY_MESSAGE' | translate }}
+        </li>
+      </ul>
+    </div>
+  </div>
+</div>

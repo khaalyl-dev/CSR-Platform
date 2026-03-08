@@ -1,0 +1,107 @@
+<div class="p-8 space-y-8 bg-gray-50 min-h-screen">
+  <div>
+    <h1 class="text-3xl font-bold tracking-tight text-gray-800">{{ 'PLAN_VALIDATION.TITLE' | translate }}</h1>
+    <p class="text-gray-500 mt-1">{{ 'PLAN_VALIDATION.SUBTITLE' | translate }}</p>
+  </div>
+
+  <div *ngIf="loading()" class="text-center py-12 text-gray-500">{{ 'PLAN_VALIDATION.LOADING' | translate }}</div>
+  <div *ngIf="errorMsg()" class="text-center py-12 text-red-600">{{ errorMsg() }}</div>
+
+  <div *ngIf="!loading() && !errorMsg()">
+    <div *ngIf="plans().length === 0" class="bg-white rounded-2xl shadow-sm border border-gray-100 p-12 text-center text-gray-500">
+      {{ 'PLAN_VALIDATION.EMPTY' | translate }}
+    </div>
+
+    <div *ngIf="plans().length > 0" class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+      <table class="w-full text-sm">
+        <thead class="bg-gray-50 text-gray-600 uppercase text-xs">
+          <tr>
+            <th class="p-4 text-left">{{ 'PLAN_VALIDATION.SITE' | translate }}</th>
+            <th class="p-4 text-left">{{ 'PLAN_VALIDATION.YEAR' | translate }}</th>
+            <th class="p-4 text-left">{{ 'PLAN_VALIDATION.MODE' | translate }}</th>
+            <th class="p-4 text-left">{{ 'PLAN_VALIDATION.STEP' | translate }}</th>
+            <th class="p-4 text-right">{{ 'PLAN_VALIDATION.BUDGET' | translate }}</th>
+            <th class="p-4 text-center">{{ 'PLAN_VALIDATION.ACTIONS' | translate }}</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let plan of plans()" class="border-t hover:bg-gray-50">
+            <td class="p-4 font-medium">{{ plan.site_name ?? plan.site_code ?? plan.site_id }}</td>
+            <td class="p-4">{{ plan.year }}</td>
+            <td class="p-4">{{ validationModeLabel(plan.validation_mode) }}</td>
+            <td class="p-4">
+              <span class="text-amber-600 font-medium">{{ validationStepLabel(plan) }}</span>
+            </td>
+            <td class="p-4 text-right">{{ plan.total_budget != null ? (plan.total_budget | number:'1.0-0') + ' €' : '–' }}</td>
+            <td class="p-4">
+              <div class="flex items-center justify-center gap-3">
+                <a [routerLink]="['/csr-plans', plan.id]"
+                  class="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-gray-600 hover:text-brand-900 hover:bg-brand-100 rounded-xl border border-gray-200/80 transition-colors">
+                  {{ 'PLAN_VALIDATION.DETAILS' | translate }}
+                </a>
+                <div *ngIf="plan.can_approve || plan.can_reject" class="flex items-center gap-2">
+                  <button *ngIf="plan.can_approve" type="button" (click)="approve(plan)"
+                    [disabled]="actionLoading() === plan.id"
+                    class="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-white bg-brand-900 hover:opacity-90 rounded-xl border border-gray-200/80 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                    {{ 'PLAN_VALIDATION.APPROVE' | translate }}
+                  </button>
+                  <button *ngIf="plan.can_reject" type="button" (click)="openRejectModal(plan)"
+                    [disabled]="actionLoading() === plan.id"
+                    class="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-gray-600 hover:text-brand-900 hover:bg-brand-100 rounded-xl border border-gray-200/80 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                    {{ 'PLAN_VALIDATION.REJECT' | translate }}
+                  </button>
+                </div>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Reject modal -->
+  <div *ngIf="showRejectModal()" class="fixed inset-0 z-[9998] flex items-center justify-center p-4 bg-black/50" (click)="closeRejectModal()" role="dialog" aria-modal="true" aria-labelledby="reject-modal-title-val">
+    <div class="relative z-[9999] bg-white rounded-2xl shadow-xl border border-gray-200 w-full max-w-md overflow-hidden" (click)="$event.stopPropagation()">
+      <div class="p-6 border-b border-gray-100">
+        <h2 id="reject-modal-title-val" class="text-lg font-semibold text-gray-800">{{ 'PLAN_VALIDATION.REJECT_TITLE' | translate }}</h2>
+        <p class="text-gray-500 text-sm mt-1" *ngIf="planToReject()">
+          {{ planToReject()!.site_name ?? planToReject()!.site_code }} – {{ planToReject()!.year }}
+        </p>
+        <p class="text-gray-500 text-sm mt-1">{{ 'PLAN_VALIDATION.REJECT_INSTRUCTIONS' | translate }}</p>
+      </div>
+      <div class="p-6 space-y-4">
+        <div *ngIf="rejectModalLoading()" class="text-center py-4 text-gray-500 text-sm">{{ 'PLAN_VALIDATION.LOADING_ACTIVITIES' | translate }}</div>
+        <ng-container *ngIf="!rejectModalLoading()">
+          <div>
+            <label for="reject-comment-val" class="block text-sm font-medium text-gray-700 mb-1">{{ 'PLAN_VALIDATION.REJECT_REASON_LABEL' | translate }} <span class="text-red-500">*</span></label>
+            <textarea id="reject-comment-val" rows="3" [value]="rejectComment()" (input)="rejectComment.set($any($event.target).value)"
+              class="w-full px-3 py-2 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-rose-500 focus:border-rose-500"
+              [placeholder]="'PLAN_VALIDATION.REJECT_REASON_PLACEHOLDER' | translate"></textarea>
+          </div>
+          <div>
+            <span class="block text-sm font-medium text-gray-700 mb-2">{{ 'PLAN_VALIDATION.ACTIVITIES_TO_MODIFY' | translate }}</span>
+            <div class="border border-gray-200 rounded-xl p-3 max-h-48 overflow-y-auto space-y-2 bg-gray-50/50">
+              <label *ngFor="let a of planDetailForReject()?.activities" class="flex items-start gap-3 cursor-pointer hover:bg-white/80 p-2 rounded-lg">
+                <input type="checkbox" [checked]="isRejectActivitySelected(a.id)" (change)="toggleRejectActivity(a.id)"
+                  class="mt-1 rounded border-gray-300 text-rose-600 focus:ring-rose-500">
+                <span class="text-sm text-gray-700">{{ a.activity_number }} – {{ a.title }}</span>
+              </label>
+              <p *ngIf="!planDetailForReject()?.activities?.length" class="text-gray-500 text-sm">{{ 'PLAN_VALIDATION.NO_ACTIVITIES_IN_PLAN' | translate }}</p>
+            </div>
+          </div>
+        </ng-container>
+        <p *ngIf="rejectModalError()" class="text-sm text-red-600">{{ rejectModalError() }}</p>
+      </div>
+      <div class="p-6 pt-0 flex justify-end gap-3">
+        <button type="button" (click)="closeRejectModal()"
+          class="px-4 py-2 rounded-xl text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 transition-colors">
+          {{ 'PLAN_VALIDATION.CANCEL' | translate }}
+        </button>
+        <button type="button" (click)="submitReject()" [disabled]="actionLoading() || rejectModalLoading()"
+          class="px-4 py-2 rounded-xl text-sm font-semibold bg-white text-brand-900 border-2 border-brand-900 hover:bg-gray-50 disabled:opacity-50 transition-colors">
+          {{ 'PLAN_VALIDATION.REJECT_PLAN' | translate }}
+        </button>
+      </div>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,346 @@
+<div class="p-8 space-y-8 bg-gray-50 min-h-screen">
+  <!-- Excel import progress bar -->
+  <div *ngIf="importLoading()" class="fixed top-0 left-0 right-0 z-[9999] h-1.5 bg-gray-200 overflow-hidden">
+    <div class="h-full bg-brand-900 transition-all duration-300 ease-out" [style.width.%]="importProgress()"></div>
+  </div>
+
+  <div class="flex justify-between items-center">
+    <div>
+      <h1 class="text-3xl font-bold tracking-tight text-gray-800">{{ 'ANNUAL_PLANS.TITLE' | translate }}</h1>
+      <p class="text-gray-500 mt-1">{{ 'ANNUAL_PLANS.SUBTITLE' | translate }}</p>
+    </div>
+    <div class="flex items-center gap-3 flex-wrap">
+      <label class="bg-brand-900 text-white px-5 py-2.5 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 inline-flex items-center gap-2 cursor-pointer">
+        <input type="file" accept=".xlsx" class="hidden" (change)="onImportFile($event)" [disabled]="importLoading()" />
+        <span *ngIf="!importLoading()"><i class="fas fa-file-excel mr-1"></i> {{ 'ANNUAL_PLANS.IMPORT_EXCEL' | translate }}</span>
+        <span *ngIf="importLoading()"><i class="fas fa-spinner fa-spin mr-1"></i> {{ 'ANNUAL_PLANS.IMPORTING' | translate }}</span>
+      </label>
+      <button type="button" (click)="openCreateSidebar()"
+        class="bg-brand-900 text-white px-5 py-2.5 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 inline-flex items-center gap-2">
+        + {{ 'ANNUAL_PLANS.NEW_PLAN' | translate }}
+      </button>
+    </div>
+  </div>
+
+  <!-- Modal: choose validation mode per plan before import -->
+  <div *ngIf="showImportModal()"
+    class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+    (click)="$event.target === $event.currentTarget && cancelImportModal()">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[85vh] flex flex-col"
+      (click)="$event.stopPropagation()">
+      <div class="flex items-center justify-between p-6 border-b border-gray-100">
+        <h2 class="text-xl font-bold text-gray-800">
+          <i class="fas fa-file-excel text-emerald-600 mr-2"></i> {{ 'ANNUAL_PLANS.MODAL.CHOOSE_VALIDATION_MODE' | translate }}
+        </h2>
+        <button type="button" (click)="cancelImportModal()" class="text-gray-400 hover:text-gray-600 p-1">
+          <i class="fas fa-times text-xl"></i>
+        </button>
+      </div>
+      <p class="px-6 py-2 text-sm text-gray-500">{{ 'ANNUAL_PLANS.MODAL.CHOOSE_AND_IMPORT' | translate }}</p>
+      <div *ngIf="importPreviewErrors().length" class="mx-6 mb-2 p-3 bg-amber-50 border border-amber-200 rounded-xl text-amber-800 text-sm">
+        <span class="font-medium">{{ 'ANNUAL_PLANS.MODAL.WARNINGS' | translate:{ n: importPreviewErrors().length } }}</span>
+        <pre class="mt-1 whitespace-pre-wrap">{{ importPreviewErrors().slice(0, 5).join('\n') }}</pre>
+      </div>
+      <div class="flex-1 overflow-auto px-6 pb-4">
+        <table class="w-full text-sm">
+          <thead class="bg-gray-50 sticky top-0">
+            <tr>
+              <th class="p-3 text-left text-gray-600 font-semibold">{{ 'ANNUAL_PLANS.TABLE.SITE' | translate }}</th>
+              <th class="p-3 text-left text-gray-600 font-semibold">{{ 'ANNUAL_PLANS.TABLE.YEAR' | translate }}</th>
+              <th class="p-3 text-left text-gray-600 font-semibold">{{ 'ANNUAL_PLANS.TABLE.VALIDATION_MODE' | translate }}</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let plan of importPlansWithModes(); let i = index" class="border-t border-gray-100 hover:bg-gray-50/50">
+              <td class="p-3 font-medium text-gray-800">{{ plan.site_name ?? plan.site_id }}</td>
+              <td class="p-3 text-gray-700">{{ plan.year }}</td>
+              <td class="p-3">
+                <select
+                  class="w-full max-w-[180px] pl-3 pr-8 py-2 border border-gray-200 rounded-lg text-gray-700 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                  (change)="setPlanMode(i, $any($event.target).value)">
+                  <option value="101" [selected]="plan.validation_mode === '101'">{{ 'ANNUAL_PLANS.MODE.CORPORATE_ONLY' | translate }}</option>
+                  <option value="111" [selected]="plan.validation_mode === '111'">{{ 'ANNUAL_PLANS.MODE.ALL' | translate }}</option>
+                </select>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="flex justify-end gap-3 p-6 border-t border-gray-100">
+        <button type="button" (click)="cancelImportModal()"
+          class="px-5 py-2.5 rounded-xl border border-gray-300 text-gray-700 hover:bg-gray-50 font-medium">
+          {{ 'COMMON.CANCEL' | translate }}
+        </button>
+        <button type="button" (click)="confirmImport()" [disabled]="importLoading() || !importPlansWithModes().length"
+          class="px-6 py-2.5 rounded-xl bg-brand-900 hover:bg-brand-800 disabled:opacity-50 text-white font-semibold">
+          <span *ngIf="!importLoading()">{{ 'ANNUAL_PLANS.IMPORT' | translate }}</span>
+          <span *ngIf="importLoading()"><i class="fas fa-spinner fa-spin mr-1"></i> {{ 'ANNUAL_PLANS.IMPORTING' | translate }}</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Import result message -->
+  <div *ngIf="importResult() as result"
+    class="rounded-xl border p-4 flex items-start justify-between gap-4"
+    [class.bg-green-50]="result.success"
+    [class.border-green-200]="result.success"
+    [class.bg-red-50]="!result.success"
+    [class.border-red-200]="!result.success">
+    <div class="min-w-0">
+      <p [class.text-green-800]="result.success" [class.text-red-800]="!result.success" class="font-medium">{{ result.message }}</p>
+      <pre *ngIf="result.details" class="mt-2 text-sm whitespace-pre-wrap break-words" [class.text-green-700]="result.success" [class.text-red-700]="!result.success">{{ result.details }}</pre>
+    </div>
+    <button type="button" (click)="clearImportResult()" class="text-gray-500 hover:text-gray-700 shrink-0">
+      <i class="fas fa-times"></i>
+    </button>
+  </div>
+
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+    <div class="bg-white/70 backdrop-blur-lg rounded-2xl p-6 shadow-sm border border-gray-100 hover:shadow-lg transition">
+      <p class="text-gray-500 text-sm">{{ 'ANNUAL_PLANS.CARDS.TOTAL' | translate }}</p>
+      <p class="text-3xl font-bold mt-2 text-gray-800">{{ totalPlans() }}</p>
+    </div>
+    <div class="bg-white/70 backdrop-blur-lg rounded-2xl p-6 shadow-sm border border-gray-100 hover:shadow-lg transition">
+      <p class="text-gray-500 text-sm">{{ 'ANNUAL_PLANS.CARDS.PENDING' | translate }}</p>
+      <p class="text-3xl font-bold mt-2 text-yellow-500">{{ submittedPlans() }}</p>
+    </div>
+    <div class="bg-white/70 backdrop-blur-lg rounded-2xl p-6 shadow-sm border border-gray-100 hover:shadow-lg transition">
+      <p class="text-gray-500 text-sm">{{ 'ANNUAL_PLANS.CARDS.VALIDATED' | translate }}</p>
+      <p class="text-3xl font-bold mt-2 text-green-600">{{ approvedPlans() }}</p>
+    </div>
+  </div>
+
+  <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+    <div class="px-6 py-4 border-b border-gray-100">
+      <div class="flex flex-wrap items-center gap-4">
+        <h2 class="font-semibold text-gray-700 text-base flex items-center gap-2 flex-shrink-0">
+          {{ 'ANNUAL_PLANS.SECTION_TITLE' | translate }}
+          <span class="px-2 py-0.5 text-xs font-bold rounded-full bg-brand-900/10 text-brand-900">
+            {{ filteredPlans().length }}
+          </span>
+        </h2>
+        <div class="relative flex-1 min-w-[220px]">
+          <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-5 h-5">
+              <path fill-rule="evenodd" d="M10.5 3.75a6.75 6.75 0 1 0 0 13.5 6.75 6.75 0 0 0 0-13.5ZM2.25 10.5a8.25 8.25 0 1 1 14.59 5.28l4.69 4.69a.75.75 0 1 1-1.06 1.06l-4.69-4.69A8.25 8.25 0 0 1 2.25 10.5Z" clip-rule="evenodd"/>
+            </svg>
+          </div>
+          <input type="text" [placeholder]="'ANNUAL_PLANS.SEARCH_PLACEHOLDER' | translate"
+            class="pl-10 pr-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none w-full"
+            (input)="search.set($any($event.target).value)" />
+        </div>
+        <div class="relative w-[180px] flex-shrink-0">
+          <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-500">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor" class="w-4 h-4">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+            </svg>
+          </div>
+          <select
+            class="pl-9 pr-10 py-2.5 w-full bg-gray-100 border-0 rounded-xl text-sm text-gray-700 font-medium focus:ring-2 focus:ring-blue-500 focus:bg-white focus:outline-none appearance-none cursor-pointer hover:bg-gray-200"
+            [value]="selectedStatus()"
+            (change)="selectedStatus.set($any($event.target).value)">
+            <option value="">{{ 'ANNUAL_PLANS.FILTER.ALL_STATUS' | translate }}</option>
+            <option value="DRAFT">{{ 'ANNUAL_PLANS.STATUS.DRAFT' | translate }}</option>
+            <option value="SUBMITTED">{{ 'ANNUAL_PLANS.STATUS.SUBMITTED' | translate }}</option>
+            <option value="VALIDATED_LOCKED">{{ 'ANNUAL_PLANS.STATUS.VALIDATED' | translate }}</option>
+            <option value="VALIDATED_OPEN">{{ 'ANNUAL_PLANS.STATUS.UNLOCKED' | translate }}</option>
+            <option value="REJECTED">{{ 'ANNUAL_PLANS.STATUS.REJECTED' | translate }}</option>
+          </select>
+          <div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none text-gray-500">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-3.5 h-3.5">
+              <path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5"/>
+            </svg>
+          </div>
+        </div>
+        <div class="relative w-[180px] flex-shrink-0">
+          <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-500">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor" class="w-4 h-4">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5" />
+            </svg>
+          </div>
+          <select
+            class="pl-9 pr-10 py-2.5 w-full bg-gray-100 border-0 rounded-xl text-sm text-gray-700 font-medium focus:ring-2 focus:ring-blue-500 focus:bg-white focus:outline-none appearance-none cursor-pointer hover:bg-gray-200"
+            [value]="selectedYear() ?? ''"
+            (change)="selectedYear.set($any($event.target).value ? +$any($event.target).value : null)">
+            <option value="">{{ 'ANNUAL_PLANS.FILTER.ALL_YEARS' | translate }}</option>
+            <option [value]="y" *ngFor="let y of [2025,2024,2023,2022,2021]">{{ y }}</option>
+          </select>
+          <div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none text-gray-500">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-3.5 h-3.5">
+              <path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5"/>
+            </svg>
+          </div>
+        </div>
+        <div class="relative w-[140px] flex-shrink-0">
+          <select
+            [ngModel]="bulkActionChoice()"
+            (ngModelChange)="onBulkActionChange($event)"
+            [disabled]="bulkActionLoading() || selectedCount() === 0"
+            class="pl-3 pr-9 py-2.5 w-full bg-gray-100 border-0 rounded-xl text-sm text-gray-700 font-medium focus:ring-2 focus:ring-blue-500 focus:bg-white focus:outline-none appearance-none cursor-pointer hover:bg-gray-200 disabled:opacity-60 disabled:cursor-not-allowed">
+            <option value="">{{ 'ANNUAL_PLANS.ACTIONS.TITLE' | translate }}</option>
+            <option value="submit" [disabled]="!canBulkSubmit()">{{ 'ANNUAL_PLANS.ACTIONS.SUBMIT' | translate }}</option>
+            <option value="delete" [disabled]="!canBulkDelete()">{{ 'ANNUAL_PLANS.ACTIONS.DELETE' | translate }}</option>
+          </select>
+          <div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none text-gray-500">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-3.5 h-3.5">
+              <path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5"/>
+            </svg>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div *ngIf="loading()" class="p-8 text-center text-gray-500">{{ 'ANNUAL_PLANS.LOADING' | translate }}</div>
+
+    <table *ngIf="!loading()" class="w-full text-sm">
+      <thead class="bg-gray-50 text-gray-600 uppercase text-xs tracking-wider">
+        <tr>
+          <th class="p-4 w-12 text-center">
+            <label class="cursor-pointer flex items-center justify-center gap-1 select-none" [attr.title]="'ANNUAL_PLANS.TABLE.TOGGLE_SELECT' | translate">
+              <input type="checkbox"
+                [checked]="isAllFilteredSelected()"
+                [indeterminate]="isSomeFilteredSelected() && !isAllFilteredSelected()"
+                (change)="toggleSelectAllFiltered()"
+                class="rounded border-gray-300 text-slate-700 focus:ring-brand-700 w-4 h-4" />
+              <span class="sr-only">{{ 'ANNUAL_PLANS.TABLE.TOGGLE_SELECT' | translate }}</span>
+            </label>
+          </th>
+          <th (click)="sortBy('site_name')"
+            class="p-4 text-left cursor-pointer hover:bg-gray-100 transition select-none">
+            <div class="flex items-center gap-2">
+              <span>{{ 'ANNUAL_PLANS.TABLE.SITE' | translate }}</span>
+              <span class="inline-flex w-3 justify-center text-xs leading-none" [class.opacity-0]="sortColumn() !== 'site_name'">{{ sortDirection() === 'asc' ? '↑' : '↓' }}</span>
+            </div>
+          </th>
+          <th (click)="sortBy('site_country')"
+            class="p-4 text-left cursor-pointer hover:bg-gray-100 transition select-none">
+            <div class="flex items-center gap-2">
+              <span>{{ 'ANNUAL_PLANS.TABLE.COUNTRY' | translate }}</span>
+              <span class="inline-flex w-3 justify-center text-xs leading-none" [class.opacity-0]="sortColumn() !== 'site_country'">{{ sortDirection() === 'asc' ? '↑' : '↓' }}</span>
+            </div>
+          </th>
+          <th (click)="sortBy('year')"
+            class="p-4 text-left cursor-pointer hover:bg-gray-100 transition select-none">
+            <div class="flex items-center gap-2">
+              <span>{{ 'ANNUAL_PLANS.TABLE.YEAR' | translate }}</span>
+              <span class="inline-flex w-3 justify-center text-xs leading-none" [class.opacity-0]="sortColumn() !== 'year'">{{ sortDirection() === 'asc' ? '↑' : '↓' }}</span>
+            </div>
+          </th>
+          <th (click)="sortBy('total_budget')"
+            class="p-4 text-right cursor-pointer hover:bg-gray-100 transition select-none">
+            <div class="flex items-center justify-end gap-2">
+              <span>{{ 'ANNUAL_PLANS.TABLE.TOTAL_BUDGET' | translate }}</span>
+              <span class="inline-flex w-3 justify-center text-xs leading-none" [class.opacity-0]="sortColumn() !== 'total_budget'">{{ sortDirection() === 'asc' ? '↑' : '↓' }}</span>
+            </div>
+          </th>
+          <th (click)="sortBy('validation_mode')"
+            class="p-4 text-center cursor-pointer hover:bg-gray-100 transition select-none">
+            <div class="flex items-center justify-center gap-2">
+              <span>{{ 'ANNUAL_PLANS.TABLE.MODE' | translate }}</span>
+              <span class="inline-flex w-3 justify-center text-xs leading-none" [class.opacity-0]="sortColumn() !== 'validation_mode'">{{ sortDirection() === 'asc' ? '↑' : '↓' }}</span>
+            </div>
+          </th>
+          <th (click)="sortBy('activities_count')"
+            class="p-4 text-center cursor-pointer hover:bg-gray-100 transition select-none">
+            <div class="flex items-center justify-center gap-2">
+              <span>{{ 'ANNUAL_PLANS.TABLE.ACTIVITIES' | translate }}</span>
+              <span class="inline-flex w-3 justify-center text-xs leading-none" [class.opacity-0]="sortColumn() !== 'activities_count'">{{ sortDirection() === 'asc' ? '↑' : '↓' }}</span>
+            </div>
+          </th>
+          <th class="p-4 text-left">{{ 'ANNUAL_PLANS.TABLE.CREATED_AT' | translate }}</th>
+          <th (click)="sortBy('status')"
+            class="p-4 text-center cursor-pointer hover:bg-gray-100 transition select-none">
+            <div class="flex items-center justify-center gap-2">
+              <span>{{ 'ANNUAL_PLANS.TABLE.STATUS' | translate }}</span>
+              <span class="inline-flex w-3 justify-center text-xs leading-none" [class.opacity-0]="sortColumn() !== 'status'">{{ sortDirection() === 'asc' ? '↑' : '↓' }}</span>
+            </div>
+          </th>
+          <th class="p-4 text-center">{{ 'ANNUAL_PLANS.TABLE.ACTIONS' | translate }}</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let plan of filteredPlans()" class="border-t hover:bg-gray-50 transition duration-200"
+          [class.bg-brand-100/70]="isSelected(plan.id)">
+          <td class="p-4 w-12 text-center">
+            <label class="cursor-pointer flex items-center justify-center" (click)="$event.stopPropagation()">
+              <input type="checkbox" [checked]="isSelected(plan.id)" (change)="toggleSelection(plan.id)"
+                class="rounded border-gray-300 text-slate-700 focus:ring-brand-700 w-4 h-4" />
+            </label>
+          </td>
+          <td class="p-4">
+            <span class="font-medium text-gray-800">{{ plan.site_name ?? plan.site_code ?? plan.site_id }}</span>
+            <span class="text-gray-400 text-xs ml-1" *ngIf="plan.site_code">({{ plan.site_code }})</span>
+          </td>
+          <td class="p-4 text-gray-700">{{ plan.site_country ?? '–' }}</td>
+          <td class="p-4 font-semibold text-gray-800">{{ plan.year }}</td>
+          <td class="p-4 text-right text-gray-700">
+            {{ plan.total_budget != null ? (plan.total_budget | number:'1.0-0') + ' €' : '–' }}
+          </td>
+          <td class="p-4 text-center text-gray-600">{{ validationModeLabel(plan.validation_mode) }}</td>
+          <td class="p-4 text-center text-gray-700">{{ plan.activities_count ?? 0 }}</td>
+          <td class="p-4 text-gray-600 text-xs">{{ plan.created_at ? (plan.created_at | date:'dd/MM/yyyy') : '–' }}</td>
+          <td class="p-4 text-center">
+            <span class="px-3 py-1 rounded-full text-xs font-semibold" [ngClass]="statusBadgeClass(plan)">{{ getStatusLabel(plan) }}</span>
+          </td>
+          <td class="p-4 text-center">
+            <div class="flex items-center justify-center gap-1">
+              <a [routerLink]="['/csr-plans', plan.id]"
+                class="p-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors"
+                [attr.title]="'ANNUAL_PLANS.ACTIONS.DETAILS' | translate">
+                <i class="fas fa-eye text-sm"></i>
+              </a>
+              <button *ngIf="plan.status === 'VALIDATED' && !isPlanEditable(plan)" type="button" (click)="goToChangeRequest(plan.id); $event.stopPropagation()"
+                class="inline-flex items-center justify-center p-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors cursor-pointer" [attr.title]="'ANNUAL_PLANS.ACTIONS.CHANGE_REQUEST' | translate">
+                <i class="fas fa-lock-open text-sm"></i>
+              </button>
+              <button *ngIf="isPlanEditable(plan)" type="button" (click)="toggleMenu(plan, $event)"
+                class="inline-flex items-center justify-center p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">
+                <i class="fas fa-ellipsis-vertical text-sm"></i>
+              </button>
+            </div>
+          </td>
+        </tr>
+        <tr *ngIf="!loading() && filteredPlans().length === 0" class="border-t">
+          <td colspan="10" class="p-8 text-center text-gray-500">{{ 'ANNUAL_PLANS.EMPTY' | translate }} <button type="button" (click)="openCreateSidebar()" class="text-brand-700 hover:underline">{{ 'ANNUAL_PLANS.CREATE_PLAN' | translate }}</button></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Dropdown actions (3 points) – same style as document action -->
+<div *ngIf="activeMenuPlan"
+  class="fixed bg-white border border-gray-200 rounded-xl shadow-xl z-[9999] w-44 py-1 overflow-hidden"
+  [style.top.px]="menuPosition.top"
+  [style.left.px]="menuPosition.left"
+  (click)="$event.stopPropagation()">
+
+  <button *ngIf="canSubmitFromList(activeMenuPlan!)" (click)="submitFromMenu(activeMenuPlan!)"
+    class="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors">
+    <i class="fas fa-paper-plane text-brand-700 w-4 text-center"></i>
+    {{ 'ANNUAL_PLANS.ACTIONS.SUBMIT' | translate }}
+  </button>
+
+  <div class="border-t border-gray-100 my-1"></div>
+
+  <button *ngIf="activeMenuPlan!.status === 'DRAFT' || activeMenuPlan!.status === 'REJECTED'" (click)="deleteFromMenu(activeMenuPlan!)"
+    class="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 transition-colors">
+    <i class="fas fa-trash w-4 text-center"></i>
+    {{ 'ANNUAL_PLANS.ACTIONS.DELETE' | translate }}
+  </button>
+
+</div>
+
+<!-- Plan create sidebar (slide from right) -->
+<div *ngIf="showCreateSidebar()"
+  class="fixed inset-0 z-50 flex"
+  (click)="closeCreateSidebar()">
+  <div class="flex-1 bg-black/40 transition-opacity" aria-hidden="true"></div>
+  <aside class="w-full max-w-md bg-white shadow-2xl flex flex-col h-full animate-slide-in-right"
+    (click)="$event.stopPropagation()">
+    <app-plan-create-sidebar
+      (closed)="closeCreateSidebar()"
+      (created)="onPlanCreated()">
+    </app-plan-create-sidebar>
+  </aside>
+</div>
