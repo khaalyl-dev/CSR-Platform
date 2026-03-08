@@ -26,6 +26,6 @@ python init_db.py
 
 | File | Content |
 |------|---------|
-| `../bd/TABLES_ET_COLONNES.md` | Table and column descriptions (MySQL) |
-| `../bd/schema.dbml` | Conceptual DBML schema |
-| `../bd/MIGRATIONS.md` | Fresh DB instructions |
+| `../Database/TABLES_ET_COLONNES.md` | Table and column descriptions (MySQL) |
+| `../Database/schema.dbml` | Conceptual DBML schema |
+| `../Database/MIGRATIONS.md` | Fresh DB instructions |

@@ -20,5 +20,5 @@ Pour réinitialiser : supprimer la base MySQL puis recréer, puis exécuter `ini
 
 ## Schéma
 
-- **bd/TABLES_ET_COLONNES.md** – description des tables et colonnes (MySQL)
-- **bd/schema.dbml** – schéma conceptuel (DBML)
+- **Database/TABLES_ET_COLONNES.md** – description des tables et colonnes (MySQL)
+- **Database/schema.dbml** – schéma conceptuel (DBML)

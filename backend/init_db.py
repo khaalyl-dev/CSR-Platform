@@ -5,7 +5,7 @@ Initialize MySQL database with tables and test data.
 Run once for fresh setup:
     python init_db.py
 
-Schema: ../bd/TABLES_ET_COLONNES.md, ../bd/schema.dbml
+Schema: ../Database/TABLES_ET_COLONNES.md, ../Database/schema.dbml
 """
 from datetime import datetime
 
