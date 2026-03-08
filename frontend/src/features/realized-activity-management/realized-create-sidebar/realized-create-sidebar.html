@@ -24,7 +24,7 @@
             <option *ngFor="let p of editablePlans" [value]="p.id">{{ p.site_name ?? p.site_code ?? p.site_id }} – {{ p.year }}</option>
           </select>
           <p class="text-xs text-red-500 mt-1" *ngIf="form.get('plan_id')?.touched && form.get('plan_id')?.invalid">Le plan est obligatoire</p>
-          <p class="text-xs text-amber-700 mt-1" *ngIf="!loadingData && editablePlans.length === 0">Aucun plan pour l'année en cours. Les réalisations ne peuvent être ajoutées que pour les activités de l'année {{ currentYear }}.</p>
+          <p class="text-xs text-amber-700 mt-1" *ngIf="!loadingData && editablePlans.length === 0">{{ 'REALIZED_CREATE.NO_PLANS' | translate }}</p>
         </div>
 
         <!-- Activity select -->

@@ -23,9 +23,9 @@
 
   <!-- Modal: choose validation mode per plan before import -->
   <div *ngIf="showImportModal()"
-    class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+    class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 !mt-0"
     (click)="$event.target === $event.currentTarget && cancelImportModal()">
-    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[85vh] flex flex-col"
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[85vh] flex flex-col min-h-0 overflow-hidden"
       (click)="$event.stopPropagation()">
       <div class="flex items-center justify-between p-6 border-b border-gray-100">
         <h2 class="text-xl font-bold text-gray-800">
@@ -40,7 +40,7 @@
         <span class="font-medium">{{ 'ANNUAL_PLANS.MODAL.WARNINGS' | translate:{ n: importPreviewErrors().length } }}</span>
         <pre class="mt-1 whitespace-pre-wrap">{{ importPreviewErrors().slice(0, 5).join('\n') }}</pre>
       </div>
-      <div class="flex-1 overflow-auto px-6 pb-4">
+      <div class="flex-1 min-h-0 overflow-y-auto px-6 pb-4">
         <table class="w-full text-sm">
           <thead class="bg-gray-50 sticky top-0">
             <tr>

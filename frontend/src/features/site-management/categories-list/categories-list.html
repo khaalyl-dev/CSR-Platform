@@ -78,7 +78,7 @@
 
 <!-- Delete category modal -->
 @if (deleteTarget(); as target) {
-  <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" (click)="closeDeleteModal()">
+  <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 !mt-0" (click)="closeDeleteModal()">
     <div class="bg-white rounded-2xl shadow-xl max-w-lg w-full overflow-hidden" (click)="$event.stopPropagation()">
       <div class="px-6 py-4 border-b border-gray-100">
         <h3 class="text-lg font-semibold text-gray-900">{{ 'CATEGORIES.DELETE_TITLE' | translate }}</h3>

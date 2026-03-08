@@ -106,10 +106,10 @@ def list_activities():
 
     if exclude_realized:
         q = q.filter(~CsrActivity.id.in_(db.session.query(RealizedCsr.activity_id).distinct()))
-        # Planned-activities list: only current and future years, and only validated plans
+        # Planned-activities list: current and future years, and plans that can have activities (DRAFT, REJECTED, VALIDATED)
         current_year = date.today().year
         q = q.filter(CsrPlan.year >= current_year)
-        q = q.filter(CsrPlan.status == "VALIDATED")
+        q = q.filter(CsrPlan.status.in_(["VALIDATED", "DRAFT", "REJECTED"]))
 
     activities = q.order_by(CsrPlan.year.desc(), CsrActivity.plan_id, CsrActivity.activity_number).all()
     return jsonify([_activity_to_json_with_plan(a) for a in activities]), 200

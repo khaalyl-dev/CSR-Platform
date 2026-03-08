@@ -139,7 +139,10 @@ export class RealizedCreateSidebarComponent implements OnInit {
 
   private getEditablePlans(plans: CsrPlan[]): CsrPlan[] {
     const currentYear = new Date().getFullYear();
-    return plans.filter((p) => p.year === currentYear); // Current year only, any status (including VALIDATED)
+    // Include current year and past 2 years to allow recording realizations for recent plans (e.g. late reporting)
+    return plans
+      .filter((p) => p.year >= currentYear - 2 && p.year <= currentYear + 1)
+      .sort((a, b) => b.year - a.year || (a.site_name ?? '').localeCompare(b.site_name ?? ''));
   }
 
   private onPlanChange(planId: string): void {

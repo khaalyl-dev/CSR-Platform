@@ -86,7 +86,7 @@
     </div>
 
     <!-- Document preview modal -->
-    <div *ngIf="previewDoc()" class="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/60" (click)="closePreview()" role="dialog" aria-modal="true" aria-label="Aperçu du document">
+    <div *ngIf="previewDoc()" class="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 !mt-0" (click)="closePreview()" role="dialog" aria-modal="true" aria-label="Aperçu du document">
       <div class="relative bg-white rounded-2xl shadow-xl max-w-4xl w-full max-h-[90vh] flex flex-col" (click)="$event.stopPropagation()">
         <div class="flex items-center justify-between p-4 border-b border-gray-200">
           <h3 class="text-lg font-semibold text-gray-800 truncate">{{ previewDoc()!.file_name }}</h3>

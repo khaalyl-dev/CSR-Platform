@@ -678,6 +678,7 @@
     "CHOOSE_PLAN": "Select a plan",
     "PLAN_REQUIRED": "Please select a plan",
     "NO_PLAN_CURRENT_YEAR": "No plan found for the current year. Realizations must belong to a {{year}} plan.",
+    "NO_PLANS": "No plans found for recent years (current year and past 2 years).",
     "ACTIVITY_REQ": "Activity *",
     "CHOOSE_ACTIVITY": "Select an activity",
     "ACTIVITY_OFF_PLAN": "Off-plan activity",

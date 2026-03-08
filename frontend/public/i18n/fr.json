@@ -638,6 +638,7 @@
     "CHOOSE_PLAN": "Choisir un plan",
     "PLAN_REQUIRED": "Le plan est obligatoire",
     "NO_PLAN_CURRENT_YEAR": "Aucun plan pour l'année en cours. Les réalisations ne peuvent être ajoutées que pour les activités de l'année {{year}}.",
+    "NO_PLANS": "Aucun plan trouvé pour les années récentes (année en cours et 2 années passées).",
     "ACTIVITY_REQ": "Activité *",
     "CHOOSE_ACTIVITY": "Choisir une activité",
     "ACTIVITY_OFF_PLAN": "Activité hors plan",

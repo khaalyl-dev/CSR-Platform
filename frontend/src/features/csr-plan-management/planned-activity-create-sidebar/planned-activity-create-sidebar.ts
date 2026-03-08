@@ -17,6 +17,7 @@ const LOAD_TIMEOUT_MS = 8000;
   standalone: true,
   imports: [ReactiveFormsModule, CommonModule, TranslateModule],
   templateUrl: './planned-activity-create-sidebar.html',
+  host: { class: 'flex flex-col flex-1 min-h-0 overflow-hidden' },
 })
 export class PlannedActivityCreateSidebarComponent implements OnInit {
   private fb = inject(FormBuilder);
@@ -64,9 +65,18 @@ export class PlannedActivityCreateSidebarComponent implements OnInit {
       catchError(() => of([] as CsrPlan[])),
     ).subscribe({
       next: (list) => {
-        this.plansForSelection = (list || [])
-          .filter((p) => p.year >= this.currentYear && ['DRAFT', 'REJECTED', 'VALIDATED'].includes(p.status ?? ''))
+        const editableStatuses = ['DRAFT', 'REJECTED', 'VALIDATED'];
+        let plans = (list || [])
+          .filter((p) => (p.year >= this.currentYear || p.id === this.initialPlanId) && editableStatuses.includes(p.status ?? ''))
           .sort((a, b) => b.year - a.year || (a.site_name ?? '').localeCompare(b.site_name ?? ''));
+        // If opened from plan detail, ensure the current plan is in the list (e.g. draft for past year)
+        if (this.initialPlanId && !plans.some((x) => x.id === this.initialPlanId)) {
+          const initial = (list || []).find((x) => x.id === this.initialPlanId);
+          if (initial && editableStatuses.includes(initial.status ?? '')) {
+            plans = [initial, ...plans];
+          }
+        }
+        this.plansForSelection = plans;
         if (this.initialPlanId) {
           const p = this.plansForSelection.find((x) => x.id === this.initialPlanId);
           if (p) {
