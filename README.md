@@ -16,7 +16,6 @@ Plateforme de gestion des activités de responsabilité sociétale des entrepris
 ## Structure du projet
 
 ```
-finalpfe/
 ├── backend/          # API Flask (port 5001)
 │   ├── app.py        # Point d'entrée
 │   ├── config.py     # Configuration (env)
@@ -25,6 +24,7 @@ finalpfe/
 ├── frontend/         # Application Angular (port 4200)
 │   ├── src/
 │   └── proxy.conf.json   # Proxy API → backend
+├── Database/         # Schéma et documentations base de données
 └── README.md
 ```
 
@@ -36,10 +36,10 @@ finalpfe/
 
 ```bash
 git clone https://github.com/khaalyl-dev/CSR-Platform.git
-cd CSR-Platform/Desktop/finalpfe
+cd CSR-Platform
 ```
 
-*(Si vous travaillez déjà dans le projet, restez dans le dossier `finalpfe`.)*
+*(Si vous travaillez déjà dans le projet, restez à la racine du dépôt.)*
 
 ---
 
