@@ -1,6 +1,7 @@
 """
 Excel import for CSR Consolidated Report: parse .xlsx and create plans + activities (+ optional realizations).
 
+Uses pandas for fast bulk read instead of openpyxl cell-by-cell.
 Columns are read by fixed index (0-based) per "2024 CSR Consolidated Report Form - Group figures":
   0=Activity N, 1=Region, 2=country, 3=Plant, 4=Activity Title/description, 5=Category, 6=Nature of collaboration,
   7=Year, 8=Start year, 9=Edition, 10=Nbr of internal Participants, 11=Total HC, 12=Percentage out of all the employees %,
@@ -8,11 +9,9 @@ Columns are read by fixed index (0-based) per "2024 CSR Consolidated Report Form
   17=Organizer, 18=External Partner, 19=Number of External Partners
 """
 import re
-from decimal import Decimal
 from typing import Any, Optional
 
-from openpyxl import load_workbook
-from openpyxl.worksheet.worksheet import Worksheet
+import pandas as pd
 
 
 # Fixed column indices (0-based) for "2024 CSR Consolidated Report Form - Group figures"
@@ -40,14 +39,6 @@ COLUMN_INDICES = {
 }
 
 
-def _cell_value(ws: Worksheet, row: int, col: int) -> Any:
-    """Get cell value (1-based row/col in openpyxl)."""
-    try:
-        return ws.cell(row=row, column=col + 1).value
-    except Exception:
-        return None
-
-
 def _safe_int(val: Any) -> Optional[int]:
     if val is None or val == "":
         return None
@@ -60,11 +51,9 @@ def _safe_int(val: Any) -> Optional[int]:
 
 
 def _safe_float(val: Any) -> Optional[float]:
-    if val is None or val == "":
+    if val is None or val == "" or (isinstance(val, float) and pd.isna(val)):
         return None
     if isinstance(val, (int, float)):
-        return float(val)
-    if isinstance(val, Decimal):
         return float(val)
     s = str(val).strip().replace(",", ".")
     if not s:
@@ -84,37 +73,48 @@ def _safe_str(val: Any, max_len: int = 255) -> Optional[str]:
     return s[:max_len] if max_len else s
 
 
+def _val_to_python(val: Any) -> Any:
+    """Convert pandas/Excel value to plain Python (e.g. numpy types)."""
+    if val is None:
+        return None
+    if pd.isna(val):
+        return None
+    if hasattr(val, "item"):  # numpy scalar
+        val = val.item()
+    s = str(val).strip().lower()
+    if not s or s == "nan":
+        return None
+    return val
+
+
 def parse_excel_rows(file_path: str) -> tuple[list[dict[str, Any]], list[str]]:
     """
-    Parse Excel file and return list of row dicts (keys = internal keys) and list of parse errors.
-    Does not touch the database.
+    Parse Excel file using pandas DataFrame for fast bulk read. Returns list of row dicts
+    (keys = internal keys) and list of parse errors. Does not touch the database.
     """
     errors = []
     rows = []
     try:
-        wb = load_workbook(filename=file_path, read_only=True, data_only=True)
-        ws = wb.active
-        if not ws:
-            errors.append("Feuille active vide")
-            return rows, errors
-        max_row = ws.max_row or 0
-        max_col = ws.max_column or 0
-        if max_row < 2 or max_col < 2:
+        df = pd.read_excel(file_path, header=None, engine="openpyxl", dtype=str)
+        if df.empty or len(df) < 2:
             errors.append("Le fichier doit contenir une ligne d'en-têtes et au moins une ligne de données")
             return rows, errors
-
+        max_col = len(df.columns)
         if max_col < 4:
             errors.append("Le fichier doit avoir au moins 4 colonnes (Plant = colonne 4).")
+            return rows, errors
 
-        for r in range(2, max_row + 1):
+        # Data rows: skip header (row 0)
+        for r_idx in range(1, len(df)):
             row_data = {}
             for key, col_idx in COLUMN_INDICES.items():
                 if col_idx >= max_col:
                     continue
-                val = _cell_value(ws, r, col_idx)
+                val = _val_to_python(df.iloc[r_idx, col_idx])
                 if val is None:
                     continue
-                if isinstance(val, str) and not val.strip():
+                s = str(val).strip()
+                if not s:
                     continue
                 row_data[key] = val
             # planned_volunteers and impact_target use same columns as participants and impact_actual
@@ -128,7 +128,6 @@ def parse_excel_rows(file_path: str) -> tuple[list[dict[str, Any]], list[str]]:
             # Include only rows that have Plant/site (required)
             if row_data.get("site"):
                 rows.append(row_data)
-        wb.close()
     except Exception as e:
         errors.append(f"Erreur lecture Excel: {e}")
     return rows, errors
