@@ -23,10 +23,10 @@
           class="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-brand-900 text-white hover:opacity-90 text-sm font-medium">
           {{ 'REALIZED_DETAIL.VIEW_PLAN' | translate }}
         </a>
-        <a *ngIf="realized()!.plan_editable" [routerLink]="['/realized-csr', realized()!.id, 'edit']"
+        <button *ngIf="realized()!.plan_editable" type="button" (click)="openEditSidebar()"
           class="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-gray-300 text-gray-700 hover:bg-gray-50 text-sm font-medium">
           {{ 'REALIZED_DETAIL.EDIT' | translate }}
-        </a>
+        </button>
         <span *ngIf="realized()!.plan_editable === false" class="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-gray-100 text-gray-500 text-sm" [attr.title]="'PLAN_LOCKED_TITLE' | translate">
           <i class="fas fa-lock"></i> {{ 'REALIZED_DETAIL.MODIFICATION_UNAVAILABLE' | translate }}
         </span>
@@ -108,4 +108,22 @@
       </div>
     </div>
   </div>
+</div>
+
+<!-- Edit realized sidebar -->
+<div *ngIf="showEditSidebar() && realized()"
+  class="fixed inset-0 z-50 flex"
+  (click)="closeEditSidebar()">
+  <div class="flex-1 bg-black/40 transition-opacity" aria-hidden="true"></div>
+  <aside class="w-full max-w-2xl bg-white shadow-2xl flex flex-col h-full min-h-0 overflow-hidden animate-slide-in-right"
+    (click)="$event.stopPropagation()">
+    <div class="flex-1 min-h-0 overflow-y-auto">
+    <app-realized-edit
+      [realizedId]="realized()!.id"
+      [sidebarMode]="true"
+      (closed)="closeEditSidebar()"
+      (updated)="onRealizedUpdated()">
+    </app-realized-edit>
+    </div>
+  </aside>
 </div>

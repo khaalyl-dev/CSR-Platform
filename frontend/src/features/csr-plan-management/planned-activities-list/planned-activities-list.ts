@@ -3,11 +3,13 @@ import { CommonModule } from '@angular/common';
 import { Router, RouterModule } from '@angular/router';
 import { TranslateModule } from '@ngx-translate/core';
 import { CsrActivitiesApi, type PlannedActivityListItem } from '@features/realized-activity-management/api/csr-activities-api';
+import { PlannedActivityEditComponent } from '../planned-activity-edit/planned-activity-edit';
+import { RealizedCreateSidebarComponent } from '@features/realized-activity-management/realized-create-sidebar/realized-create-sidebar';
 
 @Component({
   selector: 'app-planned-activities-list',
   standalone: true,
-  imports: [CommonModule, RouterModule, TranslateModule],
+  imports: [CommonModule, RouterModule, TranslateModule, PlannedActivityEditComponent, RealizedCreateSidebarComponent],
   templateUrl: './planned-activities-list.html',
 })
 export class PlannedActivitiesListComponent implements OnInit {
@@ -38,9 +40,51 @@ export class PlannedActivitiesListComponent implements OnInit {
     this.activeMenuActivity = null;
   }
 
+  showEditSidebar = signal(false);
+  activityIdToEdit = signal<string | null>(null);
+  planIdToEdit = signal<string | null>(null);
+  planYearToEdit = signal<number | null>(null);
+
   goToEdit(activity: PlannedActivityListItem): void {
-    this.router.navigate(['/planned-activity', activity.id, 'edit']);
     this.closeMenu();
+    this.activityIdToEdit.set(activity.id);
+    this.planIdToEdit.set(activity.plan_id ?? null);
+    this.planYearToEdit.set(activity.year ?? null);
+    this.showEditSidebar.set(true);
+  }
+
+  closeEditSidebar(): void {
+    this.showEditSidebar.set(false);
+    this.activityIdToEdit.set(null);
+    this.planIdToEdit.set(null);
+    this.planYearToEdit.set(null);
+  }
+
+  onActivityUpdated(): void {
+    this.closeEditSidebar();
+    this.refresh();
+  }
+
+  showAddRealizationSidebar = signal(false);
+  addRealizationPlanId = signal<string | null>(null);
+  addRealizationActivityId = signal<string | null>(null);
+
+  openAddRealization(activity: PlannedActivityListItem): void {
+    this.closeMenu();
+    this.addRealizationPlanId.set(activity.plan_id ?? null);
+    this.addRealizationActivityId.set(activity.id);
+    this.showAddRealizationSidebar.set(true);
+  }
+
+  closeAddRealizationSidebar(): void {
+    this.showAddRealizationSidebar.set(false);
+    this.addRealizationPlanId.set(null);
+    this.addRealizationActivityId.set(null);
+  }
+
+  onRealizationCreated(): void {
+    this.closeAddRealizationSidebar();
+    this.refresh();
   }
 
   deleteFromMenu(activity: PlannedActivityListItem): void {

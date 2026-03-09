@@ -8,11 +8,13 @@ import { DocumentsApi } from '@features/file-management/api/documents-api';
 import type { Document } from '@features/file-management/models/document.model';
 import type { PlannedActivityListItem } from '@features/realized-activity-management/api/csr-activities-api';
 import { BreadcrumbService } from '@core/services/breadcrumb.service';
+import { PlannedActivityEditComponent } from '../planned-activity-edit/planned-activity-edit';
+import { RealizedCreateSidebarComponent } from '@features/realized-activity-management/realized-create-sidebar/realized-create-sidebar';
 
 @Component({
   selector: 'app-planned-activity-detail',
   standalone: true,
-  imports: [CommonModule, RouterModule, TranslateModule],
+  imports: [CommonModule, RouterModule, TranslateModule, PlannedActivityEditComponent, RealizedCreateSidebarComponent],
   templateUrl: './planned-activity-detail.html',
 })
 export class PlannedActivityDetailComponent implements OnInit, OnDestroy {
@@ -111,6 +113,41 @@ export class PlannedActivityDetailComponent implements OnInit, OnDestroy {
 
   back(): void {
     this.location.back();
+  }
+
+  showEditSidebar = signal(false);
+
+  openEditSidebar(): void {
+    this.showEditSidebar.set(true);
+  }
+
+  closeEditSidebar(): void {
+    this.showEditSidebar.set(false);
+  }
+
+  onActivityUpdated(): void {
+    this.closeEditSidebar();
+    const act = this.activity();
+    if (act?.id) {
+      this.api.get(act.id).subscribe({
+        next: (data) => this.activity.set(data),
+      });
+    }
+  }
+
+  showAddRealizationSidebar = signal(false);
+
+  openAddRealizationSidebar(): void {
+    this.showAddRealizationSidebar.set(true);
+  }
+
+  closeAddRealizationSidebar(): void {
+    this.showAddRealizationSidebar.set(false);
+  }
+
+  onRealizationCreated(): void {
+    this.closeAddRealizationSidebar();
+    this.router.navigate(['/realized-csr']);
   }
 
   ngOnDestroy(): void {

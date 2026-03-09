@@ -48,6 +48,8 @@ export class AnnualPlansComponent implements OnInit {
   selectedYear = signal<number | null>(null);
   selectedStatus = signal<string>('');
   search = signal<string>('');
+  /** Filter by plan type: 'planned' (current+next year), 'realized' (past years), 'all'. */
+  planTypeFilter = signal<'planned' | 'realized' | 'all'>('all');
 
   sortColumn = signal<string>('year');
   sortDirection = signal<'asc' | 'desc'>('desc');
@@ -65,15 +67,19 @@ export class AnnualPlansComponent implements OnInit {
     const year = this.selectedYear();
     const status = this.selectedStatus();
     const q = this.search().toLowerCase().trim();
-    const filtered = list.filter(plan =>
-      (!year || plan.year === year) &&
-      this.planMatchesStatus(plan, status) &&
-      (!q ||
-        (plan.site_name ?? '').toLowerCase().includes(q) ||
-        (plan.site_code ?? '').toLowerCase().includes(q) ||
-        (plan.site_country ?? '').toLowerCase().includes(q) ||
-        String(plan.year).includes(q))
-    );
+    const planFilter = this.planTypeFilter();
+    const currentYear = new Date().getFullYear();
+    const filtered = list.filter(plan => {
+      if (planFilter === 'planned' && (plan.year == null || plan.year < currentYear || plan.year > currentYear + 1)) return false;
+      if (planFilter === 'realized' && (plan.year == null || plan.year >= currentYear)) return false;
+      return (!year || plan.year === year) &&
+        this.planMatchesStatus(plan, status) &&
+        (!q ||
+          (plan.site_name ?? '').toLowerCase().includes(q) ||
+          (plan.site_code ?? '').toLowerCase().includes(q) ||
+          (plan.site_country ?? '').toLowerCase().includes(q) ||
+          String(plan.year).includes(q));
+    });
     const col = this.sortColumn();
     const dir = this.sortDirection();
     return [...filtered].sort((a, b) => {
@@ -100,6 +106,15 @@ export class AnnualPlansComponent implements OnInit {
       this.sortDirection.set(column === 'year' ? 'desc' : 'asc');
     }
   }
+
+  /** Unique years from plans + current year and next year (for filter). */
+  filterYears = computed(() => {
+    const currentYear = new Date().getFullYear();
+    const years = new Set(this.plans().map(p => p.year).filter((y): y is number => y != null));
+    years.add(currentYear);
+    years.add(currentYear + 1);
+    return Array.from(years).sort((a, b) => b - a);
+  });
 
   totalPlans = computed(() => this.plans().length);
   submittedPlans = computed(() => this.plans().filter(p => p.status === 'SUBMITTED').length);

@@ -130,11 +130,27 @@
             (input)="search.set($any($event.target).value)" />
         </div>
         <div class="relative w-[180px] flex-shrink-0">
+          <select
+            class="pl-3 pr-9 py-2.5 w-full bg-gray-100 border-0 rounded-xl text-sm text-gray-700 font-medium focus:ring-2 focus:ring-blue-500 focus:bg-white focus:outline-none appearance-none cursor-pointer hover:bg-gray-200"
+            [value]="planTypeFilter()"
+            (change)="planTypeFilter.set($any($event.target).value)">
+            <option value="all">{{ 'ANNUAL_PLANS.FILTER.ALL_PLANS' | translate }}</option>
+            <option value="planned">{{ 'ANNUAL_PLANS.FILTER.PLANNED' | translate }}</option>
+            <option value="realized">{{ 'ANNUAL_PLANS.FILTER.REALIZED' | translate }}</option>
+          </select>
+          <div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none text-gray-500">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-3.5 h-3.5">
+              <path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5"/>
+            </svg>
+          </div>
+        </div>
+        <div class="relative w-[180px] flex-shrink-0">
           <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-500">
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor" class="w-4 h-4">
               <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
             </svg>
           </div>
+          
           <select
             class="pl-9 pr-10 py-2.5 w-full bg-gray-100 border-0 rounded-xl text-sm text-gray-700 font-medium focus:ring-2 focus:ring-blue-500 focus:bg-white focus:outline-none appearance-none cursor-pointer hover:bg-gray-200"
             [value]="selectedStatus()"
@@ -152,6 +168,7 @@
             </svg>
           </div>
         </div>
+
         <div class="relative w-[180px] flex-shrink-0">
           <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-500">
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor" class="w-4 h-4">
@@ -163,7 +180,7 @@
             [value]="selectedYear() ?? ''"
             (change)="selectedYear.set($any($event.target).value ? +$any($event.target).value : null)">
             <option value="">{{ 'ANNUAL_PLANS.FILTER.ALL_YEARS' | translate }}</option>
-            <option [value]="y" *ngFor="let y of [2025,2024,2023,2022,2021]">{{ y }}</option>
+            <option [value]="y" *ngFor="let y of filterYears()">{{ y }}</option>
           </select>
           <div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none text-gray-500">
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-3.5 h-3.5">
@@ -320,7 +337,7 @@
     {{ 'ANNUAL_PLANS.ACTIONS.SUBMIT' | translate }}
   </button>
 
-  <div class="border-t border-gray-100 my-1"></div>
+  <div *ngIf="canSubmitFromList(activeMenuPlan!) && (activeMenuPlan!.status === 'DRAFT' || activeMenuPlan!.status === 'REJECTED')" class="border-t border-gray-100 my-1"></div>
 
   <button *ngIf="activeMenuPlan!.status === 'DRAFT' || activeMenuPlan!.status === 'REJECTED'" (click)="deleteFromMenu(activeMenuPlan!)"
     class="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 transition-colors">

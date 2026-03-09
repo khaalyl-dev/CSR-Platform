@@ -2,25 +2,27 @@
   <div class="w-full max-w-2xl">
 
     <div class="flex items-center gap-4 mb-6">
-      <button type="button" [attr.title]="'PLANNED_ACTIVITY_EDIT.BACK_TITLE' | translate" (click)="cancel()"
+      <button *ngIf="!sidebarMode" type="button" [attr.title]="'PLANNED_ACTIVITY_EDIT.BACK_TITLE' | translate" (click)="cancel()"
         class="flex items-center justify-center w-10 h-10 rounded-xl bg-white border border-gray-200 text-gray-500 hover:text-gray-700 hover:border-gray-300 hover:bg-gray-50 shadow-sm transition-all duration-200">
         <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
           <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" />
         </svg>
       </button>
+      <button *ngIf="sidebarMode" type="button" (click)="cancel()" aria-label="Fermer"
+        class="p-2 rounded-full text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors">
+        <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12"/>
+        </svg>
+      </button>
       <div>
-        <h1 class="text-2xl font-bold tracking-tight text-gray-800">{{ pageTitle }}</h1>
+        <h1 class="text-2xl font-bold tracking-tight text-gray-800">{{ activity ? ('PLANNED_ACTIVITY_EDIT.EDIT_PLANNED_ACTIVITY_OF' | translate) + ' ' + (activity.site_name ?? activity.site_code) + ' – ' + activity.year : pageTitle }}</h1>
       </div>
-    </div>
-
-    <div *ngIf="activity" class="mb-4 p-4 bg-brand-100 border border-brand-700/40 rounded-xl text-brand-900 text-sm">
-      <strong>{{ 'PLANNED_ACTIVITY_EDIT.PLAN_LABEL' | translate }} :</strong> {{ activity.site_name ?? activity.site_code }} – {{ activity.year }}
     </div>
 
     <div *ngIf="activity" class="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
       <div class="h-1.5 bg-gradient-to-r from-blue-600 to-blue-500"></div>
       <div class="px-8 py-6 border-b border-gray-100">
-        <h2 class="text-lg font-bold text-gray-800">{{ (isPlanRealized ? 'PLANNED_ACTIVITY_EDIT.DATA_REALIZED' : 'PLANNED_ACTIVITY_EDIT.DATA_ESTIMATED') | translate }}</h2>
+        <h2 class="text-lg font-bold text-gray-800">{{ 'PLANNED_ACTIVITY_EDIT.DATA_ESTIMATED' | translate }}</h2>
         <p class="text-gray-500 text-sm mt-1">{{ 'PLANNED_ACTIVITY_EDIT.FIELDS_REQUIRED' | translate }}</p>
       </div>
 
@@ -72,57 +74,9 @@
             <input type="number" formControlName="planned_budget" min="0" step="0.01" [placeholder]="'PLANNED_ACTIVITY_CREATE.PLACEHOLDER_ESTIMATION' | translate"
               class="w-full pl-4 pr-4 py-2.5 bg-gray-100 border border-gray-200 rounded-xl text-sm text-gray-700 focus:ring-2 focus:ring-blue-500 focus:outline-none"/>
           </div>
-
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1.5">{{ 'PLANNED_ACTIVITY_EDIT.PLANNED_VOLUNTEERS' | translate }}</label>
-              <input type="number" formControlName="planned_volunteers" min="0"
-                class="w-full pl-4 pr-4 py-2.5 bg-gray-100 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"/>
-            </div>
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1.5">{{ 'PLANNED_ACTIVITY_EDIT.IMPACT_TARGET' | translate }}</label>
-              <input type="number" formControlName="action_impact_target" min="0" step="0.01"
-                class="w-full pl-4 pr-4 py-2.5 bg-gray-100 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"/>
-            </div>
-          </div>
-
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1.5">{{ 'PLANNED_ACTIVITY_EDIT.IMPACT_UNIT' | translate }}</label>
-              <input type="text" formControlName="action_impact_unit" [placeholder]="'PLANNED_ACTIVITY_EDIT.PLACEHOLDER_IMPACT_UNIT' | translate"
-                class="w-full pl-4 pr-4 py-2.5 bg-gray-100 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"/>
-            </div>
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1.5">{{ 'PLANNED_ACTIVITY_EDIT.COLLAB_NATURE' | translate }}</label>
-              <select formControlName="collaboration_nature"
-                class="w-full pl-4 pr-10 py-2.5 bg-gray-100 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none appearance-none">
-                <option value="">–</option>
-                <option value="CHARITY_DONATION">{{ 'PLANNED_ACTIVITY_EDIT.CHARITY_DONATION' | translate }}</option>
-                <option value="PARTNERSHIP">{{ 'PLANNED_ACTIVITY_EDIT.PARTNERSHIP' | translate }}</option>
-                <option value="SPONSORSHIP">{{ 'PLANNED_ACTIVITY_EDIT.SPONSORSHIP' | translate }}</option>
-                <option value="OTHERS">{{ 'PLANNED_ACTIVITY_EDIT.OTHERS' | translate }}</option>
-              </select>
-            </div>
-          </div>
-
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1.5">{{ 'PLANNED_ACTIVITY_EDIT.ORGANIZATION' | translate }}</label>
-              <select formControlName="organization"
-                class="w-full pl-4 pr-10 py-2.5 bg-gray-100 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none appearance-none">
-                <option value="INTERNAL">{{ 'PLANNED_ACTIVITY_EDIT.INTERNAL' | translate }}</option>
-                <option value="PARTNERSHIP">{{ 'PLANNED_ACTIVITY_EDIT.PARTNERSHIP' | translate }}</option>
-              </select>
-            </div>
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1.5">{{ 'PLANNED_ACTIVITY_EDIT.ORGANIZER' | translate }}</label>
-              <input type="text" formControlName="organizer" [placeholder]="'PLANNED_ACTIVITY_EDIT.PLACEHOLDER_ORGANIZER' | translate"
-                class="w-full pl-4 pr-4 py-2.5 bg-gray-100 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"/>
-            </div>
-          </div>
         </ng-container>
 
-        <!-- Données réalisées (when plan is past year) -->
+        <!-- Données réalisées (only when plan is past year - submit realization) -->
         <ng-container *ngIf="isPlanRealized && !loadingData">
           <div class="border-t border-gray-200 pt-6 mt-6">
             <h3 class="text-lg font-bold text-gray-800 mb-1">{{ 'PLANNED_ACTIVITY_EDIT.REALIZED_DATA' | translate }}</h3>

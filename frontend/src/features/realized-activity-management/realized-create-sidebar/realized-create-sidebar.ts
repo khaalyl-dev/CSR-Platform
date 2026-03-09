@@ -39,6 +39,7 @@ export class RealizedCreateSidebarComponent implements OnInit {
   private documentsApi = inject(DocumentsApi);
 
   @Input() initialPlanId: string | null = null;
+  @Input() initialActivityId: string | null = null;
 
   @Output() closed = new EventEmitter<void>();
   @Output() created = new EventEmitter<void>();
@@ -157,6 +158,9 @@ export class RealizedCreateSidebarComponent implements OnInit {
       catchError(() => of([])),
     ).subscribe((list) => {
       this.activities = Array.isArray(list) ? list : [];
+      if (planId === this.initialPlanId && this.initialActivityId && this.activities.some((a) => a.id === this.initialActivityId)) {
+        this.form.patchValue({ activity_id: this.initialActivityId });
+      }
       this.updateValidators();
       this.cdr.markForCheck();
     });

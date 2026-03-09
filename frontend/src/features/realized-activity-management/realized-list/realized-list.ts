@@ -5,11 +5,12 @@ import { TranslateModule } from '@ngx-translate/core';
 import { RealizedCsrApi } from '../api/realized-csr-api';
 import type { RealizedCsr } from '../models/realized-csr.model';
 import { RealizedCreateSidebarComponent } from '../realized-create-sidebar/realized-create-sidebar';
+import { RealizedEditComponent } from '../realized-edit/realized-edit';
 
 @Component({
   selector: 'app-realized-list',
   standalone: true,
-  imports: [CommonModule, RouterModule, TranslateModule, RealizedCreateSidebarComponent],
+  imports: [CommonModule, RouterModule, TranslateModule, RealizedCreateSidebarComponent, RealizedEditComponent],
   templateUrl: './realized-list.html'
 })
 export class RealizedListComponent implements OnInit {
@@ -75,9 +76,23 @@ export class RealizedListComponent implements OnInit {
     this.activeMenuRealized = null;
   }
 
+  showEditSidebar = signal(false);
+  realizedIdToEdit = signal<string | null>(null);
+
   goToEdit(r: RealizedCsr): void {
-    this.router.navigate(['/realized-csr', r.id, 'edit']);
     this.closeMenu();
+    this.realizedIdToEdit.set(r.id);
+    this.showEditSidebar.set(true);
+  }
+
+  closeEditSidebar(): void {
+    this.showEditSidebar.set(false);
+    this.realizedIdToEdit.set(null);
+  }
+
+  onRealizedUpdated(): void {
+    this.closeEditSidebar();
+    this.refresh();
   }
 
   deleteFromMenu(r: RealizedCsr): void {

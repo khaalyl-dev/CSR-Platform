@@ -384,7 +384,10 @@
     },
     "FILTER": {
       "ALL_STATUS": "All statuses",
-      "ALL_YEARS": "All years"
+      "ALL_YEARS": "All years",
+      "ALL_PLANS": "All plans",
+      "PLANNED": "Planned plans",
+      "REALIZED": "Realized plans"
     },
     "ACTIONS": {
       "TITLE": "Actions",
@@ -606,7 +609,8 @@
     "BUDGET_PLANNED": "Planned budget",
     "VIEW_ANNUAL_PLANS": "View all annual plans",
     "PLAN": "Plan",
-    "ACTION": "Action"
+    "ACTION": "Action",
+    "ADD_REALIZATION": "Submit realized data"
   },
   "USERS": {
     "TITLE": "User management",
@@ -874,6 +878,7 @@
   },
   "REALIZED_EDIT": {
     "BACK_TITLE": "Back",
+    "EDIT_REALIZATION_OF": "Edit realization of",
     "TITLE": "Edit realization",
     "SUBTITLE": "Update the details for this realization",
     "ACTIVITY_LABEL": "Activity",
@@ -907,6 +912,7 @@
   },
   "PLANNED_ACTIVITY_EDIT": {
     "BACK_TITLE": "Back",
+    "EDIT_PLANNED_ACTIVITY_OF": "Edit planned activity of",
     "PAGE_TITLE_PLANNED": "Edit planned activity",
     "PAGE_TITLE_REALIZED": "Edit realized activity",
     "PAGE_SUBTITLE_PLANNED": "Update the estimated details for this activity",

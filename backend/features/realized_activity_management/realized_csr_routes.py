@@ -170,10 +170,8 @@ def create_realized():
     if allowed is not None and activity_id not in allowed:
         return jsonify({"message": "Vous n'avez pas accès à cette activité"}), 403
 
-    if not _activity_is_editable(activity):
-        return jsonify({
-            "message": "Le plan de cette activité est verrouillé. Soumettez une demande de modification pour ouvrir le plan avant d'ajouter une réalisation."
-        }), 403
+    # Allow creating realizations even when plan is locked: submitting realized data records what was done,
+    # it does not modify the planned activity. Activities with realizations are excluded from planned list.
 
     def _num(key, default=None):
         v = data.get(key)

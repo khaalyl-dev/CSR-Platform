@@ -1,4 +1,4 @@
-import { Component, inject, OnInit, ChangeDetectorRef } from '@angular/core';
+import { Component, inject, OnInit, ChangeDetectorRef, Input, Output, EventEmitter } from '@angular/core';
 import { CommonModule, Location } from '@angular/common';
 import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angular/forms';
 import { Router, ActivatedRoute } from '@angular/router';
@@ -19,6 +19,11 @@ const MONTH_LABELS: Record<number, string> = {
   templateUrl: './realized-edit.html',
 })
 export class RealizedEditComponent implements OnInit {
+  @Input() realizedId: string | null = null;
+  @Input() sidebarMode = false;
+  @Output() closed = new EventEmitter<void>();
+  @Output() updated = new EventEmitter<void>();
+
   private fb = inject(FormBuilder);
   private router = inject(Router);
   private route = inject(ActivatedRoute);
@@ -55,9 +60,9 @@ export class RealizedEditComponent implements OnInit {
       contact_email: [''],
     });
 
-    const id = this.route.snapshot.paramMap.get('id');
+    const id = this.realizedId ?? this.route.snapshot.paramMap.get('id');
     if (!id) {
-      this.router.navigate(['/realized-csr']);
+      if (!this.sidebarMode) this.router.navigate(['/realized-csr']);
       return;
     }
 
@@ -130,7 +135,12 @@ export class RealizedEditComponent implements OnInit {
     }).subscribe({
       next: () => {
         this.loading = false;
-        this.router.navigate(['/realized-csr']);
+        if (this.sidebarMode) {
+          this.updated.emit();
+          this.closed.emit();
+        } else {
+          this.router.navigate(['/realized-csr']);
+        }
         this.cdr.markForCheck();
       },
       error: (err) => {
@@ -142,6 +152,7 @@ export class RealizedEditComponent implements OnInit {
   }
 
   cancel(): void {
-    this.location.back();
+    if (this.sidebarMode) this.closed.emit();
+    else this.location.back();
   }
 }

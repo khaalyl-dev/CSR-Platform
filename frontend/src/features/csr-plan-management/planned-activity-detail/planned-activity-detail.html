@@ -23,13 +23,15 @@
             class="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-brand-900 text-white hover:opacity-90 text-sm font-medium">
             {{ 'PLANNED_ACTIVITY_DETAIL.VIEW_PLAN' | translate }}
           </a>
-          <a *ngIf="activity()!.plan_editable !== false" [routerLink]="['/planned-activity', activity()!.id, 'edit']"
+          <button *ngIf="activity()!.plan_editable !== false" type="button" (click)="openEditSidebar()"
             class="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-gray-300 text-gray-700 hover:bg-gray-50 text-sm font-medium">
             {{ 'PLANNED_ACTIVITY_DETAIL.EDIT' | translate }}
-          </a>
-          <span *ngIf="activity()!.plan_editable === false" class="text-sm text-gray-500" [title]="'PLAN_LOCKED_TITLE' | translate">
-            <i class="fas fa-lock-open mr-1"></i>{{ 'PLANNED_ACTIVITY_DETAIL.LOCKED' | translate }}
-          </span>
+          </button>
+          <button *ngIf="activity()!.plan_id" type="button" (click)="openAddRealizationSidebar()"
+            class="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-amber-600 text-white hover:bg-amber-700 text-sm font-medium">
+            <i class="fas fa-clipboard-check text-sm"></i>
+            {{ 'PLANNED_ACTIVITIES.ADD_REALIZATION' | translate }}
+          </button>
         </div>
       </div>
     </div>
@@ -64,4 +66,40 @@
       </div>
     </div>
   </div>
+</div>
+
+<!-- Add realization sidebar -->
+<div *ngIf="showAddRealizationSidebar() && activity()"
+  class="fixed inset-0 z-50 flex"
+  (click)="closeAddRealizationSidebar()">
+  <div class="flex-1 bg-black/40 transition-opacity" aria-hidden="true"></div>
+  <aside class="w-full max-w-md bg-white shadow-2xl flex flex-col h-full min-h-0 overflow-hidden animate-slide-in-right"
+    (click)="$event.stopPropagation()">
+    <app-realized-create-sidebar
+      [initialPlanId]="activity()!.plan_id ?? null"
+      [initialActivityId]="activity()!.id"
+      (closed)="closeAddRealizationSidebar()"
+      (created)="onRealizationCreated()">
+    </app-realized-create-sidebar>
+  </aside>
+</div>
+
+<!-- Edit planned activity sidebar -->
+<div *ngIf="showEditSidebar() && activity()"
+  class="fixed inset-0 z-50 flex"
+  (click)="closeEditSidebar()">
+  <div class="flex-1 bg-black/40 transition-opacity" aria-hidden="true"></div>
+  <aside class="w-full max-w-2xl bg-white shadow-2xl flex flex-col h-full min-h-0 overflow-hidden animate-slide-in-right"
+    (click)="$event.stopPropagation()">
+    <div class="flex-1 min-h-0 overflow-y-auto">
+    <app-planned-activity-edit
+      [activityId]="activity()!.id"
+      [planId]="activity()!.plan_id ?? null"
+      [planYearParam]="activity()!.year ?? null"
+      [sidebarMode]="true"
+      (closed)="closeEditSidebar()"
+      (updated)="onActivityUpdated()">
+    </app-planned-activity-edit>
+    </div>
+  </aside>
 </div>

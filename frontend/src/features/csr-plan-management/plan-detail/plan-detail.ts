@@ -7,11 +7,13 @@ import { CsrActivitiesApi } from '@features/realized-activity-management/api/csr
 import { AuthStore } from '@core/services/auth-store';
 import { BreadcrumbService } from '@core/services/breadcrumb.service';
 import { PlannedActivityCreateSidebarComponent } from '../planned-activity-create-sidebar/planned-activity-create-sidebar';
+import { PlannedActivityEditComponent } from '../planned-activity-edit/planned-activity-edit';
+import { RealizedCreateSidebarComponent } from '@features/realized-activity-management/realized-create-sidebar/realized-create-sidebar';
 
 @Component({
   selector: 'app-plan-detail',
   standalone: true,
-  imports: [CommonModule, RouterModule, TranslateModule, PlannedActivityCreateSidebarComponent],
+  imports: [CommonModule, RouterModule, TranslateModule, PlannedActivityCreateSidebarComponent, PlannedActivityEditComponent, RealizedCreateSidebarComponent],
   templateUrl: './plan-detail.html'
 })
 export class PlanDetailComponent implements OnInit, OnDestroy {
@@ -44,8 +46,13 @@ export class PlanDetailComponent implements OnInit, OnDestroy {
   activityMenuId = signal<string | null>(null);
   activityMenuPosition = { top: 0, left: 0 };
 
-  // ── Add activity sidebar ────────────────────────────────────────────────
+  // ── Add activity sidebar (planned) ───────────────────────────────────────
   showAddActivitySidebar = signal(false);
+  // ── Add realization sidebar (for past-year plans) ────────────────────────
+  showAddRealizationSidebar = signal(false);
+  // ── Edit planned activity sidebar ────────────────────────────────────────
+  showEditActivitySidebar = signal(false);
+  activityIdToEdit = signal<string | null>(null);
 
   // ── Reject modal ────────────────────────────────────────────────────────
   showRejectModal = signal(false);
@@ -281,12 +288,26 @@ export class PlanDetailComponent implements OnInit, OnDestroy {
     if (p.year >= currentYear) {
       this.showAddActivitySidebar.set(true);
     } else {
-      this.router.navigate(['/realized-csr'], { queryParams: { plan_id: p.id } });
+      this.showAddRealizationSidebar.set(true);
     }
   }
 
   closeAddActivitySidebar(): void {
     this.showAddActivitySidebar.set(false);
+  }
+
+  closeAddRealizationSidebar(): void {
+    this.showAddRealizationSidebar.set(false);
+  }
+
+  onRealizationAdded(): void {
+    this.closeAddRealizationSidebar();
+    const p = this.plan();
+    if (p) {
+      this.plansApi.get(p.id).subscribe({
+        next: (updated) => this.plan.set(updated),
+      });
+    }
   }
 
   onActivityAdded(): void {
@@ -388,8 +409,21 @@ export class PlanDetailComponent implements OnInit, OnDestroy {
 
   goToEditActivity(activityId: string): void {
     this.closeActivityMenu();
-    const year = this.plan()?.year;
-    this.router.navigate(['/planned-activity', activityId, 'edit'], { queryParams: year != null ? { year } : {} });
+    this.activityIdToEdit.set(activityId);
+    this.showEditActivitySidebar.set(true);
+  }
+
+  closeEditActivitySidebar(): void {
+    this.showEditActivitySidebar.set(false);
+    this.activityIdToEdit.set(null);
+  }
+
+  onActivityUpdated(): void {
+    this.closeEditActivitySidebar();
+    const p = this.plan();
+    if (p) {
+      this.plansApi.get(p.id).subscribe({ next: (updated) => this.plan.set(updated) });
+    }
   }
 
   deleteActivity(activityId: string): void {

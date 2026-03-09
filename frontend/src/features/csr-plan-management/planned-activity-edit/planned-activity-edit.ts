@@ -1,4 +1,4 @@
-import { Component, inject, OnInit, OnDestroy, ChangeDetectorRef } from '@angular/core';
+import { Component, inject, OnInit, OnDestroy, ChangeDetectorRef, Input, Output, EventEmitter } from '@angular/core';
 import { CommonModule, Location } from '@angular/common';
 import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angular/forms';
 import { Router, ActivatedRoute, RouterLink } from '@angular/router';
@@ -38,6 +38,13 @@ export class PlannedActivityEditComponent implements OnInit, OnDestroy {
   private http = inject(HttpClient);
   private location = inject(Location);
   private translate = inject(TranslateService);
+
+  @Input() activityId: string | null = null;
+  @Input() planId: string | null = null;
+  @Input() planYearParam: number | null = null;
+  @Input() sidebarMode = false;
+  @Output() closed = new EventEmitter<void>();
+  @Output() updated = new EventEmitter<void>();
 
   form!: FormGroup;
   /** Photos linked to this activity. */
@@ -81,12 +88,6 @@ export class PlannedActivityEditComponent implements OnInit, OnDestroy {
       title: ['', Validators.required],
       description: [''],
       planned_budget: [null as number | null],
-      organization: ['INTERNAL'],
-      collaboration_nature: [''],
-      organizer: [''],
-      planned_volunteers: [null as number | null],
-      action_impact_target: [null as number | null],
-      action_impact_unit: [''],
     });
     this.realizedForm = this.fb.group({
       year: [this.planYear ?? new Date().getFullYear(), [Validators.required, Validators.min(2000), Validators.max(2100)]],
@@ -98,17 +99,18 @@ export class PlannedActivityEditComponent implements OnInit, OnDestroy {
       organizer: [''],
     });
 
-    const id = this.route.snapshot.paramMap.get('id');
-    const yearParam = this.route.snapshot.queryParamMap.get('year');
-    if (yearParam !== null) {
-      const y = parseInt(yearParam, 10);
-      if (!isNaN(y)) this.planYear = y;
-    }
+    const id = this.activityId ?? this.route.snapshot.paramMap.get('id');
+    const yearParam = this.planYearParam ?? (this.route.snapshot.queryParamMap.get('year') ? parseInt(this.route.snapshot.queryParamMap.get('year')!, 10) : null);
+    if (yearParam != null && !isNaN(yearParam)) this.planYear = yearParam;
     if (!id) {
-      this.router.navigate(['/planned-activities']);
+      if (!this.sidebarMode) this.router.navigate(['/planned-activities']);
       return;
     }
 
+    this.loadActivity(id);
+  }
+
+  private loadActivity(id: string): void {
     this.activitiesApi.get(id).pipe(
       timeout(8000),
       catchError(() => of(null)),
@@ -123,7 +125,8 @@ export class PlannedActivityEditComponent implements OnInit, OnDestroy {
           return;
         }
         if ((a as PlannedActivityListItem).plan_editable === false) {
-          this.router.navigate(['/planned-activity', a.id], { queryParams: { locked: '1' } });
+          if (this.sidebarMode) this.closed.emit();
+          else this.router.navigate(['/planned-activity', a.id], { queryParams: { locked: '1' } });
           return;
         }
         this.form.patchValue({
@@ -132,12 +135,6 @@ export class PlannedActivityEditComponent implements OnInit, OnDestroy {
           title: a.title ?? '',
           description: a.description ?? '',
           planned_budget: a.planned_budget ?? null,
-          organization: a.organization ?? 'INTERNAL',
-          collaboration_nature: a.collaboration_nature ?? '',
-          organizer: a.organizer ?? '',
-          planned_volunteers: a.planned_volunteers ?? null,
-          action_impact_target: a.action_impact_target ?? null,
-          action_impact_unit: a.action_impact_unit ?? '',
         });
         this.loadCategories();
         if (this.isPlanRealized && a.id) this.loadFirstRealization(a.id);
@@ -305,8 +302,6 @@ export class PlannedActivityEditComponent implements OnInit, OnDestroy {
     }
     const raw = this.form.getRawValue();
     const plannedBudget = raw.planned_budget != null && raw.planned_budget !== '' ? Number(raw.planned_budget) : null;
-    const plannedVolunteers = raw.planned_volunteers != null && raw.planned_volunteers !== '' ? Number(raw.planned_volunteers) : null;
-    const actionImpactTarget = raw.action_impact_target != null && raw.action_impact_target !== '' ? Number(raw.action_impact_target) : null;
 
     const categoryId$ = raw.category_id === CATEGORY_OTHER_VALUE && raw.new_category_name?.trim()
       ? this.categoriesApi.create(raw.new_category_name.trim()).pipe(switchMap((cat) => of(cat.id)))
@@ -322,12 +317,12 @@ export class PlannedActivityEditComponent implements OnInit, OnDestroy {
           title: raw.title.trim(),
           description: raw.description?.trim() || null,
           planned_budget: plannedBudget,
-          organization: raw.organization?.trim() || null,
-          collaboration_nature: raw.collaboration_nature?.trim() || null,
-          organizer: raw.organizer?.trim() || null,
-          planned_volunteers: plannedVolunteers,
-          action_impact_target: actionImpactTarget,
-          action_impact_unit: raw.action_impact_unit?.trim() || null,
+          organization: (this.activity as PlannedActivityListItem).organization ?? null,
+          collaboration_nature: (this.activity as PlannedActivityListItem).collaboration_nature ?? null,
+          organizer: (this.activity as PlannedActivityListItem).organizer ?? null,
+          planned_volunteers: (this.activity as PlannedActivityListItem).planned_volunteers ?? null,
+          action_impact_target: (this.activity as PlannedActivityListItem).action_impact_target ?? null,
+          action_impact_unit: (this.activity as PlannedActivityListItem).action_impact_unit ?? null,
         })
       ),
       switchMap(() => {
@@ -352,8 +347,14 @@ export class PlannedActivityEditComponent implements OnInit, OnDestroy {
     ).subscribe({
       next: () => {
         this.loading = false;
-        if (this.activity?.plan_id) this.router.navigate(['/csr-plans', this.activity.plan_id]);
-        else this.router.navigate(['/planned-activities']);
+        if (this.sidebarMode) {
+          this.updated.emit();
+          this.closed.emit();
+        } else if (this.activity?.plan_id) {
+          this.router.navigate(['/csr-plans', this.activity.plan_id]);
+        } else {
+          this.router.navigate(['/planned-activities']);
+        }
         this.cdr.markForCheck();
       },
       error: (err) => {
@@ -365,7 +366,8 @@ export class PlannedActivityEditComponent implements OnInit, OnDestroy {
   }
 
   cancel(): void {
-    this.location.back();
+    if (this.sidebarMode) this.closed.emit();
+    else this.location.back();
   }
 
   ngOnDestroy(): void {

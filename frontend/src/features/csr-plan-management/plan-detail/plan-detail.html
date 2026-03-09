@@ -128,7 +128,7 @@
         Modifier
       </button>
 
-      <div class="border-t border-gray-100 my-1"></div>
+      <div *ngIf="canEditActivity(activityMenuId()!)" class="border-t border-gray-100 my-1"></div>
 
       <button *ngIf="canEditActivity(activityMenuId()!)" (click)="deleteActivity(activityMenuId()!)"
         class="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 transition-colors">
@@ -309,7 +309,7 @@
   </div>
 </div>
 
-<!-- Add planned activity sidebar (for draft/planned plans) -->
+<!-- Add planned activity sidebar (for current/future year plans) -->
 <div *ngIf="showAddActivitySidebar()"
   class="fixed inset-0 z-50 flex"
   (click)="closeAddActivitySidebar()">
@@ -321,5 +321,40 @@
       (closed)="closeAddActivitySidebar()"
       (created)="onActivityAdded()">
     </app-planned-activity-create-sidebar>
+  </aside>
+</div>
+
+<!-- Add realization sidebar (for past-year plans - Nouvelle réalisation) -->
+<div *ngIf="showAddRealizationSidebar()"
+  class="fixed inset-0 z-50 flex"
+  (click)="closeAddRealizationSidebar()">
+  <div class="flex-1 bg-black/40 transition-opacity" aria-hidden="true"></div>
+  <aside class="w-full max-w-md bg-white shadow-2xl flex flex-col h-full min-h-0 overflow-hidden animate-slide-in-right"
+    (click)="$event.stopPropagation()">
+    <app-realized-create-sidebar
+      [initialPlanId]="plan()?.id ?? null"
+      (closed)="closeAddRealizationSidebar()"
+      (created)="onRealizationAdded()">
+    </app-realized-create-sidebar>
+  </aside>
+</div>
+
+<!-- Edit planned activity sidebar -->
+<div *ngIf="showEditActivitySidebar()"
+  class="fixed inset-0 z-50 flex"
+  (click)="closeEditActivitySidebar()">
+  <div class="flex-1 bg-black/40 transition-opacity" aria-hidden="true"></div>
+  <aside class="w-full max-w-2xl bg-white shadow-2xl flex flex-col h-full min-h-0 overflow-hidden animate-slide-in-right"
+    (click)="$event.stopPropagation()">
+    <div class="flex-1 min-h-0 overflow-y-auto">
+    <app-planned-activity-edit
+      [activityId]="activityIdToEdit()"
+      [planId]="plan()?.id ?? null"
+      [planYearParam]="plan()?.year ?? null"
+      [sidebarMode]="true"
+      (closed)="closeEditActivitySidebar()"
+      (updated)="onActivityUpdated()">
+    </app-planned-activity-edit>
+    </div>
   </aside>
 </div>

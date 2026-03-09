@@ -299,7 +299,10 @@
     },
     "FILTER": {
       "ALL_STATUS": "Tous statuts",
-      "ALL_YEARS": "Toutes années"
+      "ALL_YEARS": "Toutes années",
+      "ALL_PLANS": "Tous les plans",
+      "PLANNED": "Plans planifiés",
+      "REALIZED": "Plans réalisés"
     },
     "ACTIONS": {
       "TITLE": "Actions",
@@ -515,7 +518,8 @@
     "BUDGET_PLANNED": "Budget prévu",
     "VIEW_ANNUAL_PLANS": "Voir les plans annuels",
     "PLAN": "Plan",
-    "ACTION": "Action"
+    "ACTION": "Action",
+    "ADD_REALIZATION": "Saisir les données réalisées"
   },
   "DOCUMENTS": {
     "TITLE": "Gestion des Documents",
@@ -835,6 +839,7 @@
   },
   "REALIZED_EDIT": {
     "BACK_TITLE": "Retour",
+    "EDIT_REALIZATION_OF": "Modifier la réalisation de",
     "TITLE": "Modifier la réalisation",
     "SUBTITLE": "Modifier les données réalisées",
     "ACTIVITY_LABEL": "Activité",
@@ -868,6 +873,7 @@
   },
   "PLANNED_ACTIVITY_EDIT": {
     "BACK_TITLE": "Retour",
+    "EDIT_PLANNED_ACTIVITY_OF": "Modifier l'activité planifiée de",
     "PAGE_TITLE_PLANNED": "Modifier l'activité planifiée",
     "PAGE_TITLE_REALIZED": "Modifier l'activité (plan réalisé)",
     "PAGE_SUBTITLE_PLANNED": "Modifier les données estimées de l'activité",

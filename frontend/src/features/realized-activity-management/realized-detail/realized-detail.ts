@@ -4,13 +4,14 @@ import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { TranslateModule } from '@ngx-translate/core';
 import { RealizedCsrApi } from '../api/realized-csr-api';
 import type { RealizedCsr } from '../models/realized-csr.model';
+import { RealizedEditComponent } from '../realized-edit/realized-edit';
 
 const MONTHS = ['', 'Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'];
 
 @Component({
   selector: 'app-realized-detail',
   standalone: true,
-  imports: [CommonModule, RouterModule, TranslateModule],
+  imports: [CommonModule, RouterModule, TranslateModule, RealizedEditComponent],
   templateUrl: './realized-detail.html',
 })
 export class RealizedDetailComponent implements OnInit {
@@ -47,5 +48,25 @@ export class RealizedDetailComponent implements OnInit {
 
   back(): void {
     this.location.back();
+  }
+
+  showEditSidebar = signal(false);
+
+  openEditSidebar(): void {
+    this.showEditSidebar.set(true);
+  }
+
+  closeEditSidebar(): void {
+    this.showEditSidebar.set(false);
+  }
+
+  onRealizedUpdated(): void {
+    this.closeEditSidebar();
+    const r = this.realized();
+    if (r?.id) {
+      this.api.get(r.id).subscribe({
+        next: (data) => this.realized.set(data),
+      });
+    }
   }
 }
