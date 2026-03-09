@@ -5,7 +5,7 @@ import { Router, RouterModule } from '@angular/router';
 import { TranslateModule } from '@ngx-translate/core';
 import { AuthStore } from '@core/services/auth-store';
 import { CsrPlansApi } from '../api/csr-plans-api';
-import type { ImportPreviewPlan } from '../api/csr-plans-api';
+import type { ImportConflict, ImportPreviewPlan, ImportPreviewRow } from '../api/csr-plans-api';
 import type { CsrPlan } from '../models/csr-plan.model';
 import { I18nService } from '@core/services/i18n.service';
 import { PlanCreateSidebarComponent } from '../plan-create-sidebar/plan-create-sidebar';
@@ -16,7 +16,22 @@ export type PlanWithMode = ImportPreviewPlan & { validation_mode: '101' | '111' 
   selector: 'app-annual-plans',
   standalone: true,
   imports: [CommonModule, FormsModule, RouterModule, TranslateModule, PlanCreateSidebarComponent],
-  templateUrl: './annual-plans.html'
+  templateUrl: './annual-plans.html',
+  styles: [`
+    .import-preview-table input.import-preview-input,
+    .import-preview-table input.import-preview-input:focus,
+    .import-preview-table input.import-preview-input:hover,
+    .import-preview-table input.import-preview-input:disabled {
+      min-width: max-content;
+      width: auto;
+      border: none !important;
+      border-width: 0 !important;
+      border-style: none !important;
+      outline: none !important;
+      background: transparent !important;
+      background-color: transparent !important;
+    }
+  `]
 })
 export class AnnualPlansComponent implements OnInit {
   private authStore = inject(AuthStore);
@@ -372,7 +387,86 @@ export class AnnualPlansComponent implements OnInit {
   showImportModal = signal(false);
   /** Plans from preview with validation_mode per plan (user can change in modal) */
   importPlansWithModes = signal<PlanWithMode[]>([]);
+  /** Editable activity rows from preview */
+  importRows = signal<ImportPreviewRow[]>([]);
   importPreviewErrors = signal<string[]>([]);
+  /** True while re-validating rows on Next click. */
+  importValidateLoading = signal(false);
+  /** Import modal step: 0 = Activity rows, 1 = Plan settings */
+  importStep = signal(0);
+  /** Row indices that have activity_number conflicts (already exist) */
+  importConflictIndices = signal<Set<number>>(new Set());
+  /** Conflict details from check endpoint */
+  importConflicts = signal<ImportConflict[]>([]);
+  /** Row indices (0-based) that have validation warnings (region/country/site). Parsed from importPreviewErrors. */
+  importWarningIndices = computed(() => {
+    const errors = this.importPreviewErrors();
+    const set = new Set<number>();
+    for (const err of errors) {
+      const m = String(err).match(/^Activity (\d+):/);
+      if (m) {
+        const rowNum = parseInt(m[1], 10);
+        const index = rowNum - 2; // row_num is 2-based (header + 1-based)
+        if (index >= 0) set.add(index);
+      }
+    }
+    return set;
+  });
+  /** When true, table is editable even when conflicts exist (user clicked Edit). */
+  importTableEditable = signal(false);
+  /** Sort state for import preview table (step 0). */
+  importSortColumn = signal<string>('activity_number');
+  importSortDirection = signal<'asc' | 'desc'>('asc');
+
+  /** Sorted view of import rows; each row has __originalIndex for trackBy and updates. */
+  sortedImportRows = computed(() => {
+    const rows = this.importRows();
+    const col = this.importSortColumn();
+    const dir = this.importSortDirection();
+    const numericKeys = new Set(['year', 'start_year', 'edition', 'participants', 'total_hc', 'percentage_employees', 'planned_budget', 'realized_budget', 'impact_actual', 'number_external_partners']);
+    const withIndices = rows.map((r, i) => ({ row: r, originalIndex: i }));
+    const sorted = [...withIndices].sort((a, b) => {
+      const rawA = (a.row as any)[col];
+      const rawB = (b.row as any)[col];
+      const valA = rawA?.toString().trim().toLowerCase() ?? '';
+      const valB = rawB?.toString().trim().toLowerCase() ?? '';
+      if (numericKeys.has(col)) {
+        const numA = typeof rawA === 'number' ? rawA : parseFloat(String(rawA ?? '')) ?? 0;
+        const numB = typeof rawB === 'number' ? rawB : parseFloat(String(rawB ?? '')) ?? 0;
+        if (numA < numB) return dir === 'asc' ? -1 : 1;
+        if (numA > numB) return dir === 'asc' ? 1 : -1;
+      } else {
+        if (valA < valB) return dir === 'asc' ? -1 : 1;
+        if (valA > valB) return dir === 'asc' ? 1 : -1;
+      }
+      return 0;
+    });
+    return {
+      rows: sorted.map(x => ({ ...x.row, __originalIndex: x.originalIndex } as ImportPreviewRow & { __originalIndex: number })),
+      originalIndices: sorted.map(x => x.originalIndex),
+    };
+  });
+
+  sortByImportColumn(column: string): void {
+    if (this.importSortColumn() === column) {
+      this.importSortDirection.update(d => d === 'asc' ? 'desc' : 'asc');
+    } else {
+      this.importSortColumn.set(column);
+      this.importSortDirection.set('asc');
+    }
+  }
+
+  /** True if every import row has non-empty region, country and site (required to proceed). */
+  importRequiredValid = computed(() => {
+    const rows = this.importRows();
+    if (!rows.length) return true;
+    return rows.every(r => {
+      const region = String(r.region ?? '').trim();
+      const country = String(r.country ?? '').trim();
+      const site = String(r.site ?? '').trim();
+      return region !== '' && country !== '' && site !== '';
+    });
+  });
 
   onImportFile(event: Event): void {
     const input = event.target as HTMLInputElement;
@@ -399,7 +493,9 @@ export class AnnualPlansComponent implements OnInit {
         const plansWithModes: PlanWithMode[] = (res.plans || []).map(p => ({ ...p, validation_mode: '101' }));
         this.pendingImportFile.set(file);
         this.importPlansWithModes.set(plansWithModes);
+        this.importRows.set(res.rows || []);
         this.importPreviewErrors.set(res.errors || []);
+        this.importStep.set(0);
         this.showImportModal.set(true);
         input.value = '';
       },
@@ -425,16 +521,88 @@ export class AnnualPlansComponent implements OnInit {
     );
   }
 
+  /** Update a cell in the import preview rows. */
+  updateImportRow(index: number, key: keyof ImportPreviewRow, value: string | number | null): void {
+    const v = value === '' || value === null ? undefined : value;
+    this.importRows.update(rows => rows.map((r, i) => {
+      if (i !== index) return r;
+      const next = { ...r, [key]: v };
+      if (key === 'impact_actual') next['impact_target'] = v;
+      if (key === 'participants') next['planned_volunteers'] = v;
+      return next;
+    }));
+  }
+
+  /** Stable identity for import table rows so the input keeps focus when typing. */
+  trackByImportOriginalIndex(_index: number, row: ImportPreviewRow & { __originalIndex?: number }): number {
+    return row.__originalIndex ?? _index;
+  }
+
   confirmImport(): void {
     const file = this.pendingImportFile();
     const plans = this.importPlansWithModes();
+    const rows = this.importRows().length ? this.importRows() : undefined;
     if (!file || !plans.length) return;
+    if (!rows?.length) {
+      this.doImport(file, plans, undefined);
+      return;
+    }
+    this.importLoading.set(true);
+    this.csrPlansApi.importExcelCheckConflicts(rows).subscribe({
+      next: (res) => {
+        this.importLoading.set(false);
+        if (res.conflicts?.length) {
+          this.importConflicts.set(res.conflicts);
+          this.importConflictIndices.set(new Set(res.conflicts.map((c) => c.row_index)));
+          this.importTableEditable.set(true);
+          this.importStep.set(0);
+        } else {
+          this.doImport(file, plans, rows);
+        }
+      },
+      error: () => {
+        this.importLoading.set(false);
+        this.doImport(file, plans, rows);
+      },
+    });
+  }
+
+  /** Overwrite existing activities (use current import, backend will update). */
+  resolveConflictsOverwrite(): void {
+    const file = this.pendingImportFile();
+    const plans = this.importPlansWithModes();
+    const rows = this.importRows().length ? this.importRows() : undefined;
+    if (!file || !plans.length) return;
+    this.importConflictIndices.set(new Set());
+    this.importConflicts.set([]);
+    this.doImport(file, plans, rows);
+  }
+
+  /** Change activity numbers for conflicting rows: use sequential numbers starting from max+1 (201, 202, ...). */
+  resolveConflictsChangeNumbers(): void {
+    const conflicts = this.importConflicts();
+    if (!conflicts.length) return;
+    this.importRows.update((rows) =>
+      rows.map((r, i) => {
+        const c = conflicts.find((x) => x.row_index === i);
+        if (!c || c.next_activity_number == null) return r;
+        const newNum = String(c.next_activity_number);
+        return { ...r, activity_number: newNum, impact_target: r.impact_actual ?? r.impact_target };
+      })
+    );
+    this.importConflictIndices.set(new Set());
+    this.importConflicts.set([]);
+    this.resolveConflictsOverwrite();
+  }
+
+  private doImport(file: File, plans: PlanWithMode[], rows?: ImportPreviewRow[]): void {
     this.importLoading.set(true);
     this.importProgress.set(0);
     this.startSimulatedProgress();
-    const validation_modes = plans.map(p => ({ site_id: p.site_id, year: p.year, validation_mode: p.validation_mode }));
+    const validation_modes = plans.map((p) => ({ site_id: p.site_id, year: p.year, validation_mode: p.validation_mode }));
     this.csrPlansApi.importExcel(file, {
       validation_modes,
+      rows: rows?.length ? rows : undefined,
       onProgress: (p) => {
         this.stopSimulatedProgress();
         this.importProgress.set(p);
@@ -447,6 +615,8 @@ export class AnnualPlansComponent implements OnInit {
         this.showImportModal.set(false);
         this.pendingImportFile.set(null);
         this.importPlansWithModes.set([]);
+        this.importRows.set([]);
+        this.importStep.set(0);
         const details = [
           this.i18n.t('ANNUAL_PLANS.MESSAGES.CREATED_PLANS').replace('{n}', String(res.plans_created)),
           this.i18n.t('ANNUAL_PLANS.MESSAGES.CREATED_ACTIVITIES').replace('{n}', String(res.activities_created)),
@@ -477,7 +647,85 @@ export class AnnualPlansComponent implements OnInit {
     this.showImportModal.set(false);
     this.pendingImportFile.set(null);
     this.importPlansWithModes.set([]);
+    this.importRows.set([]);
     this.importPreviewErrors.set([]);
+    this.importValidateLoading.set(false);
+    this.importStep.set(0);
+    this.importConflictIndices.set(new Set());
+    this.importConflicts.set([]);
+    this.importTableEditable.set(false);
+  }
+
+  /** True if the import preview table is editable (always when conflicts exist so user can fix directly). */
+  canEditImportTable(): boolean {
+    return !this.importConflicts().length || this.importTableEditable();
+  }
+
+  nextImportStep(): void {
+    this.importStep.set(1);
+  }
+
+  /** Re-validate rows when user clicks Next; only proceed if no errors. */
+  goToNextImportStep(): void {
+    const rows = this.importRows();
+    if (!rows.length) {
+      this.nextImportStep();
+      return;
+    }
+    this.importValidateLoading.set(true);
+    this.csrPlansApi.importValidateRows(rows).subscribe({
+      next: (res) => {
+        this.importValidateLoading.set(false);
+        this.importPreviewErrors.set(res.errors ?? []);
+        if (!(res.errors?.length)) {
+          this.nextImportStep();
+        }
+      },
+      error: () => {
+        this.importValidateLoading.set(false);
+        this.importPreviewErrors.set([this.i18n.t('ANNUAL_PLANS.MESSAGES.READ_FILE_ERROR')]);
+      },
+    });
+  }
+
+  prevImportStep(): void {
+    this.importStep.set(0);
+    this.importConflictIndices.set(new Set());
+    this.importConflicts.set([]);
+    this.importTableEditable.set(false);
+  }
+
+  /** True if row index has activity_number conflict. */
+  hasImportConflict(index: number): boolean {
+    return this.importConflictIndices().has(index);
+  }
+
+  /** True if row index has a validation warning (region/country/site). */
+  hasImportWarning(index: number): boolean {
+    return this.importWarningIndices().has(index);
+  }
+
+  /** True if row should be highlighted (conflict or warning). */
+  hasImportConflictOrWarning(index: number): boolean {
+    return this.hasImportConflict(index) || this.hasImportWarning(index);
+  }
+
+  /** Format import error with translated "Activity" prefix and message. */
+  formatImportError(err: string): string {
+    if (!err || typeof err !== 'string') return err;
+    const t = (key: string) => this.i18n.t(key);
+    const prefix = t('ANNUAL_PLANS.MODAL.ACTIVITY_ROW_PREFIX');
+    let out = err.replace(/^Activity /, prefix);
+    out = out.replace(/région inconnue '/g, t('ANNUAL_PLANS.MODAL.IMPORT_ERR_REGION_UNKNOWN') + " '");
+    out = out.replace(/région manquante/g, t('ANNUAL_PLANS.MODAL.IMPORT_ERR_REGION_MISSING'));
+    out = out.replace(/pays inconnu '/g, t('ANNUAL_PLANS.MODAL.IMPORT_ERR_COUNTRY_UNKNOWN') + " '");
+    out = out.replace(/pays manquant/g, t('ANNUAL_PLANS.MODAL.IMPORT_ERR_COUNTRY_MISSING'));
+    out = out.replace(/site inconnu '/g, t('ANNUAL_PLANS.MODAL.IMPORT_ERR_SITE_UNKNOWN') + " '");
+    out = out.replace(/site manquant/g, t('ANNUAL_PLANS.MODAL.IMPORT_ERR_SITE_MISSING'));
+    out = out.replace(/accès refusé au site /g, t('ANNUAL_PLANS.MODAL.IMPORT_ERR_ACCESS_DENIED') + ' ');
+    out = out.replace(/année invalide /g, t('ANNUAL_PLANS.MODAL.IMPORT_ERR_YEAR_INVALID') + ' ');
+    out = out.replace(/impossible de créer la catégorie/g, t('ANNUAL_PLANS.MODAL.IMPORT_ERR_CATEGORY_CREATE'));
+    return out;
   }
 
   clearImportResult(): void {

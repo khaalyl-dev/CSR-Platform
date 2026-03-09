@@ -25,56 +25,220 @@
   <div *ngIf="showImportModal()"
     class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 !mt-0"
     (click)="$event.target === $event.currentTarget && cancelImportModal()">
-    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[85vh] flex flex-col min-h-0 overflow-hidden"
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-[95vw] max-h-[90vh] flex flex-col min-h-0 overflow-hidden"
       (click)="$event.stopPropagation()">
       <div class="flex items-center justify-between p-6 border-b border-gray-100">
         <h2 class="text-xl font-bold text-gray-800">
-          <i class="fas fa-file-excel text-emerald-600 mr-2"></i> {{ 'ANNUAL_PLANS.MODAL.CHOOSE_VALIDATION_MODE' | translate }}
+          <i class="fas fa-file-excel text-emerald-600 mr-2"></i> {{ 'ANNUAL_PLANS.MODAL.PREVIEW_EDIT' | translate }}
         </h2>
         <button type="button" (click)="cancelImportModal()" class="text-gray-400 hover:text-gray-600 p-1">
           <i class="fas fa-times text-xl"></i>
         </button>
       </div>
-      <p class="px-6 py-2 text-sm text-gray-500">{{ 'ANNUAL_PLANS.MODAL.CHOOSE_AND_IMPORT' | translate }}</p>
-      <div *ngIf="importPreviewErrors().length" class="mx-6 mb-2 p-3 bg-amber-50 border border-amber-200 rounded-xl text-amber-800 text-sm">
-        <span class="font-medium">{{ 'ANNUAL_PLANS.MODAL.WARNINGS' | translate:{ n: importPreviewErrors().length } }}</span>
-        <pre class="mt-1 whitespace-pre-wrap">{{ importPreviewErrors().slice(0, 5).join('\n') }}</pre>
+      <p class="px-6 py-2 text-sm text-gray-500">{{ 'ANNUAL_PLANS.MODAL.PREVIEW_EDIT_HINT' | translate }}</p>
+      <div *ngIf="!importRequiredValid() && importRows().length" class="mx-6 mb-2 p-3 bg-red-50 border border-red-200 rounded-xl text-red-800 text-sm">
+        <span class="font-medium">{{ 'ANNUAL_PLANS.MODAL.REQUIRED_REGION_COUNTRY_SITE' | translate }}</span>
       </div>
       <div class="flex-1 min-h-0 overflow-y-auto px-6 pb-4">
-        <table class="w-full text-sm">
-          <thead class="bg-gray-50 sticky top-0">
-            <tr>
-              <th class="p-3 text-left text-gray-600 font-semibold">{{ 'ANNUAL_PLANS.TABLE.SITE' | translate }}</th>
-              <th class="p-3 text-left text-gray-600 font-semibold">{{ 'ANNUAL_PLANS.TABLE.YEAR' | translate }}</th>
-              <th class="p-3 text-left text-gray-600 font-semibold">{{ 'ANNUAL_PLANS.TABLE.VALIDATION_MODE' | translate }}</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr *ngFor="let plan of importPlansWithModes(); let i = index" class="border-t border-gray-100 hover:bg-gray-50/50">
-              <td class="p-3 font-medium text-gray-800">{{ plan.site_name ?? plan.site_id }}</td>
-              <td class="p-3 text-gray-700">{{ plan.year }}</td>
-              <td class="p-3">
-                <select
-                  class="w-full max-w-[180px] pl-3 pr-8 py-2 border border-gray-200 rounded-lg text-gray-700 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
-                  (change)="setPlanMode(i, $any($event.target).value)">
-                  <option value="101" [selected]="plan.validation_mode === '101'">{{ 'ANNUAL_PLANS.MODE.CORPORATE_ONLY' | translate }}</option>
-                  <option value="111" [selected]="plan.validation_mode === '111'">{{ 'ANNUAL_PLANS.MODE.ALL' | translate }}</option>
-                </select>
-              </td>
-            </tr>
-          </tbody>
-        </table>
+        <div *ngIf="importStep() === 0">
+        <div class="overflow-x-auto border border-gray-200 rounded-xl import-preview-table" [class.import-table-readonly]="!canEditImportTable()">
+          <table class="w-full text-sm min-w-[1800px]">
+            <thead class="bg-gray-50">
+              <tr>
+                <th (click)="sortByImportColumn('activity_number')" class="p-2 text-left text-gray-600 font-semibold whitespace-nowrap cursor-pointer hover:bg-gray-100 transition select-none">
+                  <div class="flex items-center gap-1"><span>{{ 'ANNUAL_PLANS.MODAL.ACTIVITY_N' | translate }}</span><span class="text-xs" [class.opacity-0]="importSortColumn() !== 'activity_number'">{{ importSortDirection() === 'asc' ? '↑' : '↓' }}</span></div>
+                </th>
+                <th (click)="sortByImportColumn('region')" class="p-2 text-left text-gray-600 font-semibold whitespace-nowrap cursor-pointer hover:bg-gray-100 transition select-none">
+                  <div class="flex items-center gap-1"><span>{{ 'ANNUAL_PLANS.MODAL.REGION' | translate }}</span><span class="text-xs" [class.opacity-0]="importSortColumn() !== 'region'">{{ importSortDirection() === 'asc' ? '↑' : '↓' }}</span></div>
+                </th>
+                <th (click)="sortByImportColumn('country')" class="p-2 text-left text-gray-600 font-semibold whitespace-nowrap cursor-pointer hover:bg-gray-100 transition select-none">
+                  <div class="flex items-center gap-1"><span>{{ 'ANNUAL_PLANS.MODAL.COUNTRY' | translate }}</span><span class="text-xs" [class.opacity-0]="importSortColumn() !== 'country'">{{ importSortDirection() === 'asc' ? '↑' : '↓' }}</span></div>
+                </th>
+                <th (click)="sortByImportColumn('site')" class="p-2 text-left text-gray-600 font-semibold whitespace-nowrap cursor-pointer hover:bg-gray-100 transition select-none">
+                  <div class="flex items-center gap-1"><span>{{ 'ANNUAL_PLANS.TABLE.SITE' | translate }}</span><span class="text-xs" [class.opacity-0]="importSortColumn() !== 'site'">{{ importSortDirection() === 'asc' ? '↑' : '↓' }}</span></div>
+                </th>
+                <th (click)="sortByImportColumn('title')" class="p-2 text-left text-gray-600 font-semibold whitespace-nowrap cursor-pointer hover:bg-gray-100 transition select-none">
+                  <div class="flex items-center gap-1"><span>{{ 'ANNUAL_PLANS.MODAL.TITLE' | translate }}</span><span class="text-xs" [class.opacity-0]="importSortColumn() !== 'title'">{{ importSortDirection() === 'asc' ? '↑' : '↓' }}</span></div>
+                </th>
+                <th (click)="sortByImportColumn('category')" class="p-2 text-left text-gray-600 font-semibold whitespace-nowrap cursor-pointer hover:bg-gray-100 transition select-none">
+                  <div class="flex items-center gap-1"><span>{{ 'ANNUAL_PLANS.MODAL.CATEGORY' | translate }}</span><span class="text-xs" [class.opacity-0]="importSortColumn() !== 'category'">{{ importSortDirection() === 'asc' ? '↑' : '↓' }}</span></div>
+                </th>
+                <th (click)="sortByImportColumn('collaboration_nature')" class="p-2 text-left text-gray-600 font-semibold whitespace-nowrap cursor-pointer hover:bg-gray-100 transition select-none">
+                  <div class="flex items-center gap-1"><span>{{ 'ANNUAL_PLANS.MODAL.COLLABORATION_NATURE' | translate }}</span><span class="text-xs" [class.opacity-0]="importSortColumn() !== 'collaboration_nature'">{{ importSortDirection() === 'asc' ? '↑' : '↓' }}</span></div>
+                </th>
+                <th (click)="sortByImportColumn('year')" class="p-2 text-left text-gray-600 font-semibold whitespace-nowrap cursor-pointer hover:bg-gray-100 transition select-none">
+                  <div class="flex items-center gap-1"><span>{{ 'ANNUAL_PLANS.TABLE.YEAR' | translate }}</span><span class="text-xs" [class.opacity-0]="importSortColumn() !== 'year'">{{ importSortDirection() === 'asc' ? '↑' : '↓' }}</span></div>
+                </th>
+                <th (click)="sortByImportColumn('start_year')" class="p-2 text-left text-gray-600 font-semibold whitespace-nowrap cursor-pointer hover:bg-gray-100 transition select-none">
+                  <div class="flex items-center gap-1"><span>{{ 'ANNUAL_PLANS.MODAL.START_YEAR' | translate }}</span><span class="text-xs" [class.opacity-0]="importSortColumn() !== 'start_year'">{{ importSortDirection() === 'asc' ? '↑' : '↓' }}</span></div>
+                </th>
+                <th (click)="sortByImportColumn('edition')" class="p-2 text-left text-gray-600 font-semibold whitespace-nowrap cursor-pointer hover:bg-gray-100 transition select-none">
+                  <div class="flex items-center gap-1"><span>{{ 'ANNUAL_PLANS.MODAL.EDITION' | translate }}</span><span class="text-xs" [class.opacity-0]="importSortColumn() !== 'edition'">{{ importSortDirection() === 'asc' ? '↑' : '↓' }}</span></div>
+                </th>
+                <th (click)="sortByImportColumn('participants')" class="p-2 text-left text-gray-600 font-semibold whitespace-nowrap cursor-pointer hover:bg-gray-100 transition select-none">
+                  <div class="flex items-center gap-1"><span>{{ 'ANNUAL_PLANS.MODAL.PARTICIPANTS' | translate }}</span><span class="text-xs" [class.opacity-0]="importSortColumn() !== 'participants'">{{ importSortDirection() === 'asc' ? '↑' : '↓' }}</span></div>
+                </th>
+                <th (click)="sortByImportColumn('total_hc')" class="p-2 text-left text-gray-600 font-semibold whitespace-nowrap cursor-pointer hover:bg-gray-100 transition select-none">
+                  <div class="flex items-center gap-1"><span>{{ 'ANNUAL_PLANS.MODAL.TOTAL_HC' | translate }}</span><span class="text-xs" [class.opacity-0]="importSortColumn() !== 'total_hc'">{{ importSortDirection() === 'asc' ? '↑' : '↓' }}</span></div>
+                </th>
+                <th (click)="sortByImportColumn('percentage_employees')" class="p-2 text-left text-gray-600 font-semibold whitespace-nowrap cursor-pointer hover:bg-gray-100 transition select-none">
+                  <div class="flex items-center gap-1"><span>{{ 'ANNUAL_PLANS.MODAL.PERCENTAGE_EMPLOYEES' | translate }}</span><span class="text-xs" [class.opacity-0]="importSortColumn() !== 'percentage_employees'">{{ importSortDirection() === 'asc' ? '↑' : '↓' }}</span></div>
+                </th>
+                <th (click)="sortByImportColumn('planned_budget')" class="p-2 text-left text-gray-600 font-semibold whitespace-nowrap cursor-pointer hover:bg-gray-100 transition select-none">
+                  <div class="flex items-center gap-1"><span>{{ 'ANNUAL_PLANS.MODAL.PLANNED_BUDGET' | translate }}</span><span class="text-xs" [class.opacity-0]="importSortColumn() !== 'planned_budget'">{{ importSortDirection() === 'asc' ? '↑' : '↓' }}</span></div>
+                </th>
+                <th (click)="sortByImportColumn('realized_budget')" class="p-2 text-left text-gray-600 font-semibold whitespace-nowrap cursor-pointer hover:bg-gray-100 transition select-none">
+                  <div class="flex items-center gap-1"><span>{{ 'ANNUAL_PLANS.MODAL.REALIZED_BUDGET' | translate }}</span><span class="text-xs" [class.opacity-0]="importSortColumn() !== 'realized_budget'">{{ importSortDirection() === 'asc' ? '↑' : '↓' }}</span></div>
+                </th>
+                <th (click)="sortByImportColumn('impact_actual')" class="p-2 text-left text-gray-600 font-semibold whitespace-nowrap cursor-pointer hover:bg-gray-100 transition select-none">
+                  <div class="flex items-center gap-1"><span>{{ 'ANNUAL_PLANS.MODAL.IMPACT_ACTUAL' | translate }}</span><span class="text-xs" [class.opacity-0]="importSortColumn() !== 'impact_actual'">{{ importSortDirection() === 'asc' ? '↑' : '↓' }}</span></div>
+                </th>
+                <th (click)="sortByImportColumn('impact_unit')" class="p-2 text-left text-gray-600 font-semibold whitespace-nowrap cursor-pointer hover:bg-gray-100 transition select-none">
+                  <div class="flex items-center gap-1"><span>{{ 'ANNUAL_PLANS.MODAL.IMPACT_UNIT' | translate }}</span><span class="text-xs" [class.opacity-0]="importSortColumn() !== 'impact_unit'">{{ importSortDirection() === 'asc' ? '↑' : '↓' }}</span></div>
+                </th>
+                <th (click)="sortByImportColumn('organizer')" class="p-2 text-left text-gray-600 font-semibold whitespace-nowrap cursor-pointer hover:bg-gray-100 transition select-none">
+                  <div class="flex items-center gap-1"><span>{{ 'ANNUAL_PLANS.MODAL.ORGANIZER' | translate }}</span><span class="text-xs" [class.opacity-0]="importSortColumn() !== 'organizer'">{{ importSortDirection() === 'asc' ? '↑' : '↓' }}</span></div>
+                </th>
+                <th (click)="sortByImportColumn('external_partner')" class="p-2 text-left text-gray-600 font-semibold whitespace-nowrap cursor-pointer hover:bg-gray-100 transition select-none">
+                  <div class="flex items-center gap-1"><span>{{ 'ANNUAL_PLANS.MODAL.EXTERNAL_PARTNER' | translate }}</span><span class="text-xs" [class.opacity-0]="importSortColumn() !== 'external_partner'">{{ importSortDirection() === 'asc' ? '↑' : '↓' }}</span></div>
+                </th>
+                <th (click)="sortByImportColumn('number_external_partners')" class="p-2 text-left text-gray-600 font-semibold whitespace-nowrap cursor-pointer hover:bg-gray-100 transition select-none">
+                  <div class="flex items-center gap-1"><span>{{ 'ANNUAL_PLANS.MODAL.NUMBER_EXTERNAL_PARTNERS' | translate }}</span><span class="text-xs" [class.opacity-0]="importSortColumn() !== 'number_external_partners'">{{ importSortDirection() === 'asc' ? '↑' : '↓' }}</span></div>
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              <ng-container *ngIf="sortedImportRows() as sorted">
+              <tr *ngFor="let row of sorted.rows; let i = index; trackBy: trackByImportOriginalIndex"
+                class="border-t border-gray-100 transition-colors"
+                [class.bg-red-100]="hasImportConflictOrWarning(row.__originalIndex)"
+                [class.hover:bg-red-200]="hasImportConflictOrWarning(row.__originalIndex)"
+                [class.hover:bg-gray-50/50]="!hasImportConflictOrWarning(row.__originalIndex)">
+                <td class="p-2"><input type="text" [disabled]="!canEditImportTable()" [class.bg-transparent]="!canEditImportTable()" [value]="row.activity_number ?? ''" (input)="updateImportRow(row.__originalIndex, 'activity_number', $any($event.target).value)"
+                  class="w-full min-w-[70px] px-2 py-1.5 rounded-lg text-gray-700 text-sm border-0 focus:ring-2 focus:ring-emerald-500 focus:outline-none import-preview-input" /></td>
+                <td class="p-2"><input type="text" [disabled]="!canEditImportTable()" [class.bg-transparent]="!canEditImportTable()" [value]="row.region ?? ''" (input)="updateImportRow(row.__originalIndex, 'region', $any($event.target).value)"
+                  class="w-full min-w-[70px] px-2 py-1.5 rounded-lg text-gray-700 text-sm border-0 focus:ring-2 focus:ring-emerald-500 focus:outline-none import-preview-input" /></td>
+                <td class="p-2"><input type="text" [disabled]="!canEditImportTable()" [class.bg-transparent]="!canEditImportTable()" [value]="row.country ?? ''" (input)="updateImportRow(row.__originalIndex, 'country', $any($event.target).value)"
+                  class="w-full min-w-[70px] px-2 py-1.5 rounded-lg text-gray-700 text-sm border-0 focus:ring-2 focus:ring-emerald-500 focus:outline-none import-preview-input" /></td>
+                <td class="p-2"><input type="text" [disabled]="!canEditImportTable()" [class.bg-transparent]="!canEditImportTable()" [value]="row.site ?? ''" (input)="updateImportRow(row.__originalIndex, 'site', $any($event.target).value)"
+                  class="w-full min-w-[80px] px-2 py-1.5 rounded-lg text-gray-700 text-sm border-0 focus:ring-2 focus:ring-emerald-500 focus:outline-none import-preview-input" /></td>
+                <td class="p-2"><input type="text" [disabled]="!canEditImportTable()" [class.bg-transparent]="!canEditImportTable()" [value]="row.title ?? ''" (input)="updateImportRow(row.__originalIndex, 'title', $any($event.target).value)"
+                  class="w-full min-w-[120px] px-2 py-1.5 rounded-lg text-gray-700 text-sm border-0 focus:ring-2 focus:ring-emerald-500 focus:outline-none import-preview-input" /></td>
+                <td class="p-2"><input type="text" [disabled]="!canEditImportTable()" [class.bg-transparent]="!canEditImportTable()" [value]="row.category ?? ''" (input)="updateImportRow(row.__originalIndex, 'category', $any($event.target).value)"
+                  class="w-full min-w-[90px] px-2 py-1.5 rounded-lg text-gray-700 text-sm border-0 focus:ring-2 focus:ring-emerald-500 focus:outline-none import-preview-input" /></td>
+                <td class="p-2"><input type="text" [disabled]="!canEditImportTable()" [class.bg-transparent]="!canEditImportTable()" [value]="row.collaboration_nature ?? ''" (input)="updateImportRow(row.__originalIndex, 'collaboration_nature', $any($event.target).value)"
+                  class="w-full min-w-[90px] px-2 py-1.5 rounded-lg text-gray-700 text-sm border-0 focus:ring-2 focus:ring-emerald-500 focus:outline-none import-preview-input" /></td>
+                <td class="p-2"><input type="text" [disabled]="!canEditImportTable()" [class.bg-transparent]="!canEditImportTable()" [value]="row.year ?? ''" (input)="updateImportRow(row.__originalIndex, 'year', $any($event.target).value)"
+                  class="w-full min-w-[60px] px-2 py-1.5 rounded-lg text-gray-700 text-sm border-0 focus:ring-2 focus:ring-emerald-500 focus:outline-none import-preview-input" /></td>
+                <td class="p-2"><input type="text" [disabled]="!canEditImportTable()" [class.bg-transparent]="!canEditImportTable()" [value]="row.start_year ?? ''" (input)="updateImportRow(row.__originalIndex, 'start_year', $any($event.target).value)"
+                  class="w-full min-w-[70px] px-2 py-1.5 rounded-lg text-gray-700 text-sm border-0 focus:ring-2 focus:ring-emerald-500 focus:outline-none import-preview-input" /></td>
+                <td class="p-2"><input type="text" [disabled]="!canEditImportTable()" [class.bg-transparent]="!canEditImportTable()" [value]="row.edition ?? ''" (input)="updateImportRow(row.__originalIndex, 'edition', $any($event.target).value)"
+                  class="w-full min-w-[60px] px-2 py-1.5 rounded-lg text-gray-700 text-sm border-0 focus:ring-2 focus:ring-emerald-500 focus:outline-none import-preview-input" /></td>
+                <td class="p-2"><input type="text" [disabled]="!canEditImportTable()" [class.bg-transparent]="!canEditImportTable()" [value]="row.participants ?? row.planned_volunteers ?? ''" (input)="updateImportRow(row.__originalIndex, 'participants', $any($event.target).value)"
+                  class="w-full min-w-[60px] px-2 py-1.5 rounded-lg text-gray-700 text-sm border-0 focus:ring-2 focus:ring-emerald-500 focus:outline-none import-preview-input" /></td>
+                <td class="p-2"><input type="text" [disabled]="!canEditImportTable()" [class.bg-transparent]="!canEditImportTable()" [value]="row.total_hc ?? ''" (input)="updateImportRow(row.__originalIndex, 'total_hc', $any($event.target).value)"
+                  class="w-full min-w-[60px] px-2 py-1.5 rounded-lg text-gray-700 text-sm border-0 focus:ring-2 focus:ring-emerald-500 focus:outline-none import-preview-input" /></td>
+                <td class="p-2"><input type="text" [disabled]="!canEditImportTable()" [class.bg-transparent]="!canEditImportTable()" [value]="row.percentage_employees ?? ''" (input)="updateImportRow(row.__originalIndex, 'percentage_employees', $any($event.target).value)"
+                  class="w-full min-w-[70px] px-2 py-1.5 rounded-lg text-gray-700 text-sm border-0 focus:ring-2 focus:ring-emerald-500 focus:outline-none import-preview-input" /></td>
+                <td class="p-2"><input type="text" [disabled]="!canEditImportTable()" [class.bg-transparent]="!canEditImportTable()" [value]="row.planned_budget ?? ''" (input)="updateImportRow(row.__originalIndex, 'planned_budget', $any($event.target).value)"
+                  class="w-full min-w-[80px] px-2 py-1.5 rounded-lg text-gray-700 text-sm border-0 focus:ring-2 focus:ring-emerald-500 focus:outline-none import-preview-input" /></td>
+                <td class="p-2"><input type="text" [disabled]="!canEditImportTable()" [class.bg-transparent]="!canEditImportTable()" [value]="row.realized_budget ?? ''" (input)="updateImportRow(row.__originalIndex, 'realized_budget', $any($event.target).value)"
+                  class="w-full min-w-[80px] px-2 py-1.5 rounded-lg text-gray-700 text-sm border-0 focus:ring-2 focus:ring-emerald-500 focus:outline-none import-preview-input" /></td>
+                <td class="p-2"><input type="text" [disabled]="!canEditImportTable()" [class.bg-transparent]="!canEditImportTable()" [value]="row.impact_actual ?? row.impact_target ?? ''" (input)="updateImportRow(row.__originalIndex, 'impact_actual', $any($event.target).value)"
+                  class="w-full min-w-[70px] px-2 py-1.5 rounded-lg text-gray-700 text-sm border-0 focus:ring-2 focus:ring-emerald-500 focus:outline-none import-preview-input" /></td>
+                <td class="p-2"><input type="text" [disabled]="!canEditImportTable()" [class.bg-transparent]="!canEditImportTable()" [value]="row.impact_unit ?? ''" (input)="updateImportRow(row.__originalIndex, 'impact_unit', $any($event.target).value)"
+                  class="w-full min-w-[70px] px-2 py-1.5 rounded-lg text-gray-700 text-sm border-0 focus:ring-2 focus:ring-emerald-500 focus:outline-none import-preview-input" /></td>
+                <td class="p-2"><input type="text" [disabled]="!canEditImportTable()" [class.bg-transparent]="!canEditImportTable()" [value]="row.organizer ?? ''" (input)="updateImportRow(row.__originalIndex, 'organizer', $any($event.target).value)"
+                  class="w-full min-w-[90px] px-2 py-1.5 rounded-lg text-gray-700 text-sm border-0 focus:ring-2 focus:ring-emerald-500 focus:outline-none import-preview-input" /></td>
+                <td class="p-2"><input type="text" [disabled]="!canEditImportTable()" [class.bg-transparent]="!canEditImportTable()" [value]="row.external_partner ?? ''" (input)="updateImportRow(row.__originalIndex, 'external_partner', $any($event.target).value)"
+                  class="w-full min-w-[90px] px-2 py-1.5 rounded-lg text-gray-700 text-sm border-0 focus:ring-2 focus:ring-emerald-500 focus:outline-none import-preview-input" /></td>
+                <td class="p-2"><input type="text" [disabled]="!canEditImportTable()" [class.bg-transparent]="!canEditImportTable()" [value]="row.number_external_partners ?? ''" (input)="updateImportRow(row.__originalIndex, 'number_external_partners', $any($event.target).value)"
+                  class="w-full min-w-[70px] px-2 py-1.5 rounded-lg text-gray-700 text-sm border-0 focus:ring-2 focus:ring-emerald-500 focus:outline-none import-preview-input" /></td>
+              </tr>
+              </ng-container>
+              <tr *ngIf="!importRows().length" class="border-t border-gray-100">
+                <td colspan="19" class="p-4 text-center text-gray-500">{{ 'ANNUAL_PLANS.MODAL.NO_ROWS' | translate }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        </div>
+
+        <!-- Step 1: Plan settings -->
+        <div *ngIf="importStep() === 1">
+          <h3 class="text-sm font-semibold text-gray-700 mt-2 mb-2">{{ 'ANNUAL_PLANS.MODAL.PLAN_SETTINGS' | translate }}</h3>
+          <table class="w-full text-sm">
+            <thead class="bg-gray-50">
+              <tr>
+                <th class="p-3 text-left text-gray-600 font-semibold">{{ 'ANNUAL_PLANS.TABLE.SITE' | translate }}</th>
+                <th class="p-3 text-left text-gray-600 font-semibold">{{ 'ANNUAL_PLANS.TABLE.YEAR' | translate }}</th>
+                <th class="p-3 text-left text-gray-600 font-semibold">{{ 'ANNUAL_PLANS.TABLE.VALIDATION_MODE' | translate }}</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let plan of importPlansWithModes(); let i = index" class="border-t border-gray-100 hover:bg-gray-50/50">
+                <td class="p-3 font-medium text-gray-800">{{ plan.site_name ?? plan.site_id }}</td>
+                <td class="p-3 text-gray-700">{{ plan.year }}</td>
+                <td class="p-3">
+                  <select
+                    class="w-full max-w-[180px] pl-3 pr-8 py-2 border border-gray-200 rounded-lg text-gray-700 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                    (change)="setPlanMode(i, $any($event.target).value)">
+                    <option value="101" [selected]="plan.validation_mode === '101'">{{ 'ANNUAL_PLANS.MODE.CORPORATE_ONLY' | translate }}</option>
+                    <option value="111" [selected]="plan.validation_mode === '111'">{{ 'ANNUAL_PLANS.MODE.ALL' | translate }}</option>
+                  </select>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
       </div>
-      <div class="flex justify-end gap-3 p-6 border-t border-gray-100">
-        <button type="button" (click)="cancelImportModal()"
-          class="px-5 py-2.5 rounded-xl border border-gray-300 text-gray-700 hover:bg-gray-50 font-medium">
-          {{ 'COMMON.CANCEL' | translate }}
-        </button>
-        <button type="button" (click)="confirmImport()" [disabled]="importLoading() || !importPlansWithModes().length"
-          class="px-6 py-2.5 rounded-xl bg-brand-900 hover:bg-brand-800 disabled:opacity-50 text-white font-semibold">
-          <span *ngIf="!importLoading()">{{ 'ANNUAL_PLANS.IMPORT' | translate }}</span>
-          <span *ngIf="importLoading()"><i class="fas fa-spinner fa-spin mr-1"></i> {{ 'ANNUAL_PLANS.IMPORTING' | translate }}</span>
-        </button>
+      <div class="flex flex-wrap items-center justify-end gap-3 p-6 border-t border-gray-100">
+        <div class="flex-1 min-w-0 mr-2 space-y-2">
+          <div *ngIf="importPreviewErrors().length" class="p-3 text-amber-800 text-sm">
+            <p class="font-medium">{{ 'ANNUAL_PLANS.MODAL.WARNINGS' | translate:{ n: importPreviewErrors().length } }}</p>
+            <div class="mt-1 max-h-10 overflow-y-auto space-y-0.5 text-xs whitespace-pre-wrap"><div *ngFor="let err of importPreviewErrors()">{{ formatImportError(err) }}</div></div>
+          </div>
+          <div *ngIf="importConflicts().length" class="text-sm text-gray-700">
+            <p class="font-medium">{{ 'ANNUAL_PLANS.MODAL.CONFLICT_MESSAGE' | translate:{ n: importConflicts().length } }}</p>
+            <p class="mt-0.5">{{ 'ANNUAL_PLANS.MODAL.CONFLICT_CHOOSE' | translate }}</p>
+          </div>
+        </div>
+        <div class="flex flex-wrap gap-3">
+        <ng-container *ngIf="importStep() === 0">
+          <button type="button" (click)="cancelImportModal()"
+            class="px-5 py-2.5 rounded-xl border border-gray-300 text-gray-700 hover:bg-gray-50 font-medium transition text-sm">
+            {{ 'COMMON.CANCEL' | translate }}
+          </button>
+          <ng-container *ngIf="!importConflicts().length">
+            <button type="button" (click)="goToNextImportStep()" [disabled]="!importRequiredValid() || importValidateLoading()"
+              class="px-6 py-2.5 rounded-xl bg-brand-900 hover:bg-brand-800 text-white font-semibold transition text-sm disabled:opacity-50 disabled:cursor-not-allowed">
+              <span *ngIf="!importValidateLoading()">{{ 'COMMON.NEXT' | translate }}</span>
+              <span *ngIf="importValidateLoading()"><i class="fas fa-spinner fa-spin mr-1"></i> {{ 'COMMON.NEXT' | translate }}</span>
+            </button>
+          </ng-container>
+          <ng-container *ngIf="importConflicts().length">
+            <button type="button" (click)="resolveConflictsOverwrite()" [disabled]="importLoading() || !importRequiredValid() || importPreviewErrors().length"
+              class="px-5 py-2.5 rounded-xl border border-gray-300 text-gray-700 hover:bg-gray-50 font-medium transition text-sm disabled:opacity-50 disabled:cursor-not-allowed">
+              {{ 'ANNUAL_PLANS.MODAL.OVERWRITE_EXISTING' | translate }}
+            </button>
+            <button type="button" (click)="resolveConflictsChangeNumbers()" [disabled]="importLoading() || !importRequiredValid() || importPreviewErrors().length"
+              class="px-6 py-2.5 rounded-xl bg-brand-900 hover:bg-brand-800 text-white font-semibold transition text-sm disabled:opacity-50 disabled:cursor-not-allowed">
+              {{ 'ANNUAL_PLANS.MODAL.CHANGE_ACTIVITY_NUMBERS' | translate }}
+            </button>
+          </ng-container>
+        </ng-container>
+        <ng-container *ngIf="importStep() === 1">
+          <button type="button" (click)="prevImportStep()"
+            class="px-5 py-2.5 rounded-xl border border-gray-300 text-gray-700 hover:bg-gray-50 font-medium transition text-sm">
+            {{ 'COMMON.BACK' | translate }}
+          </button>
+          <button type="button" (click)="confirmImport()" [disabled]="importLoading() || !importPlansWithModes().length || !importRequiredValid() || importPreviewErrors().length"
+            class="px-6 py-2.5 rounded-xl bg-brand-900 hover:bg-brand-800 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold transition text-sm">
+            <span *ngIf="!importLoading()">{{ 'ANNUAL_PLANS.IMPORT' | translate }}</span>
+            <span *ngIf="importLoading()"><i class="fas fa-spinner fa-spin mr-1"></i> {{ 'ANNUAL_PLANS.IMPORTING' | translate }}</span>
+          </button>
+        </ng-container>
+        </div>
       </div>
     </div>
   </div>

@@ -76,7 +76,7 @@
   <aside class="w-full max-w-md bg-white shadow-2xl flex flex-col h-full min-h-0 overflow-hidden animate-slide-in-right"
     (click)="$event.stopPropagation()">
     <app-realized-create-sidebar
-      [initialPlanId]="activity()!.plan_id ?? null"
+      [initialPlanId]="activity()!.plan_id"
       [initialActivityId]="activity()!.id"
       (closed)="closeAddRealizationSidebar()"
       (created)="onRealizationCreated()">
@@ -94,7 +94,7 @@
     <div class="flex-1 min-h-0 overflow-y-auto">
     <app-planned-activity-edit
       [activityId]="activity()!.id"
-      [planId]="activity()!.plan_id ?? null"
+      [planId]="activity()!.plan_id"
       [planYearParam]="activity()!.year ?? null"
       [sidebarMode]="true"
       (closed)="closeEditSidebar()"

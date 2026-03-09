@@ -141,15 +141,35 @@ export class CsrPlansApi {
   }
 
   /**
+   * Check which rows have activity_number conflicts (activity already exists in plan).
+   */
+  importExcelCheckConflicts(rows: ImportPreviewRow[], options?: { site_id?: string; year?: number }): Observable<ImportCheckConflictsResponse> {
+    return this.http.post<ImportCheckConflictsResponse>(`${this.apiUrl}/csr-plans/import-excel-check-conflicts`, {
+      rows,
+      site_id: options?.site_id,
+      year: options?.year,
+    });
+  }
+
+  /**
+   * Re-validate current rows (region, country, site). Returns updated errors so user can proceed when fixed.
+   */
+  importValidateRows(rows: ImportPreviewRow[]): Observable<{ errors: string[] }> {
+    return this.http.post<{ errors: string[] }>(`${this.apiUrl}/csr-plans/import-validate-rows`, { rows });
+  }
+
+  /**
    * Upload an Excel file and create plans/activities. validation_modes: mode per plan (required when using preview flow).
+   * rows: edited rows from preview (optional). If provided, these are used instead of re-parsing the file.
    * Optional onProgress(0-100) callback for upload progress.
    */
-  importExcel(file: File, options?: { site_id?: string; year?: number; validation_modes?: Array<{ site_id: string; year: number; validation_mode: '101' | '111' }>; onProgress?: (percent: number) => void }): Observable<ImportExcelResponse> {
+  importExcel(file: File, options?: { site_id?: string; year?: number; validation_modes?: Array<{ site_id: string; year: number; validation_mode: '101' | '111' }>; rows?: ImportPreviewRow[]; onProgress?: (percent: number) => void }): Observable<ImportExcelResponse> {
     const form = new FormData();
     form.append('file', file);
     if (options?.site_id) form.append('site_id', options.site_id);
     if (options?.year != null) form.append('year', String(options.year));
     if (options?.validation_modes?.length) form.append('validation_modes', JSON.stringify(options.validation_modes));
+    if (options?.rows?.length) form.append('rows', JSON.stringify(options.rows));
     const req = new HttpRequest('POST', `${this.apiUrl}/csr-plans/import-excel`, form, { reportProgress: true });
     return this.http.request<ImportExcelResponse>(req).pipe(
       tap((event) => {
@@ -180,10 +200,50 @@ export interface ImportPreviewPlan {
   year: number;
 }
 
+/** Editable row from Excel preview. Keys match backend parse_excel_rows output. */
+export interface ImportPreviewRow {
+  activity_number?: string;
+  region?: string;
+  country?: string;
+  site?: string;
+  title?: string;
+  category?: string;
+  collaboration_nature?: string;
+  year?: number | string;
+  start_year?: number | string;
+  edition?: number | string;
+  participants?: number | string;
+  planned_volunteers?: number | string;
+  total_hc?: number | string;
+  percentage_employees?: number | string;
+  planned_budget?: number | string;
+  realized_budget?: number | string;
+  impact_target?: number | string;
+  impact_actual?: number | string;
+  impact_unit?: string;
+  organizer?: string;
+  external_partner?: string;
+  number_external_partners?: number | string;
+  [key: string]: unknown;
+}
+
 export interface ImportPreviewResponse {
   plans: ImportPreviewPlan[];
+  rows?: ImportPreviewRow[];
   errors?: string[];
   message?: string;
+}
+
+export interface ImportConflict {
+  row_index: number;
+  activity_number: string;
+  site_name?: string | null;
+  year: number;
+  next_activity_number: number;
+}
+
+export interface ImportCheckConflictsResponse {
+  conflicts: ImportConflict[];
 }
 
 export interface ImportExcelResponse {

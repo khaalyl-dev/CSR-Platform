@@ -3,9 +3,10 @@ Excel import endpoint: upload .xlsx file to create/update CSR plan and activitie
 Saves the uploaded file in the media folder and creates a Document record for download.
 """
 import logging
+import os
+import re
 import shutil
 import tempfile
-import os
 from datetime import datetime
 
 from flask import Blueprint, request, jsonify
@@ -42,6 +43,19 @@ def _build_site_cache():
         if s.name:
             cache[str(s.name).strip().lower()] = s
     return cache
+
+
+def _build_region_country_sets():
+    """Build sets of known region and country values from Site (normalized lower)."""
+    sites = Site.query.all()
+    regions = set()
+    countries = set()
+    for s in sites:
+        if s.region and str(s.region).strip():
+            regions.add(str(s.region).strip().lower())
+        if s.country and str(s.country).strip():
+            countries.add(str(s.country).strip().lower())
+    return regions, countries
 
 
 def _resolve_site_cached(site_code_or_name: str, site_cache: dict):
@@ -131,29 +145,67 @@ def _safe_str(val, max_len=255):
     return s[:max_len] if max_len else s
 
 
-def _collect_plan_keys_from_rows(rows, site_id_override, year_override, role, user_id, site_cache):
+def _to_json_val(val):
+    """Convert value to JSON-serializable type (numpy/pandas -> Python)."""
+    if val is None:
+        return None
+    if hasattr(val, "item"):  # numpy scalar
+        return val.item()
+    if isinstance(val, (str, int, float, bool)):
+        return val
+    s = str(val).strip().lower()
+    if s == "nan" or not s:
+        return None
+    return val
+
+
+def _row_to_json_safe(row):
+    """Convert row dict to JSON-serializable (no numpy/pandas)."""
+    return {k: _to_json_val(v) for k, v in row.items()}
+
+
+def _collect_plan_keys_from_rows(rows, site_id_override, year_override, role, user_id, site_cache, known_regions=None, known_countries=None):
     """From parsed rows, return unique (site_id, site_name, year) and list of errors. No DB writes."""
     errors = []
     seen = set()
     result = []
+    known_regions = known_regions or set()
+    known_countries = known_countries or set()
     for i, row in enumerate(rows):
         row_num = i + 2
+        # Region: missing or unknown
+        region_val = row.get("region")
+        if not region_val or not str(region_val).strip():
+            errors.append(f"Activity {row_num}: région manquante")
+        else:
+            rn = str(region_val).strip().lower()
+            if known_regions and rn not in known_regions:
+                errors.append(f"Activity {row_num}: région inconnue '{region_val}'")
+        # Country: missing or unknown
+        country_val = row.get("country")
+        if not country_val or not str(country_val).strip():
+            errors.append(f"Activity {row_num}: pays manquant")
+        else:
+            cn = str(country_val).strip().lower()
+            if known_countries and cn not in known_countries:
+                errors.append(f"Activity {row_num}: pays inconnu '{country_val}'")
+        # Site: required and must be known
         site_id = site_id_override
         year = year_override
         if not site_id:
             site_val = row.get("site")
             if not site_val:
-                errors.append(f"Ligne {row_num}: site manquant")
+                errors.append(f"Activity {row_num}: site manquant")
                 continue
             site = _resolve_site_cached(str(site_val), site_cache)
             if not site:
-                errors.append(f"Ligne {row_num}: site inconnu '{site_val}'")
+                errors.append(f"Activity {row_num}: site inconnu '{site_val}'")
                 continue
             site_id = site.id
         else:
             site = Site.query.get(site_id)
         if role in ("SITE_USER", "SITE") and not _user_can_access_site(user_id, site_id):
-            errors.append(f"Ligne {row_num}: accès refusé au site {site.name or site_id}")
+            errors.append(f"Activity {row_num}: accès refusé au site {site.name or site_id}")
             continue
         if year is None:
             y = row.get("year")
@@ -164,7 +216,7 @@ def _collect_plan_keys_from_rows(rows, site_id_override, year_override, role, us
             if year is None:
                 year = 2024
         if year < 2000 or year > 2100:
-            errors.append(f"Ligne {row_num}: année invalide {year}")
+            errors.append(f"Activity {row_num}: année invalide {year}")
             continue
         key = (site_id, year)
         if key not in seen:
@@ -213,6 +265,7 @@ def import_excel_preview():
         if not rows:
             return jsonify({"message": "Aucune ligne de données trouvée", "plans": [], "errors": []}), 200
         site_cache = _build_site_cache()
+        known_regions, known_countries = _build_region_country_sets()
         if site_id_override:
             site = Site.query.get(site_id_override)
             if not site:
@@ -221,14 +274,149 @@ def import_excel_preview():
                 return jsonify({"message": "Vous n'avez pas accès à ce site"}), 403
         if year_override is not None and (year_override < 2000 or year_override > 2100):
             return jsonify({"message": "Année invalide"}), 400
-        plans, errors = _collect_plan_keys_from_rows(rows, site_id_override, year_override, role, user_id, site_cache)
-        return jsonify({"plans": plans, "errors": errors}), 200
+        plans, errors = _collect_plan_keys_from_rows(rows, site_id_override, year_override, role, user_id, site_cache, known_regions, known_countries)
+        # Convert rows to JSON-safe dicts for editable preview
+        rows_safe = [_row_to_json_safe(r) for r in rows]
+        return jsonify({"plans": plans, "rows": rows_safe, "errors": errors}), 200
     finally:
         if tmp_path and os.path.exists(tmp_path):
             try:
                 os.unlink(tmp_path)
             except OSError:
                 pass
+
+
+def _extract_max_activity_number(plan_id):
+    """Get max numeric value from activity_numbers in plan. Returns 0 if none."""
+    acts = CsrActivity.query.filter_by(plan_id=plan_id).all()
+    max_val = 0
+    for a in acts:
+        if not a or not a.activity_number:
+            continue
+        s = str(a.activity_number).strip()
+        nums = re.findall(r'\d+', s)
+        for n in nums:
+            try:
+                val = int(n)
+                if val > max_val:
+                    max_val = val
+            except (TypeError, ValueError):
+                pass
+    return max_val
+
+
+def _check_row_conflicts(rows, site_id_override, year_override, role, user_id, site_cache):
+    """
+    Check which rows have activity_number conflicts (already exist in plan).
+    Returns list of { row_index, activity_number, site_name, year, next_activity_number }.
+    next_activity_number: sequential number starting from max+1 per plan (201, 202, ...).
+    """
+    conflicts = []
+    next_per_plan = {}  # (site_id, year) -> next number to assign
+    site_cache_ref = site_cache
+    for i, row in enumerate(rows):
+        site_id = site_id_override
+        year = year_override
+        if not site_id:
+            site_val = row.get("site")
+            if not site_val:
+                continue
+            site = _resolve_site_cached(str(site_val), site_cache_ref)
+            if not site:
+                continue
+            site_id = site.id
+        else:
+            site = Site.query.get(site_id)
+        if role in ("SITE_USER", "SITE") and not _user_can_access_site(user_id, site_id):
+            continue
+        if year is None:
+            y = row.get("year")
+            if y is not None and y != "":
+                year = _safe_int(y)
+            if year is None and year_override is not None:
+                year = year_override
+            if year is None:
+                year = 2024
+        if year is None or year < 2000 or year > 2100:
+            continue
+        plan = CsrPlan.query.filter_by(site_id=site_id, year=year).first()
+        if not plan:
+            continue
+        activity_number = _safe_str(row.get("activity_number") or row.get("title")) or f"CSR-{i + 2}"
+        existing = CsrActivity.query.filter_by(plan_id=plan.id, activity_number=activity_number).first()
+        if existing:
+            plan_key = (site_id, year)
+            if plan_key not in next_per_plan:
+                max_val = _extract_max_activity_number(plan.id)
+                next_per_plan[plan_key] = max_val + 1
+            next_num = next_per_plan[plan_key]
+            next_per_plan[plan_key] = next_num + 1
+            conflicts.append({
+                "row_index": i,
+                "activity_number": activity_number,
+                "site_name": site.name if site else None,
+                "year": year,
+                "next_activity_number": next_num,
+            })
+    return conflicts
+
+
+@bp.post("/import-excel-check-conflicts")
+@token_required
+def import_excel_check_conflicts():
+    """
+    Check which rows have activity_number conflicts (activity already exists in plan).
+    Expects JSON body: { "rows": [...], "site_id": "...", "year": 2024 }.
+    Returns { "conflicts": [{ row_index, activity_number, site_name, year }] }.
+    """
+    role = (getattr(request, "role", "") or "").upper()
+    user_id = getattr(request, "user_id", None)
+    data = request.get_json(silent=True) or {}
+    rows = data.get("rows")
+    if not isinstance(rows, list) or not rows:
+        return jsonify({"conflicts": []}), 200
+    site_id_override = data.get("site_id") or None
+    if site_id_override:
+        site_id_override = str(site_id_override).strip()
+    year_override = data.get("year")
+    if year_override is not None:
+        try:
+            year_override = int(year_override)
+        except (TypeError, ValueError):
+            year_override = None
+    site_cache = _build_site_cache()
+    if site_id_override:
+        site = Site.query.get(site_id_override)
+        if not site:
+            return jsonify({"message": "Site introuvable"}), 400
+        if role in ("SITE_USER", "SITE") and not _user_can_access_site(user_id, site_id_override):
+            return jsonify({"message": "Accès refusé"}), 403
+    conflicts = _check_row_conflicts(rows, site_id_override, year_override, role, user_id, site_cache)
+    return jsonify({"conflicts": conflicts}), 200
+
+
+@bp.post("/import-validate-rows")
+@token_required
+def import_validate_rows():
+    """
+    Re-validate current rows (region, country, site) without uploading a file.
+    Expects JSON body: { "rows": [...] }. Returns { "errors": [...] }.
+    Used when user edits the preview and clicks Next to check if warnings are fixed.
+    """
+    role = (getattr(request, "role", "") or "").upper()
+    user_id = getattr(request, "user_id", None)
+    data = request.get_json(silent=True) or {}
+    rows = data.get("rows")
+    if not isinstance(rows, list):
+        return jsonify({"errors": []}), 200
+    if not rows:
+        return jsonify({"errors": []}), 200
+    site_cache = _build_site_cache()
+    known_regions, known_countries = _build_region_country_sets()
+    _, errors = _collect_plan_keys_from_rows(
+        rows, None, None, role, user_id, site_cache, known_regions, known_countries
+    )
+    return jsonify({"errors": errors}), 200
 
 
 @bp.post("/import-excel")
@@ -286,18 +474,31 @@ def import_excel():
     if validation_mode_default not in ("101", "111"):
         validation_mode_default = "101"
 
+    # Optional: edited rows from preview (JSON). If provided, use these instead of parsing file.
+    rows = None
+    rows_json = request.form.get("rows")
+    if rows_json:
+        try:
+            import json as _json
+            rows = _json.loads(rows_json)
+            if not isinstance(rows, list):
+                rows = None
+        except (TypeError, ValueError, KeyError):
+            rows = None
+
     tmp_path = None
     try:
         with tempfile.NamedTemporaryFile(delete=False, suffix=".xlsx") as tmp:
             f.save(tmp.name)
             tmp_path = tmp.name
 
-        rows, parse_errors = parse_excel_rows(tmp_path)
-        if parse_errors:
-            return jsonify({
-                "message": "Erreurs lors de la lecture du fichier",
-                "errors": parse_errors,
-            }), 400
+        if rows is None:
+            rows, parse_errors = parse_excel_rows(tmp_path)
+            if parse_errors:
+                return jsonify({
+                    "message": "Erreurs lors de la lecture du fichier",
+                    "errors": parse_errors,
+                }), 400
 
         if not rows:
             return jsonify({"message": "Aucune ligne de données trouvée dans le fichier"}), 400
@@ -332,6 +533,7 @@ def import_excel():
         errors = []
         plan_cache = {}  # (site_id, year) -> plan
         site_cache = _build_site_cache()
+        known_regions, known_countries = _build_region_country_sets()
         category_cache = {}  # name_lower -> Category
         created_cats = {}
         external_partner_cache = {}  # name_lower -> ExternalPartner
@@ -340,24 +542,40 @@ def import_excel():
 
         for i, row in enumerate(rows):
             row_num = i + 2  # 1-based + header
+            # Region: missing or unknown
+            region_val = row.get("region")
+            if not region_val or not str(region_val).strip():
+                errors.append(f"Activity {row_num}: région manquante")
+            else:
+                rn = str(region_val).strip().lower()
+                if known_regions and rn not in known_regions:
+                    errors.append(f"Activity {row_num}: région inconnue '{region_val}'")
+            # Country: missing or unknown
+            country_val = row.get("country")
+            if not country_val or not str(country_val).strip():
+                errors.append(f"Activity {row_num}: pays manquant")
+            else:
+                cn = str(country_val).strip().lower()
+                if known_countries and cn not in known_countries:
+                    errors.append(f"Activity {row_num}: pays inconnu '{country_val}'")
+            # Site: required and must be known
             site_id = site_id_override
             year = year_override
-
             if not site_id:
                 site_val = row.get("site")
                 if not site_val:
-                    errors.append(f"Ligne {row_num}: site manquant")
+                    errors.append(f"Activity {row_num}: site manquant")
                     continue
                 site = _resolve_site_cached(str(site_val), site_cache)
                 if not site:
-                    errors.append(f"Ligne {row_num}: site inconnu '{site_val}'")
+                    errors.append(f"Activity {row_num}: site inconnu '{site_val}'")
                     continue
                 site_id = site.id
             else:
                 site = Site.query.get(site_id)
 
             if role in ("SITE_USER", "SITE") and not _user_can_access_site(user_id, site_id):
-                errors.append(f"Ligne {row_num}: accès refusé au site {site.name or site_id}")
+                errors.append(f"Activity {row_num}: accès refusé au site {site.name or site_id}")
                 continue
 
             if year is None:
@@ -369,7 +587,7 @@ def import_excel():
                 if year is None:
                     year = 2024  # default for consolidated report
             if year < 2000 or year > 2100:
-                errors.append(f"Ligne {row_num}: année invalide {year}")
+                errors.append(f"Activity {row_num}: année invalide {year}")
                 continue
 
             key = (site_id, year)
@@ -395,7 +613,7 @@ def import_excel():
                 cat_name = "Uncategorized"
             category = _resolve_category_cached(str(cat_name).strip(), category_cache, created_cats)
             if not category:
-                errors.append(f"Ligne {row_num}: impossible de créer la catégorie")
+                errors.append(f"Activity {row_num}: impossible de créer la catégorie")
                 continue
 
             activity_number = _safe_str(row.get("activity_number") or row.get("title")) or f"CSR-{row_num}"
