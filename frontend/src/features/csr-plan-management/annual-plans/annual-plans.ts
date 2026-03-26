@@ -172,6 +172,13 @@ export class AnnualPlansComponent implements OnInit {
     return Array.from(years).sort((a, b) => b - a);
   });
 
+  /** Import year choices: full backend-valid range. */
+  importYearOptions = computed(() => {
+    const years: number[] = [];
+    for (let y = 2100; y >= 2000; y--) years.push(y);
+    return years;
+  });
+
   totalPlans = computed(() => this.plans().length);
   submittedPlans = computed(() => this.plans().filter(p => p.status === 'SUBMITTED').length);
   approvedPlans = computed(() => this.plans().filter(p => p.status === 'VALIDATED').length);
@@ -459,6 +466,7 @@ export class AnnualPlansComponent implements OnInit {
   /** After preview: file to send on confirm, and modal visibility */
   pendingImportFile = signal<File | null>(null);
   showImportModal = signal(false);
+  importSelectedYear = signal<number>(new Date().getFullYear());
   /** Plans from preview with validation_mode per plan (user can change in modal) */
   importPlansWithModes = signal<PlanWithMode[]>([]);
   /** Editable activity rows from preview */
@@ -642,7 +650,7 @@ export class AnnualPlansComponent implements OnInit {
       const r = rows[i];
       const activityNumber = String(r.activity_number ?? r.title ?? '').trim();
       const site = String(r.site ?? '').trim();
-      const year = String(r.start_year ?? r.year ?? '').trim();
+      const year = String(this.importSelectedYear()).trim();
       if (!activityNumber || !site || !year) continue;
 
       const k = `${site.toLowerCase()}|${year}|${activityNumber.toLowerCase()}`;
@@ -680,7 +688,7 @@ export class AnnualPlansComponent implements OnInit {
       const r = rows[i];
       const activityNumber = String(r.activity_number ?? r.title ?? '').trim();
       const site = String(r.site ?? '').trim();
-      const year = String(r.start_year ?? r.year ?? '').trim();
+      const year = String(this.importSelectedYear()).trim();
       if (!activityNumber || !site || !year) continue;
       const k = `${site.toLowerCase()}|${year}|${activityNumber.toLowerCase()}`;
       const list = excelMap.get(k) ?? [];
@@ -900,6 +908,7 @@ export class AnnualPlansComponent implements OnInit {
     this.importResult.set(null);
     this.startSimulatedProgress();
     this.csrPlansApi.importExcelPreview(file, {
+      year: this.importSelectedYear(),
       onProgress: (p) => {
         this.stopSimulatedProgress();
         this.importProgress.set(p);
@@ -909,7 +918,8 @@ export class AnnualPlansComponent implements OnInit {
         this.stopSimulatedProgress();
         this.importLoading.set(false);
         this.importProgress.set(100);
-        const plansWithModes: PlanWithMode[] = (res.plans || []).map(p => ({ ...p, validation_mode: '101' }));
+        const selectedYear = this.importSelectedYear();
+        const plansWithModes: PlanWithMode[] = (res.plans || []).map(p => ({ ...p, year: selectedYear, validation_mode: '101' }));
         this.pendingImportFile.set(file);
         this.importPlansWithModes.set(plansWithModes);
         this.importRows.set(res.rows || []);
@@ -923,7 +933,7 @@ export class AnnualPlansComponent implements OnInit {
 
         // Real-time DB duplicates (based on current preview values).
         if ((res.rows || []).length) {
-          this.csrPlansApi.importExcelCheckConflicts(res.rows || []).subscribe({
+          this.csrPlansApi.importExcelCheckConflicts(res.rows || [], { year: selectedYear }).subscribe({
             next: (cRes) => {
               const conflicts = cRes.conflicts ?? [];
               this.importConflicts.set(conflicts);
@@ -981,6 +991,12 @@ export class AnnualPlansComponent implements OnInit {
     );
   }
 
+  setImportSelectedYear(year: number): void {
+    this.importSelectedYear.set(year);
+    this.importPlansWithModes.update((list) => list.map((p) => ({ ...p, year })));
+    this.scheduleAutoConflictsCheck();
+  }
+
   /** Update a cell in the import preview rows. */
   updateImportRow(index: number, key: keyof ImportPreviewRow, value: string | number | null): void {
     let v: any = value === '' || value === null ? undefined : value;
@@ -1009,13 +1025,13 @@ export class AnnualPlansComponent implements OnInit {
   }
 
   private scheduleAutoValidateRows(): void {
-    if (!this.showImportModal() || this.importStep() !== 0) return;
+    if (!this.showImportModal() || this.importStep() !== 1) return;
     if (this.autoValidateTimer) clearTimeout(this.autoValidateTimer);
     this.autoValidateTimer = setTimeout(() => {
-      if (!this.showImportModal() || this.importStep() !== 0) return;
+      if (!this.showImportModal() || this.importStep() !== 1) return;
       const rows = this.importRows();
       if (!rows.length) return;
-      this.csrPlansApi.importValidateRows(rows).subscribe({
+      this.csrPlansApi.importValidateRows(rows, { year: this.importSelectedYear() }).subscribe({
         next: (res) => this.importPreviewErrors.set(res.errors ?? []),
         error: () => {},
       });
@@ -1023,13 +1039,13 @@ export class AnnualPlansComponent implements OnInit {
   }
 
   private scheduleAutoConflictsCheck(): void {
-    if (!this.showImportModal() || this.importStep() !== 0) return;
+    if (!this.showImportModal() || this.importStep() !== 1) return;
     if (this.autoConflictsTimer) clearTimeout(this.autoConflictsTimer);
     this.autoConflictsTimer = setTimeout(() => {
-      if (!this.showImportModal() || this.importStep() !== 0) return;
+      if (!this.showImportModal() || this.importStep() !== 1) return;
       const rows = this.importRows();
       if (!rows.length) return;
-      this.csrPlansApi.importExcelCheckConflicts(rows).subscribe({
+      this.csrPlansApi.importExcelCheckConflicts(rows, { year: this.importSelectedYear() }).subscribe({
         next: (res) => {
           const conflicts = res.conflicts ?? [];
           this.importConflicts.set(conflicts);
@@ -1091,8 +1107,10 @@ export class AnnualPlansComponent implements OnInit {
     this.importLoading.set(true);
     this.importProgress.set(0);
     this.startSimulatedProgress();
-    const validation_modes = plans.map((p) => ({ site_id: p.site_id, year: p.year, validation_mode: p.validation_mode }));
+    const selectedYear = this.importSelectedYear();
+    const validation_modes = plans.map((p) => ({ site_id: p.site_id, year: selectedYear, validation_mode: p.validation_mode }));
     this.csrPlansApi.importExcel(file, {
+      year: selectedYear,
       validation_modes,
       rows: rows?.length ? rows : undefined,
       duplicate_strategy,
@@ -1157,7 +1175,7 @@ export class AnnualPlansComponent implements OnInit {
   }
 
   nextImportStep(): void {
-    this.importStep.set(1);
+    this.importStep.update((s) => Math.min(2, s + 1));
   }
 
   chooseDuplicateStrategy(strategy: 'delete' | 'ignore'): void {
@@ -1167,13 +1185,17 @@ export class AnnualPlansComponent implements OnInit {
 
   /** Re-validate rows when user clicks Next; only proceed if no errors. */
   goToNextImportStep(): void {
+    if (this.importStep() === 0) {
+      this.nextImportStep();
+      return;
+    }
     const rows = this.importRows();
     if (!rows.length) {
       this.nextImportStep();
       return;
     }
     this.importValidateLoading.set(true);
-    this.csrPlansApi.importValidateRows(rows).subscribe({
+    this.csrPlansApi.importValidateRows(rows, { year: this.importSelectedYear() }).subscribe({
       next: (res) => {
         this.importValidateLoading.set(false);
         this.importPreviewErrors.set(res.errors ?? []);
@@ -1189,7 +1211,7 @@ export class AnnualPlansComponent implements OnInit {
   }
 
   prevImportStep(): void {
-    this.importStep.set(0);
+    this.importStep.update((s) => Math.max(0, s - 1));
     this.importTableEditable.set(true);
     this.clearImportSelection();
   }

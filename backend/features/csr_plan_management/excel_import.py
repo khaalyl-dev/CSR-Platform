@@ -206,8 +206,9 @@ def _validate_row_values(row: dict[str, Any], row_num: int) -> list[str]:
     if row.get("edition") not in (None, "") and ed_err:
         errors.append(f"Activity {row_num}: édition invalide ({ed_err})")
 
-    # Year handling: in this project, "Year" and "Start year" represent the same concept.
-    # We therefore use Start year as the effective year, and ignore any inconsistent "Year" value.
+    # Year handling:
+    # - Plan year is selected explicitly in the import flow (not inferred from start_year).
+    # - start_year is an activity field (edition/history context), not plan year.
     year_raw = row.get("year")
     start_year_raw = row.get("start_year")
 
@@ -219,10 +220,10 @@ def _validate_row_values(row: dict[str, Any], row_num: int) -> list[str]:
     if year_raw not in (None, "") and year_err:
         errors.append(f"Activity {row_num}: année invalide ({year_err})")
 
-    year_effective = start_year if start_year is not None else year
-    if year_effective is not None:
-        if year_effective < 2000 or year_effective > 2100:
-            errors.append(f"Activity {row_num}: année invalide {year_effective}")
+    if year is not None and (year < 2000 or year > 2100):
+        errors.append(f"Activity {row_num}: année invalide {year}")
+    if start_year is not None and (start_year < 1900 or start_year > 2100):
+        errors.append(f"Activity {row_num}: start year invalide {start_year}")
 
     participants, p_err = _parse_int_or_error(row.get("participants"))
     if row.get("participants") not in (None, "") and p_err:
@@ -403,10 +404,6 @@ def parse_excel_rows(file_path: str) -> tuple[list[dict[str, Any]], list[str], l
                 pe, pe_err = _parse_float_or_error(row_data.get("percentage_employees"))
                 if pe_err is None and pe is not None and 0 < pe <= 1:
                     row_data["percentage_employees"] = round(pe * 100, 6)
-            # year: always align to start_year when present (they represent the same thing here)
-            if "start_year" in row_data:
-                row_data["year"] = row_data["start_year"]
-
             # Skip empty rows / lines without an activity identifier.
             if not row_data.get("site"):
                 continue

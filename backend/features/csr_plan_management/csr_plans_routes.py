@@ -315,8 +315,8 @@ def _bulk_delete_plan(plan_id: str, user_id: str, role: str) -> Tuple[bool, Opti
     plan = CsrPlan.query.get(plan_id)
     if not plan:
         return False, "Plan introuvable"
-    if plan.status not in ("DRAFT", "REJECTED"):
-        return False, f"Seuls brouillon/rejeté (statut: {plan.status})"
+    if not _plan_is_editable(plan, role):
+        return False, f"Plan non modifiable (statut: {plan.status})"
     if role in ("SITE_USER", "SITE") and not _user_can_access_site(user_id, plan.site_id):
         return False, "Accès refusé"
     # Explicitly delete activities first to avoid SQLAlchemy nulling plan_id on flush.

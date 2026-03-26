@@ -208,17 +208,12 @@ def _collect_plan_keys_from_rows(rows, site_id_override, year_override, role, us
             errors.append(f"Activity {row_num}: accès refusé au site {site.name or site_id}")
             continue
         if year is None:
-            sy = row.get("start_year")
-            if sy is not None and sy != "":
-                year = _safe_int(sy)
-            if year is None:
-                y = row.get("year")
-                if y is not None and y != "":
-                    year = _safe_int(y)
-            if year is None and year_override is not None:
-                year = year_override
-            if year is None:
-                year = 2024
+            y = row.get("year")
+            if y is not None and y != "":
+                year = _safe_int(y)
+        if year is None:
+            errors.append(f"Activity {row_num}: année du plan manquante")
+            continue
         if year < 2000 or year > 2100:
             errors.append(f"Activity {row_num}: année invalide {year}")
             continue
@@ -258,6 +253,8 @@ def import_excel_preview():
             year_override = int(year_override)
         except ValueError:
             year_override = None
+    if year_override is None:
+        return jsonify({"message": "Veuillez sélectionner l'année du plan pour l'import Excel"}), 400
     tmp_path = None
     try:
         with tempfile.NamedTemporaryFile(delete=False, suffix=".xlsx") as tmp:
@@ -375,17 +372,9 @@ def _check_row_conflicts(rows, site_id_override, year_override, role, user_id, s
         if role in ("SITE_USER", "SITE") and not _user_can_access_site(user_id, site_id):
             continue
         if year is None:
-            sy = row.get("start_year")
-            if sy is not None and sy != "":
-                year = _safe_int(sy)
-            if year is None:
-                y = row.get("year")
-                if y is not None and y != "":
-                    year = _safe_int(y)
-            if year is None and year_override is not None:
-                year = year_override
-            if year is None:
-                year = 2024
+            y = row.get("year")
+            if y is not None and y != "":
+                year = _safe_int(y)
         if year is None or year < 2000 or year > 2100:
             continue
         plan = CsrPlan.query.filter_by(site_id=site_id, year=year).first()
@@ -435,6 +424,8 @@ def import_excel_check_conflicts():
             year_override = int(year_override)
         except (TypeError, ValueError):
             year_override = None
+    if year_override is None:
+        return jsonify({"message": "Veuillez sélectionner l'année du plan pour l'import Excel"}), 400
     site_cache = _build_site_cache()
     if site_id_override:
         site = Site.query.get(site_id_override)
@@ -458,6 +449,12 @@ def import_validate_rows():
     user_id = getattr(request, "user_id", None)
     data = request.get_json(silent=True) or {}
     rows = data.get("rows")
+    year_override = data.get("year")
+    if year_override is not None and year_override != "":
+        try:
+            year_override = int(year_override)
+        except (TypeError, ValueError):
+            year_override = None
     if not isinstance(rows, list):
         return jsonify({"errors": []}), 200
     if not rows:
@@ -465,7 +462,7 @@ def import_validate_rows():
     site_cache = _build_site_cache()
     known_regions, known_countries = _build_region_country_sets()
     _, errors = _collect_plan_keys_from_rows(
-        rows, None, None, role, user_id, site_cache, known_regions, known_countries
+        rows, None, year_override, role, user_id, site_cache, known_regions, known_countries
     )
     row_type_errors = validate_rows_values(rows)
     all_errors = (row_type_errors or []) + (errors or [])
@@ -504,6 +501,8 @@ def import_excel():
             year_override = int(year_override)
         except ValueError:
             year_override = None
+    if year_override is None:
+        return jsonify({"message": "Veuillez sélectionner l'année du plan pour l'import Excel"}), 400
     # Per-plan validation modes: JSON array of { "site_id", "year", "validation_mode" }
     validation_modes_map = {}  # (site_id, year) -> "101" or "111"
     validation_modes_json = request.form.get("validation_modes")
@@ -649,17 +648,12 @@ def import_excel():
                 continue
 
             if year is None:
-                sy = row.get("start_year")
-                if sy is not None and sy != "":
-                    year = _safe_int(sy)
-                if year is None:
-                    y = row.get("year")
-                    if y is not None and y != "":
-                        year = _safe_int(y)
-                if year is None and year_override is not None:
-                    year = year_override
-                if year is None:
-                    year = 2024  # default for consolidated report
+                y = row.get("year")
+                if y is not None and y != "":
+                    year = _safe_int(y)
+            if year is None:
+                errors.append(f"Activity {row_num}: année du plan manquante")
+                continue
             if year < 2000 or year > 2100:
                 errors.append(f"Activity {row_num}: année invalide {year}")
                 continue

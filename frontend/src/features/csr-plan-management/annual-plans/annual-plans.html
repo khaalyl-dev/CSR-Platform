@@ -44,11 +44,22 @@
         </button>
       </div>
       <p class="px-6 py-2 text-sm text-gray-500">{{ 'ANNUAL_PLANS.MODAL.PREVIEW_EDIT_HINT' | translate }}</p>
-      <div *ngIf="!importRequiredValid() && importRows().length" class="mx-6 mb-2 p-3 bg-red-50 border border-red-200 rounded-xl text-red-800 text-sm">
+      <div *ngIf="importStep() === 0" class="px-6 pb-2">
+        <div class="max-w-xs">
+          <label class="block text-sm font-semibold text-gray-700 mb-1">{{ 'ANNUAL_PLANS.TABLE.YEAR' | translate }}</label>
+          <select
+            class="w-full pl-3 pr-8 py-2 border border-gray-200 rounded-lg text-gray-700 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+            [value]="importSelectedYear()"
+            (change)="setImportSelectedYear(+$any($event.target).value)">
+            <option [value]="y" *ngFor="let y of importYearOptions()">{{ y }}</option>
+          </select>
+        </div>
+      </div>
+      <div *ngIf="importStep() === 1 && !importRequiredValid() && importRows().length" class="mx-6 mb-2 p-3 bg-red-50 border border-red-200 rounded-xl text-red-800 text-sm">
         <span class="font-medium">{{ 'ANNUAL_PLANS.MODAL.REQUIRED_REGION_COUNTRY_SITE' | translate }}</span>
       </div>
       <div class="flex-1 min-h-0 overflow-y-auto px-6 pb-4">
-        <div *ngIf="importStep() === 0">
+        <div *ngIf="importStep() === 1">
         <div class="overflow-x-auto border border-gray-200 rounded-xl import-preview-table" [class.import-table-readonly]="!canEditImportTable()">
           <table class="w-full text-sm min-w-[1860px]">
             <thead class="bg-gray-50">
@@ -185,7 +196,7 @@
         </div>
 
         <!-- Step 1: Plan settings -->
-        <div *ngIf="importStep() === 1">
+        <div *ngIf="importStep() === 2">
           <h3 class="text-sm font-semibold text-gray-700 mt-2 mb-2">{{ 'ANNUAL_PLANS.MODAL.PLAN_SETTINGS' | translate }}</h3>
           <table class="w-full text-sm">
             <thead class="bg-gray-50">
@@ -214,7 +225,7 @@
       </div>
       <div class="flex flex-wrap items-center justify-end gap-3 p-6 border-t border-gray-100">
         <div class="flex-1 min-w-0 mr-2">
-          <div *ngIf="importPreviewErrors().length || importDuplicateGroups().length"
+          <div *ngIf="importStep() === 1 && (importPreviewErrors().length || importDuplicateGroups().length)"
             class="p-3 border border-gray-200 rounded-xl bg-white text-sm">
             <div class="flex flex-wrap items-center justify-between gap-2">
               <p class="font-semibold text-gray-800">
@@ -252,6 +263,20 @@
             class="px-5 py-2.5 rounded-xl border border-gray-300 text-gray-700 hover:bg-gray-50 font-medium transition text-sm">
             {{ 'COMMON.CANCEL' | translate }}
           </button>
+          <button type="button" (click)="goToNextImportStep()"
+            class="px-6 py-2.5 rounded-xl bg-brand-900 hover:bg-brand-800 text-white font-semibold transition text-sm">
+            {{ 'COMMON.NEXT' | translate }}
+          </button>
+        </ng-container>
+        <ng-container *ngIf="importStep() === 1">
+          <button type="button" (click)="prevImportStep()"
+            class="px-5 py-2.5 rounded-xl border border-gray-300 text-gray-700 hover:bg-gray-50 font-medium transition text-sm">
+            {{ 'COMMON.BACK' | translate }}
+          </button>
+          <button type="button" (click)="cancelImportModal()"
+            class="px-5 py-2.5 rounded-xl border border-gray-300 text-gray-700 hover:bg-gray-50 font-medium transition text-sm">
+            {{ 'COMMON.CANCEL' | translate }}
+          </button>
           <button type="button" (click)="deleteSelectedImportRows()"
             [disabled]="selectedImportCount() === 0"
             class="px-5 py-2.5 rounded-xl border border-red-200 text-red-700 hover:bg-red-50 font-medium transition text-sm disabled:opacity-50 disabled:cursor-not-allowed">
@@ -275,7 +300,7 @@
             </button>
           </ng-container>
         </ng-container>
-        <ng-container *ngIf="importStep() === 1">
+        <ng-container *ngIf="importStep() === 2">
           <button type="button" (click)="prevImportStep()"
             class="px-5 py-2.5 rounded-xl border border-gray-300 text-gray-700 hover:bg-gray-50 font-medium transition text-sm">
             {{ 'COMMON.BACK' | translate }}

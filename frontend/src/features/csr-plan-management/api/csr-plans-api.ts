@@ -164,8 +164,11 @@ export class CsrPlansApi {
   /**
    * Re-validate current rows (region, country, site). Returns updated errors so user can proceed when fixed.
    */
-  importValidateRows(rows: ImportPreviewRow[]): Observable<{ errors: string[] }> {
-    return this.http.post<{ errors: string[] }>(`${this.apiUrl}/csr-plans/import-validate-rows`, { rows });
+  importValidateRows(rows: ImportPreviewRow[], options?: { year?: number }): Observable<{ errors: string[] }> {
+    return this.http.post<{ errors: string[] }>(`${this.apiUrl}/csr-plans/import-validate-rows`, {
+      rows,
+      year: options?.year,
+    });
   }
 
   /**
