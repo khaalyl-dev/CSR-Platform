@@ -52,6 +52,27 @@ export class PlannedActivityDetailComponent implements OnInit, OnDestroy {
     return this.isPlanRealized() ? this.translate.instant('PLANNED_ACTIVITY_DETAIL.SECTION_INFO_REALIZED') : this.translate.instant('PLANNED_ACTIVITY_DETAIL.SECTION_INFO_PLANNED');
   }
 
+  /** Activity or plan status token → i18n (shared CSR enums). */
+  csrStatusLabel(status: string | null | undefined): string {
+    const s = (status || '').toUpperCase();
+    const keys: Record<string, string> = {
+      DRAFT: 'PLAN_DETAIL.STATUS_DRAFT',
+      SUBMITTED: 'PLAN_DETAIL.STATUS_SUBMITTED',
+      VALIDATED: 'PLAN_DETAIL.STATUS_VALIDATED',
+      REJECTED: 'PLAN_DETAIL.STATUS_REJECTED',
+      LOCKED: 'PLAN_DETAIL.STATUS_VALIDATED_LOCKED',
+    };
+    const k = keys[s];
+    return k ? this.translate.instant(k) : (status || '–');
+  }
+
+  validationModeLabel(mode: string | null | undefined): string {
+    const m = (mode || '').trim();
+    if (m === '111') return this.translate.instant('PLAN_VALIDATION.MODE_ALL');
+    if (m === '101') return this.translate.instant('PLAN_VALIDATION.MODE_CORPORATE_ONLY');
+    return m || '–';
+  }
+
   ngOnInit(): void {
     const id = this.route.snapshot.paramMap.get('id');
     const yearParam = this.route.snapshot.queryParamMap.get('year');

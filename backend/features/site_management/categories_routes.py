@@ -17,12 +17,10 @@ bp = Blueprint("categories", __name__, url_prefix="/api/categories")
 
 
 def _plan_is_editable(plan: CsrPlan) -> bool:
-    """True if plan can be edited: DRAFT/REJECTED (and not past unlock_until), or VALIDATED with unlock_until in the future."""
+    """True if plan can be edited: DRAFT/REJECTED always, or VALIDATED with unlock_until in the future."""
     unlock_until = getattr(plan, "unlock_until", None)
     now = datetime.utcnow()
     if plan.status in ("DRAFT", "REJECTED"):
-        if unlock_until and now > unlock_until:
-            return False
         return True
     if plan.status == "VALIDATED" and unlock_until and now <= unlock_until:
         return True

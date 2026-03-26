@@ -15,6 +15,7 @@ import { RealizedCreateSidebarComponent } from '@features/realized-activity-mana
 export class PlannedActivitiesListComponent implements OnInit {
   private api = inject(CsrActivitiesApi);
   private router = inject(Router);
+  private readonly currentYear = new Date().getFullYear();
 
   activeMenuActivity: PlannedActivityListItem | null = null;
   menuPosition = { top: 0, left: 0 };
@@ -85,6 +86,12 @@ export class PlannedActivitiesListComponent implements OnInit {
   onRealizationCreated(): void {
     this.closeAddRealizationSidebar();
     this.refresh();
+  }
+
+  /** Past-year plan: realized data is edited on the activity, not via “add realization”. */
+  isPastPlanYear(activity: PlannedActivityListItem): boolean {
+    const y = activity.year;
+    return y != null && y < this.currentYear;
   }
 
   deleteFromMenu(activity: PlannedActivityListItem): void {

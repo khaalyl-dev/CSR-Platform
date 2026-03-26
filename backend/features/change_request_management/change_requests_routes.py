@@ -4,9 +4,13 @@ Change requests endpoints.
 - List: site user sees own; corporate sees all or by status.
 - Approve/Reject: corporate only. On approve, plan stays VALIDATED (verrouillé); unlock_until is set so it is temporarily editable.
 """
+from typing import Optional
+
 from flask import Blueprint, jsonify, request
+from sqlalchemy import and_, or_
+from sqlalchemy.orm import joinedload
 from core import db, token_required, role_required
-from models import ChangeRequest, CsrActivity, CsrPlan, Document, UserSite
+from models import ChangeRequest, CsrActivity, CsrPlan, Document, UserSite, User, RealizedCsr
 from features.notification_management.notification_helper import notify_corporate, notify_user
 from features.audit_history_management.audit_helper import write_audit
 
@@ -64,6 +68,162 @@ def _change_request_to_json(cr: ChangeRequest, include_documents=False):
             out["activity_title"] = activity.title or ""
             out["activity_number"] = activity.activity_number or ""
     return out
+
+
+def _corporate_validation_step_pending(activity: CsrActivity) -> bool:
+    """True if activity is SUBMITTED and the next validator is corporate (mode 101, or 111 with step 2)."""
+    if not activity or activity.status != "SUBMITTED":
+        return False
+    mode = getattr(activity, "off_plan_validation_mode", None) or "101"
+    step = getattr(activity, "off_plan_validation_step", None)
+    if mode == "111":
+        return step == 2
+    return True
+
+
+def _off_plan_awaits_corporate_validation(activity: CsrActivity) -> bool:
+    """True if this off-plan activity is SUBMITTED and the next step is corporate (mode 101, or 111 after L1)."""
+    if not activity or not getattr(activity, "is_off_plan", False):
+        return False
+    return _corporate_validation_step_pending(activity)
+
+
+def _in_plan_mod_awaits_corporate_validation(activity: CsrActivity) -> bool:
+    """True if an in-plan activity was submitted for modification review and awaits corporate (same step rules as off-plan)."""
+    if not activity or getattr(activity, "is_off_plan", False):
+        return False
+    plan = activity.plan
+    if not plan or plan.status != "VALIDATED":
+        return False
+    return _corporate_validation_step_pending(activity)
+
+
+def _pending_off_plan_corporate_item(activity: CsrActivity) -> dict:
+    plan = activity.plan
+    site = plan.site if plan else None
+    requester_name = None
+    realized = (
+        RealizedCsr.query.filter_by(activity_id=activity.id)
+        .order_by(RealizedCsr.created_at.desc())
+        .first()
+    )
+    if realized and getattr(realized, "created_by", None):
+        u = User.query.get(realized.created_by)
+        if u:
+            requester_name = f"{u.first_name or ''} {u.last_name or ''}".strip() or None
+    rid = (realized.created_by if realized else None) or ""
+    # Synthetic list id (not a DB row); avoids colliding with change_requests.id UUIDs.
+    synthetic_id = f"off-plan-{activity.id}"
+    return {
+        "pending_item_type": "OFF_PLAN_ACTIVITY",
+        "id": synthetic_id,
+        "activity_id": activity.id,
+        "plan_id": activity.plan_id,
+        "site_id": plan.site_id if plan else None,
+        "site_name": site.name if site else None,
+        "plan_site_name": site.name if site else None,
+        "plan_year": plan.year if plan else None,
+        "year": plan.year if plan else 0,
+        "activity_number": activity.activity_number or "",
+        "activity_title": activity.title or "",
+        "entity_type": "ACTIVITY",
+        "entity_id": activity.id,
+        "reason": "Activité hors plan — validation corporate en attente.",
+        "requested_by_name": requester_name,
+        "requested_by": rid,
+        "status": "PENDING",
+        "reviewed_by": None,
+        "reviewed_at": None,
+        "created_at": activity.created_at.isoformat() if activity.created_at else None,
+        "off_plan_validation_mode": getattr(activity, "off_plan_validation_mode", None),
+    }
+
+
+def _pending_in_plan_mod_corporate_item(activity: CsrActivity) -> dict:
+    plan = activity.plan
+    site = plan.site if plan else None
+    requester_name = None
+    rid = ""
+    if getattr(activity, "responsible_user_id", None):
+        u = User.query.get(activity.responsible_user_id)
+        if u:
+            rid = activity.responsible_user_id
+            requester_name = f"{u.first_name or ''} {u.last_name or ''}".strip() or None
+    synthetic_id = f"in-plan-mod-{activity.id}"
+    return {
+        "pending_item_type": "IN_PLAN_ACTIVITY_MOD",
+        "id": synthetic_id,
+        "activity_id": activity.id,
+        "plan_id": activity.plan_id,
+        "site_id": plan.site_id if plan else None,
+        "site_name": site.name if site else None,
+        "plan_site_name": site.name if site else None,
+        "plan_year": plan.year if plan else None,
+        "year": plan.year if plan else 0,
+        "activity_number": activity.activity_number or "",
+        "activity_title": activity.title or "",
+        "entity_type": "ACTIVITY",
+        "entity_id": activity.id,
+        "reason": "Modification d'activité sur plan validé — validation corporate en attente.",
+        "requested_by_name": requester_name,
+        "requested_by": rid,
+        "status": "PENDING",
+        "reviewed_by": None,
+        "reviewed_at": None,
+        "created_at": activity.updated_at.isoformat() if activity.updated_at else None,
+        "off_plan_validation_mode": getattr(activity, "off_plan_validation_mode", None),
+    }
+
+
+def _off_plan_mine_list_item(activity: CsrActivity, user_id: str) -> Optional[dict]:
+    """Synthetic row for « Mes demandes » : off-plan activity created by user (via realized_csr.created_by)."""
+    st = activity.status
+    if st == "SUBMITTED":
+        cr_status = "PENDING"
+        reason = "Activité hors plan — en attente de validation."
+    elif st == "VALIDATED":
+        cr_status = "APPROVED"
+        reason = "Activité hors plan — validée."
+    elif st == "REJECTED":
+        cr_status = "REJECTED"
+        reason = "Activité hors plan — rejetée (vous pouvez modifier et renvoyer)."
+    else:
+        return None
+    plan = activity.plan
+    site = plan.site if plan else None
+    u = User.query.get(user_id)
+    requester_name = (
+        f"{u.first_name or ''} {u.last_name or ''}".strip() if u else None
+    ) or None
+    synthetic_id = f"off-plan-mine-{activity.id}"
+    reviewed_at = None
+    if st in ("VALIDATED", "REJECTED") and activity.updated_at:
+        reviewed_at = activity.updated_at.isoformat()
+    return {
+        "pending_item_type": "OFF_PLAN_ACTIVITY",
+        "id": synthetic_id,
+        "activity_id": activity.id,
+        "plan_id": activity.plan_id,
+        "site_id": plan.site_id if plan else None,
+        "site_name": site.name if site else None,
+        "plan_site_name": site.name if site else None,
+        "plan_year": plan.year if plan else None,
+        "year": plan.year if plan else 0,
+        "activity_number": activity.activity_number or "",
+        "activity_title": activity.title or "",
+        "entity_type": "ACTIVITY",
+        "entity_id": activity.id,
+        "reason": reason,
+        "requested_by": user_id,
+        "requested_by_name": requester_name,
+        "requested_duration": None,
+        "status": cr_status,
+        "reviewed_by": None,
+        "reviewed_by_name": None,
+        "reviewed_at": reviewed_at,
+        "created_at": activity.created_at.isoformat() if activity.created_at else None,
+        "off_plan_validation_mode": getattr(activity, "off_plan_validation_mode", None),
+    }
 
 
 def _parse_duration_days(raw) -> int:
@@ -166,7 +326,8 @@ def create_change_request():
 @bp.get("")
 @token_required
 def list_change_requests():
-    """List change requests. Query: status (optional). Site user: only own. Corporate: all."""
+    """List change requests. Query: status (optional). Site user: own change requests + own off-plan submissions.
+    Corporate: all change requests; with status=PENDING also off-plan rows awaiting corporate."""
     status = (request.args.get("status") or "").strip().upper() or None
     role = (getattr(request, "role", "") or "").upper()
     user_id = request.user_id
@@ -182,7 +343,62 @@ def list_change_requests():
             q = q.filter(ChangeRequest.status == status)
         q = q.order_by(ChangeRequest.created_at.desc())
         items = q.all()
-    return jsonify([_change_request_to_json(cr) for cr in items]), 200
+    out = []
+    for cr in items:
+        row = _change_request_to_json(cr)
+        row["pending_item_type"] = "CHANGE_REQUEST"
+        out.append(row)
+    if role in ("SITE_USER", "SITE"):
+        aid_rows = (
+            db.session.query(RealizedCsr.activity_id)
+            .filter(RealizedCsr.created_by == user_id)
+            .distinct()
+            .all()
+        )
+        activity_ids = [row[0] for row in aid_rows if row[0]]
+        if activity_ids:
+            mine_off = (
+                CsrActivity.query.options(
+                    joinedload(CsrActivity.plan).joinedload(CsrPlan.site),
+                )
+                .filter(
+                    CsrActivity.id.in_(activity_ids),
+                    CsrActivity.is_off_plan.is_(True),
+                    CsrActivity.status.in_(("SUBMITTED", "VALIDATED", "REJECTED")),
+                )
+                .all()
+            )
+            for a in mine_off:
+                row = _off_plan_mine_list_item(a, user_id)
+                if not row:
+                    continue
+                if status:
+                    if row["status"] != status:
+                        continue
+                out.append(row)
+    # Only when explicitly filtering PENDING (corporate inbox), not for full history lists.
+    if role in ("CORPORATE_USER", "CORPORATE") and status == "PENDING":
+        activities = (
+            CsrActivity.query.options(
+                joinedload(CsrActivity.plan).joinedload(CsrPlan.site),
+            )
+            .join(CsrPlan, CsrActivity.plan_id == CsrPlan.id)
+            .filter(
+                CsrActivity.status == "SUBMITTED",
+                or_(
+                    CsrActivity.is_off_plan.is_(True),
+                    and_(CsrActivity.is_off_plan.is_(False), CsrPlan.status == "VALIDATED"),
+                ),
+            )
+            .all()
+        )
+        for a in activities:
+            if _off_plan_awaits_corporate_validation(a):
+                out.append(_pending_off_plan_corporate_item(a))
+            elif _in_plan_mod_awaits_corporate_validation(a):
+                out.append(_pending_in_plan_mod_corporate_item(a))
+    out.sort(key=lambda x: (x.get("created_at") or ""), reverse=True)
+    return jsonify(out), 200
 
 
 @bp.get("/<string:cr_id>")

@@ -35,4 +35,14 @@ export class ChangeRequestsHistoryComponent implements OnInit {
     const key = keyMap[s];
     return key ? this.translate.instant(key) : s;
   }
+
+  isOffPlanRow(r: ChangeRequestWithDocs): boolean {
+    return r.pending_item_type === 'OFF_PLAN_ACTIVITY';
+  }
+
+  planDetailId(r: ChangeRequestWithDocs): string {
+    if (r.plan_id) return r.plan_id;
+    if (r.entity_type === 'PLAN') return r.entity_id;
+    return r.entity_id;
+  }
 }

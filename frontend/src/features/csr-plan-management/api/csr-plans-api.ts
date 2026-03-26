@@ -33,13 +33,23 @@ export interface CsrPlanActivityDetail {
   number_external_partners?: number | null;
   action_impact_actual?: number | null;
   action_impact_unit_realized?: string;
-  realization_count?: number;
   /** True if this activity was added during the last change-request unlock period. */
   added_during_unlock?: boolean;
   /** True if this activity was modified during the last change-request unlock period. */
   modified_during_unlock?: boolean;
   /** True if this activity can be edited (plan or activity individually unlocked). */
   activity_editable?: boolean;
+  /** Declared outside the annual plan; only realized data was captured at creation. */
+  is_off_plan?: boolean;
+  off_plan_validation_mode?: string | null;
+  off_plan_validation_step?: number | null;
+  /** Off-plan activity awaiting validation (SUBMITTED) — current user may approve/reject. */
+  can_approve_off_plan?: boolean;
+  can_reject_off_plan?: boolean;
+  /** In-plan activity individually unlocked on a validated plan — user may submit changes for approval. */
+  can_submit_modification_review?: boolean;
+  /** After rejection of an in-plan modification review — user may resubmit. */
+  can_resubmit_modification_review?: boolean;
 }
 
 export interface CsrPlanDetail extends CsrPlan {
@@ -163,13 +173,24 @@ export class CsrPlansApi {
    * rows: edited rows from preview (optional). If provided, these are used instead of re-parsing the file.
    * Optional onProgress(0-100) callback for upload progress.
    */
-  importExcel(file: File, options?: { site_id?: string; year?: number; validation_modes?: Array<{ site_id: string; year: number; validation_mode: '101' | '111' }>; rows?: ImportPreviewRow[]; onProgress?: (percent: number) => void }): Observable<ImportExcelResponse> {
+  importExcel(
+    file: File,
+    options?: {
+      site_id?: string;
+      year?: number;
+      validation_modes?: Array<{ site_id: string; year: number; validation_mode: '101' | '111' }>;
+      rows?: ImportPreviewRow[];
+      duplicate_strategy?: 'delete' | 'ignore' | 'overwrite';
+      onProgress?: (percent: number) => void;
+    }
+  ): Observable<ImportExcelResponse> {
     const form = new FormData();
     form.append('file', file);
     if (options?.site_id) form.append('site_id', options.site_id);
     if (options?.year != null) form.append('year', String(options.year));
     if (options?.validation_modes?.length) form.append('validation_modes', JSON.stringify(options.validation_modes));
     if (options?.rows?.length) form.append('rows', JSON.stringify(options.rows));
+    if (options?.duplicate_strategy) form.append('duplicate_strategy', options.duplicate_strategy);
     const req = new HttpRequest('POST', `${this.apiUrl}/csr-plans/import-excel`, form, { reportProgress: true });
     return this.http.request<ImportExcelResponse>(req).pipe(
       tap((event) => {

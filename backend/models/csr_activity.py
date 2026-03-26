@@ -61,6 +61,14 @@ class CsrActivity(db.Model):
     )
     periodicity = db.Column(db.String(100), nullable=True, comment="Périodicité (ex. NA, Every year)")
     is_off_plan = db.Column(db.Boolean, nullable=False, default=False, comment="Activité hors plan")
+    off_plan_validation_mode = db.Column(
+        db.String(10), nullable=True,
+        comment="Mode validation hors plan soumis: 101 ou 111",
+    )
+    off_plan_validation_step = db.Column(
+        db.Integer, nullable=True,
+        comment="111: 1=niveau 1 site, 2=corporate. 101: 2=corporate seul",
+    )
     planned_budget = db.Column(db.Numeric(15, 2), nullable=True, comment="Budget prévu (€)")
     planned_volunteers = db.Column(db.Integer, nullable=True, comment="Nombre prévu de volontaires")
     action_impact_target = db.Column(db.Numeric(15, 2), nullable=True, comment="Objectif d'impact")

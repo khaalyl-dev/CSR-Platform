@@ -37,4 +37,5 @@ export interface CreateCsrPlanPayload {
 export interface UpdateCsrPlanPayload {
   year?: number;
   validation_mode?: '101' | '111';
+  total_budget?: number | null;
 }

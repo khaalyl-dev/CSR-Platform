@@ -9,13 +9,24 @@ import type { ImportConflict, ImportPreviewPlan, ImportPreviewRow } from '../api
 import type { CsrPlan } from '../models/csr-plan.model';
 import { I18nService } from '@core/services/i18n.service';
 import { PlanCreateSidebarComponent } from '../plan-create-sidebar/plan-create-sidebar';
+import { PlanEditSidebarComponent } from '../plan-edit-sidebar/plan-edit-sidebar';
 
 export type PlanWithMode = ImportPreviewPlan & { validation_mode: '101' | '111' };
+
+type ImportDuplicateGroup = {
+  kind: 'excel' | 'db';
+  activity_number: string;
+  site: string;
+  year: string;
+  count: number;
+  lines: number[]; // 2-based excel lines for display (header counts as 1)
+  linesText: string;
+};
 
 @Component({
   selector: 'app-annual-plans',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule, TranslateModule, PlanCreateSidebarComponent],
+  imports: [CommonModule, FormsModule, RouterModule, TranslateModule, PlanCreateSidebarComponent, PlanEditSidebarComponent],
   templateUrl: './annual-plans.html',
   styles: [`
     .import-preview-table input.import-preview-input,
@@ -47,6 +58,32 @@ export class AnnualPlansComponent implements OnInit {
   selectedPlanIds = signal<Set<string>>(new Set());
   bulkActionLoading = signal(false);
   bulkActionChoice = signal<string>('');
+
+  // ── Confirmation modal (replace window.confirm) ──────────────────────────
+  confirmOpen = signal(false);
+  confirmTitle = signal<string>('');
+  confirmMessage = signal<string>('');
+  confirmButtonLabel = signal<string>('');
+  private confirmAction: (() => void) | null = null;
+
+  openConfirm(options: { title?: string; message: string; confirmLabel?: string; onConfirm: () => void }): void {
+    this.confirmTitle.set(options.title ?? this.i18n.t('COMMON.CONFIRM'));
+    this.confirmMessage.set(options.message);
+    this.confirmButtonLabel.set(options.confirmLabel ?? this.i18n.t('COMMON.CONFIRM'));
+    this.confirmAction = options.onConfirm;
+    this.confirmOpen.set(true);
+  }
+
+  closeConfirm(): void {
+    this.confirmOpen.set(false);
+    this.confirmAction = null;
+  }
+
+  runConfirm(): void {
+    const fn = this.confirmAction;
+    this.closeConfirm();
+    try { fn?.(); } catch {}
+  }
 
   onBulkActionChange(value: string): void {
     if (!value) return;
@@ -196,20 +233,25 @@ export class AnnualPlansComponent implements OnInit {
   bulkSubmit(): void {
     const ids = this.selectedDraftIds();
     if (!ids.length) return;
-    if (!confirm(this.i18n.t('ANNUAL_PLANS.CONFIRM.BULK_SUBMIT').replace('{n}', String(ids.length)))) return;
-    this.bulkActionLoading.set(true);
-    this.csrPlansApi.bulkSubmit(ids).subscribe({
-      next: (res) => {
-        this.bulkActionLoading.set(false);
-        this.clearSelection();
-        this.refreshPlans();
-        const msg = res.errors?.length
-          ? `${res.message} (${res.errors.length} erreur(s): ${res.errors.map(e => e.error).join(', ')})`
-          : res.message;
-        alert(msg);
-      },
-      error: () => {
-        this.bulkActionLoading.set(false);
+    this.openConfirm({
+      title: this.i18n.t('COMMON.CONFIRM'),
+      message: this.i18n.t('ANNUAL_PLANS.CONFIRM.BULK_SUBMIT').replace('{n}', String(ids.length)),
+      onConfirm: () => {
+        this.bulkActionLoading.set(true);
+        this.csrPlansApi.bulkSubmit(ids).subscribe({
+          next: (res) => {
+            this.bulkActionLoading.set(false);
+            this.clearSelection();
+            this.refreshPlans();
+            const msg = res.errors?.length
+              ? `${res.message} (${res.errors.length} erreur(s): ${res.errors.map(e => e.error).join(', ')})`
+              : res.message;
+            alert(msg);
+          },
+          error: () => {
+            this.bulkActionLoading.set(false);
+          },
+        });
       },
     });
   }
@@ -217,20 +259,26 @@ export class AnnualPlansComponent implements OnInit {
   bulkDelete(): void {
     const ids = this.selectedDeletableIds();
     if (!ids.length) return;
-    if (!confirm(this.i18n.t('ANNUAL_PLANS.CONFIRM.BULK_DELETE').replace('{n}', String(ids.length)))) return;
-    this.bulkActionLoading.set(true);
-    this.csrPlansApi.bulkDelete(ids).subscribe({
-      next: (res) => {
-        this.bulkActionLoading.set(false);
-        this.clearSelection();
-        this.refreshPlans();
-        const msg = res.errors?.length
-          ? `${res.message} (${res.errors.length} non supprimé(s))`
-          : res.message;
-        alert(msg);
-      },
-      error: () => {
-        this.bulkActionLoading.set(false);
+    this.openConfirm({
+      title: this.i18n.t('COMMON.CONFIRM'),
+      message: this.i18n.t('ANNUAL_PLANS.CONFIRM.BULK_DELETE').replace('{n}', String(ids.length)),
+      confirmLabel: this.i18n.t('COMMON.DELETE'),
+      onConfirm: () => {
+        this.bulkActionLoading.set(true);
+        this.csrPlansApi.bulkDelete(ids).subscribe({
+          next: (res) => {
+            this.bulkActionLoading.set(false);
+            this.clearSelection();
+            this.refreshPlans();
+            const msg = res.errors?.length
+              ? `${res.message} (${res.errors.length} non supprimé(s))`
+              : res.message;
+            alert(msg);
+          },
+          error: () => {
+            this.bulkActionLoading.set(false);
+          },
+        });
       },
     });
   }
@@ -328,25 +376,36 @@ export class AnnualPlansComponent implements OnInit {
     const msg = isResubmit
       ? this.i18n.t('ANNUAL_PLANS.CONFIRM.RESUBMIT')
       : this.i18n.t('ANNUAL_PLANS.CONFIRM.SUBMIT_ONE');
-    if (!confirm(msg)) return;
-    this.csrPlansApi.submitForValidation(plan.id).subscribe({
-      next: (updated) => {
-        this.plans.update((list) => list.map((p) => (p.id === updated.id ? { ...p, ...updated } : p)));
-        this.closeMenu();
+    this.openConfirm({
+      title: this.i18n.t('COMMON.CONFIRM'),
+      message: msg,
+      onConfirm: () => {
+        this.csrPlansApi.submitForValidation(plan.id).subscribe({
+          next: (updated) => {
+            this.plans.update((list) => list.map((p) => (p.id === updated.id ? { ...p, ...updated } : p)));
+            this.closeMenu();
+          },
+          error: () => {},
+        });
       },
-      error: () => {},
     });
   }
 
   deleteFromMenu(plan: CsrPlan): void {
     if (plan.status !== 'DRAFT' && plan.status !== 'REJECTED') return;
-    if (!confirm(this.i18n.t('ANNUAL_PLANS.CONFIRM.DELETE_ONE'))) return;
-    this.csrPlansApi.delete(plan.id).subscribe({
-      next: () => {
-        this.plans.update((list) => list.filter((p) => p.id !== plan.id));
-        this.closeMenu();
+    this.openConfirm({
+      title: this.i18n.t('COMMON.CONFIRM'),
+      message: this.i18n.t('ANNUAL_PLANS.CONFIRM.DELETE_ONE'),
+      confirmLabel: this.i18n.t('COMMON.DELETE'),
+      onConfirm: () => {
+        this.csrPlansApi.delete(plan.id).subscribe({
+          next: () => {
+            this.plans.update((list) => list.filter((p) => p.id !== plan.id));
+            this.closeMenu();
+          },
+          error: () => {},
+        });
       },
-      error: () => {},
     });
   }
 
@@ -367,14 +426,19 @@ export class AnnualPlansComponent implements OnInit {
 
   submitForValidation(plan: CsrPlan): void {
     if (plan.status !== 'DRAFT') return;
-    if (!confirm(this.i18n.t('ANNUAL_PLANS.CONFIRM.SUBMIT_ONE'))) return;
-    this.csrPlansApi.submitForValidation(plan.id).subscribe({
-      next: (updated) => {
-        this.plans.update((list) =>
-          list.map((p) => (p.id === updated.id ? updated : p))
-        );
+    this.openConfirm({
+      title: this.i18n.t('COMMON.CONFIRM'),
+      message: this.i18n.t('ANNUAL_PLANS.CONFIRM.SUBMIT_ONE'),
+      onConfirm: () => {
+        this.csrPlansApi.submitForValidation(plan.id).subscribe({
+          next: (updated) => {
+            this.plans.update((list) =>
+              list.map((p) => (p.id === updated.id ? updated : p))
+            );
+          },
+          error: () => {},
+        });
       },
-      error: () => {},
     });
   }
 
@@ -382,6 +446,10 @@ export class AnnualPlansComponent implements OnInit {
   importProgress = signal(0);
   private importProgressInterval: ReturnType<typeof setInterval> | null = null;
   importResult = signal<{ success: boolean; message: string; details?: string } | null>(null);
+  importDragOver = signal(false);
+
+  private autoValidateTimer: ReturnType<typeof setTimeout> | null = null;
+  private autoConflictsTimer: ReturnType<typeof setTimeout> | null = null;
   /** After preview: file to send on confirm, and modal visibility */
   pendingImportFile = signal<File | null>(null);
   showImportModal = signal(false);
@@ -392,6 +460,8 @@ export class AnnualPlansComponent implements OnInit {
   importPreviewErrors = signal<string[]>([]);
   /** True while re-validating rows on Next click. */
   importValidateLoading = signal(false);
+  /** Row index (0-based) to scroll/highlight in preview table. */
+  importFocusedRowIndex = signal<number | null>(null);
   /** Import modal step: 0 = Activity rows, 1 = Plan settings */
   importStep = signal(0);
   /** Row indices that have activity_number conflicts (already exist) */
@@ -412,8 +482,271 @@ export class AnnualPlansComponent implements OnInit {
     }
     return set;
   });
+
+  private compressNumberRanges(nums: number[]): string {
+    const sorted = Array.from(new Set(nums)).sort((a, b) => a - b);
+    const out: string[] = [];
+    let start: number | null = null;
+    let prev: number | null = null;
+    for (const n of sorted) {
+      if (start == null) {
+        start = n;
+        prev = n;
+        continue;
+      }
+      if (prev != null && n === prev + 1) {
+        prev = n;
+        continue;
+      }
+      out.push(start === prev ? String(start) : `${start}–${prev}`);
+      start = n;
+      prev = n;
+    }
+    if (start != null) out.push(start === prev ? String(start) : `${start}–${prev}`);
+    return out.join(', ');
+  }
+
+  extractErrorRowNumber(err: string): number | null {
+    const m = String(err).match(/^Activity (\d+):/);
+    if (!m) return null;
+    const n = parseInt(m[1], 10);
+    return Number.isFinite(n) ? n : null;
+  }
+
+  private extractFormattedErrorMessage(err: string): string {
+    const formatted = this.formatImportError(err);
+    // Remove leading "Activity 12:" or "Activité n° 12:" prefix (localized).
+    return formatted.replace(/^(Activity|Activité).*?\d+\s*:\s*/i, '').trim();
+  }
+
+  groupedImportErrors = computed(() => {
+    const errors = this.importPreviewErrors() || [];
+    const groups = new Map<string, number[]>();
+    const standalone: string[] = [];
+    for (const e of errors) {
+      const rowNum = this.extractErrorRowNumber(e);
+      const msg = this.extractFormattedErrorMessage(e);
+      if (rowNum == null || !msg) {
+        standalone.push(this.formatImportError(e));
+        continue;
+      }
+      const list = groups.get(msg) ?? [];
+      list.push(rowNum);
+      groups.set(msg, list);
+    }
+    const grouped = Array.from(groups.entries())
+      .map(([message, rows]) => ({
+        message,
+        count: rows.length,
+        rows,
+        rowsText: this.compressNumberRanges(rows),
+      }))
+      .sort((a, b) => b.count - a.count || a.message.localeCompare(b.message));
+    return { grouped, standalone };
+  });
+
+  importWarningGroupCount = computed(() => {
+    const g = this.groupedImportErrors();
+    return (g.grouped?.length ?? 0) + (g.standalone?.length ?? 0);
+  });
+
+  mergedIssuesList = computed(() => {
+    const out: Array<{ text: string; firstExcelLine: number }> = [];
+    const prefix = this.i18n.t('ANNUAL_PLANS.MODAL.ACTIVITY_ROW_PREFIX');
+
+    // Warnings (grouped) — no "78×" prefix, just message + lines.
+    const g = this.groupedImportErrors();
+    for (const item of g.grouped ?? []) {
+      const first = (item.rows?.[0] ?? 2) as number;
+      out.push({
+        text: `${item.message} — ${prefix}${item.rowsText}`,
+        firstExcelLine: first,
+      });
+    }
+    for (const s of g.standalone ?? []) {
+      out.push({
+        text: String(s),
+        firstExcelLine: 2,
+      });
+    }
+
+    // Duplicates — same list, same style.
+    for (const d of this.importDuplicateGroups()) {
+      const kind = d.kind === 'db'
+      const dupLabel = d.kind === 'db'
+        ? this.i18n.t('ANNUAL_PLANS.MODAL.DUP_ERR_DB_CSR_NUMBER')
+        : this.i18n.t('ANNUAL_PLANS.MODAL.DUP_ERR_EXCEL_CSR_NUMBER');
+      out.push({
+        text: `${kind ? (kind + ' : ') : ''}${dupLabel} — ${d.activity_number} — ${d.site} (${d.year}) — ${this.i18n.t('ANNUAL_PLANS.MODAL.DUP_LINES')} ${d.linesText}`,
+        firstExcelLine: d.lines?.[0] ?? 2,
+      });
+    }
+
+    return out;
+  });
+
+  issuesWarningsBadgeText(): string {
+    const n = this.importPreviewErrors().length;
+    const linesLabel = n === 1 ? this.i18n.t('ANNUAL_PLANS.MODAL.ONE_LINE') : this.i18n.t('ANNUAL_PLANS.MODAL.MANY_LINES');
+    return this.i18n
+      .t('ANNUAL_PLANS.MODAL.WARNINGS_BADGE')
+      .replace('{n}', String(n))
+      .replace('{lines}', linesLabel);
+  }
+
+  issuesDuplicatesBadgeText(): string {
+    const n = this.importDuplicateGroups().length;
+    const groupsLabel = n === 1 ? this.i18n.t('ANNUAL_PLANS.MODAL.ONE_GROUP') : this.i18n.t('ANNUAL_PLANS.MODAL.MANY_GROUPS');
+    return this.i18n
+      .t('ANNUAL_PLANS.MODAL.DUPLICATES_BADGE')
+      .replace('{n}', String(n))
+      .replace('{groups}', groupsLabel);
+  }
+
+  focusImportRowByOriginalIndex(index: number): void {
+    if (index == null || index < 0) return;
+    this.importFocusedRowIndex.set(index);
+    // Scroll the table row into view.
+    try {
+      const el = document.querySelector(`[data-import-row-index="${index}"]`) as HTMLElement | null;
+      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    } catch {}
+    // Clear highlight after a short delay.
+    setTimeout(() => {
+      if (this.importFocusedRowIndex() === index) this.importFocusedRowIndex.set(null);
+    }, 1800);
+  }
+
+  focusImportRowByExcelLine(excelLine: number): void {
+    // excelLine is 2-based (header row is 1). Convert to 0-based importRows index.
+    const idx = (excelLine ?? 0) - 2;
+    this.focusImportRowByOriginalIndex(idx);
+  }
   /** When true, table is editable even when conflicts exist (user clicked Edit). */
   importTableEditable = signal(false);
+  /** Strategy chosen to handle duplicates at import time. */
+  importDuplicateStrategy = signal<'delete' | 'ignore' | null>(null);
+
+  /** Row indices (0-based) that are duplicates inside the Excel file. */
+  private internalDuplicateRowIndices = computed(() => {
+    const rows = this.importRows();
+    const map = new Map<string, number[]>();
+
+    for (let i = 0; i < rows.length; i++) {
+      const r = rows[i];
+      const activityNumber = String(r.activity_number ?? r.title ?? '').trim();
+      const site = String(r.site ?? '').trim();
+      const year = String(r.start_year ?? r.year ?? '').trim();
+      if (!activityNumber || !site || !year) continue;
+
+      const k = `${site.toLowerCase()}|${year}|${activityNumber.toLowerCase()}`;
+      const list = map.get(k) ?? [];
+      list.push(i);
+      map.set(k, list);
+    }
+
+    const indices = new Set<number>();
+    for (const [, list] of map.entries()) {
+      if (list.length > 1) {
+        for (const idx of list) indices.add(idx);
+      }
+    }
+    return indices;
+  });
+
+  /** Row indices (0-based) that should be highlighted as duplicates (Excel + DB). */
+  private importDuplicateRowIndices = computed(() => {
+    const set = new Set<number>(this.importConflictIndices());
+    for (const idx of this.internalDuplicateRowIndices()) set.add(idx);
+    return set;
+  });
+
+  importHasDuplicates = computed(() => this.importDuplicateRowIndices().size > 0);
+
+  /** Duplicates list for the UI table. */
+  importDuplicateGroups = computed<ImportDuplicateGroup[]>(() => {
+    const rows = this.importRows();
+    const groups = new Map<string, ImportDuplicateGroup & { _kinds: Set<'excel' | 'db'> }>();
+
+    // Excel duplicates (internal).
+    const excelMap = new Map<string, number[]>();
+    for (let i = 0; i < rows.length; i++) {
+      const r = rows[i];
+      const activityNumber = String(r.activity_number ?? r.title ?? '').trim();
+      const site = String(r.site ?? '').trim();
+      const year = String(r.start_year ?? r.year ?? '').trim();
+      if (!activityNumber || !site || !year) continue;
+      const k = `${site.toLowerCase()}|${year}|${activityNumber.toLowerCase()}`;
+      const list = excelMap.get(k) ?? [];
+      list.push(i);
+      excelMap.set(k, list);
+    }
+    for (const [k, list] of excelMap.entries()) {
+      if (list.length <= 1) continue;
+      const parts = k.split('|');
+      const site = parts[0] ?? '';
+      const year = parts[1] ?? '';
+      const activity_number = parts.slice(2).join('|') ?? '';
+      const existing = groups.get(k);
+      if (existing) {
+        existing.count = list.length;
+        existing.lines = list.map(x => x + 2);
+        existing._kinds.add('excel');
+      } else {
+        groups.set(k, {
+          kind: 'excel',
+          activity_number,
+          site,
+          year,
+          count: list.length,
+          lines: list.map(x => x + 2),
+          _kinds: new Set(['excel']),
+        } as any);
+      }
+    }
+
+    // DB duplicates (from check-conflicts).
+    for (const c of this.importConflicts()) {
+      const site = String(c.site_name ?? '').trim();
+      const year = String(c.year ?? '').trim();
+      const activity_number = String(c.activity_number ?? '').trim();
+      if (!activity_number || !site || !year) continue;
+      const k = `${site.toLowerCase()}|${year}|${activity_number.toLowerCase()}`;
+      const existing = groups.get(k);
+      const indices = [c.row_index];
+      if (existing) {
+        existing.count += 1; // count is only used for quick display; keep it approximate
+        existing.lines = Array.from(new Set([...existing.lines, ...indices.map(x => x + 2)]));
+        existing._kinds.add('db');
+      } else {
+        groups.set(k, {
+          kind: 'db',
+          activity_number,
+          site,
+          year,
+          count: 1,
+          lines: indices.map(x => x + 2),
+          _kinds: new Set(['db']),
+        } as any);
+      }
+    }
+
+    return Array.from(groups.values()).map((g) => {
+      const kinds = Array.from((g as any)._kinds ?? []);
+      // Keep UI kind as a single string.
+      const kindLabel = kinds.includes('db') && kinds.includes('excel') ? 'excel+db' : kinds[0] ?? g.kind;
+      const lines = g.lines.sort((a, b) => a - b);
+      return {
+        kind: kindLabel === 'excel+db' ? 'db' : g.kind,
+        activity_number: g.activity_number,
+        site: g.site,
+        year: g.year,
+        count: lines.length,
+        lines,
+        linesText: this.compressNumberRanges(lines),
+      };
+    });
+  });
   /** Sort state for import preview table (step 0). */
   importSortColumn = signal<string>('activity_number');
   importSortDirection = signal<'asc' | 'desc'>('asc');
@@ -423,13 +756,28 @@ export class AnnualPlansComponent implements OnInit {
     const rows = this.importRows();
     const col = this.importSortColumn();
     const dir = this.importSortDirection();
-    const numericKeys = new Set(['year', 'start_year', 'edition', 'participants', 'total_hc', 'percentage_employees', 'planned_budget', 'realized_budget', 'impact_actual', 'number_external_partners']);
+    const numericKeys = new Set(['start_year', 'edition', 'participants', 'total_hc', 'percentage_employees', 'planned_budget', 'realized_budget', 'impact_actual', 'number_external_partners']);
     const withIndices = rows.map((r, i) => ({ row: r, originalIndex: i }));
     const sorted = [...withIndices].sort((a, b) => {
       const rawA = (a.row as any)[col];
       const rawB = (b.row as any)[col];
       const valA = rawA?.toString().trim().toLowerCase() ?? '';
       const valB = rawB?.toString().trim().toLowerCase() ?? '';
+
+      // Special numeric sort for activity numbers: "CSR 1" < "CSR 10"
+      if (col === 'activity_number') {
+        const getNum = (v: any): number => {
+          const s = v == null ? '' : String(v);
+          const m = s.match(/(\d+)/);
+          return m ? parseInt(m[1], 10) : 0;
+        };
+        const numA = getNum(rawA);
+        const numB = getNum(rawB);
+        if (numA < numB) return dir === 'asc' ? -1 : 1;
+        if (numA > numB) return dir === 'asc' ? 1 : -1;
+        return 0;
+      }
+
       if (numericKeys.has(col)) {
         const numA = typeof rawA === 'number' ? rawA : parseFloat(String(rawA ?? '')) ?? 0;
         const numB = typeof rawB === 'number' ? rawB : parseFloat(String(rawB ?? '')) ?? 0;
@@ -446,6 +794,73 @@ export class AnnualPlansComponent implements OnInit {
       originalIndices: sorted.map(x => x.originalIndex),
     };
   });
+
+  // ── Import preview selection (multi-row delete) ───────────────────────────
+  selectedImportRowIndices = signal<Set<number>>(new Set());
+
+  selectedImportCount = computed(() => this.selectedImportRowIndices().size);
+
+  /** True if all rows currently displayed in the sorted view are selected. */
+  isAllImportRowsSelected = computed(() => {
+    const selected = this.selectedImportRowIndices();
+    const view = this.sortedImportRows().rows;
+    if (!view.length) return false;
+    return view.every((r) => selected.has((r as any).__originalIndex));
+  });
+
+  /** True if some (but not all) rows in current view are selected. */
+  isSomeImportRowsSelected = computed(() => {
+    const selected = this.selectedImportRowIndices();
+    const view = this.sortedImportRows().rows;
+    if (!view.length) return false;
+    const any = view.some((r) => selected.has((r as any).__originalIndex));
+    return any && !this.isAllImportRowsSelected();
+  });
+
+  toggleSelectImportRow(originalIndex: number): void {
+    this.selectedImportRowIndices.update((set) => {
+      const next = new Set(set);
+      if (next.has(originalIndex)) next.delete(originalIndex);
+      else next.add(originalIndex);
+      return next;
+    });
+  }
+
+  toggleSelectAllImportRows(): void {
+    const view = this.sortedImportRows().rows as Array<ImportPreviewRow & { __originalIndex: number }>;
+    if (!view.length) return;
+    if (this.isAllImportRowsSelected()) {
+      // Unselect all visible
+      const visible = new Set(view.map((r) => r.__originalIndex));
+      this.selectedImportRowIndices.update((set) => {
+        const next = new Set(set);
+        visible.forEach((i) => next.delete(i));
+        return next;
+      });
+    } else {
+      // Select all visible
+      this.selectedImportRowIndices.update((set) => {
+        const next = new Set(set);
+        view.forEach((r) => next.add(r.__originalIndex));
+        return next;
+      });
+    }
+  }
+
+  clearImportSelection(): void {
+    this.selectedImportRowIndices.set(new Set());
+  }
+
+  deleteSelectedImportRows(): void {
+    const selected = this.selectedImportRowIndices();
+    if (!selected.size) return;
+    // Delete by original indices
+    this.importRows.update((rows) => rows.filter((_r, idx) => !selected.has(idx)));
+    this.clearImportSelection();
+    // Re-run realtime checks since indices changed.
+    this.scheduleAutoValidateRows();
+    this.scheduleAutoConflictsCheck();
+  }
 
   sortByImportColumn(column: string): void {
     if (this.importSortColumn() === column) {
@@ -464,14 +879,12 @@ export class AnnualPlansComponent implements OnInit {
       const region = String(r.region ?? '').trim();
       const country = String(r.country ?? '').trim();
       const site = String(r.site ?? '').trim();
-      return region !== '' && country !== '' && site !== '';
+      const activityNumber = String(r.activity_number ?? '').trim();
+      return region !== '' && country !== '' && site !== '' && activityNumber !== '';
     });
   });
 
-  onImportFile(event: Event): void {
-    const input = event.target as HTMLInputElement;
-    const file = input?.files?.[0];
-    if (!file) return;
+  private importExcelFile(file: File): void {
     if (!file.name.toLowerCase().endsWith('.xlsx')) {
       this.importResult.set({ success: false, message: this.i18n.t('ANNUAL_PLANS.MESSAGES.SELECT_XLSX') });
       return;
@@ -497,7 +910,25 @@ export class AnnualPlansComponent implements OnInit {
         this.importPreviewErrors.set(res.errors || []);
         this.importStep.set(0);
         this.showImportModal.set(true);
-        input.value = '';
+        this.importDuplicateStrategy.set(null);
+        this.importConflicts.set([]);
+        this.importConflictIndices.set(new Set());
+        this.importTableEditable.set(true);
+
+        // Real-time DB duplicates (based on current preview values).
+        if ((res.rows || []).length) {
+          this.csrPlansApi.importExcelCheckConflicts(res.rows || []).subscribe({
+            next: (cRes) => {
+              const conflicts = cRes.conflicts ?? [];
+              this.importConflicts.set(conflicts);
+              this.importConflictIndices.set(new Set(conflicts.map((c) => c.row_index)));
+            },
+            error: () => {
+              this.importConflicts.set([]);
+              this.importConflictIndices.set(new Set());
+            },
+          });
+        }
       },
       error: (err) => {
         this.stopSimulatedProgress();
@@ -505,14 +936,37 @@ export class AnnualPlansComponent implements OnInit {
         this.importProgress.set(0);
         const msg = err.error?.message || this.i18n.t('ANNUAL_PLANS.MESSAGES.READ_FILE_ERROR');
         const errors = err.error?.errors;
-        this.importResult.set({
-          success: false,
-          message: msg,
-          details: Array.isArray(errors) ? errors.join('\n') : undefined,
-        });
-        input.value = '';
+        alert(msg + (Array.isArray(errors) && errors.length ? `\n\n${errors.slice(0, 10).join('\n')}` : ''));
+        this.pendingImportFile.set(null);
+        this.showImportModal.set(false);
       },
     });
+  }
+
+  onImportFile(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const file = input?.files?.[0];
+    if (!file) return;
+    this.importExcelFile(file);
+    input.value = '';
+  }
+
+  onImportDragOver(event: DragEvent): void {
+    event.preventDefault();
+    this.importDragOver.set(true);
+  }
+
+  onImportDragLeave(): void {
+    this.importDragOver.set(false);
+  }
+
+  onImportDrop(event: DragEvent): void {
+    event.preventDefault();
+    this.importDragOver.set(false);
+    if (event.dataTransfer?.files?.length) {
+      const file = event.dataTransfer.files[0];
+      if (file) this.importExcelFile(file);
+    }
   }
 
   setPlanMode(index: number, mode: '101' | '111'): void {
@@ -523,7 +977,14 @@ export class AnnualPlansComponent implements OnInit {
 
   /** Update a cell in the import preview rows. */
   updateImportRow(index: number, key: keyof ImportPreviewRow, value: string | number | null): void {
-    const v = value === '' || value === null ? undefined : value;
+    let v: any = value === '' || value === null ? undefined : value;
+    if (key === 'percentage_employees' && v != null) {
+      const s = String(v).trim().replace(',', '.');
+      const n = Number(s);
+      if (!Number.isNaN(n) && n > 0 && n <= 1) {
+        v = String(n * 100);
+      }
+    }
     this.importRows.update(rows => rows.map((r, i) => {
       if (i !== index) return r;
       const next = { ...r, [key]: v };
@@ -531,6 +992,46 @@ export class AnnualPlansComponent implements OnInit {
       if (key === 'participants') next['planned_volunteers'] = v;
       return next;
     }));
+
+    // Real-time validation (types/coherence/required) while editing step 0.
+    this.scheduleAutoValidateRows();
+
+    // Real-time DB duplicates (depends on activity_number/title + site + year).
+    if (key === 'activity_number' || key === 'title' || key === 'site' || key === 'year' || key === 'start_year') {
+      this.scheduleAutoConflictsCheck();
+    }
+  }
+
+  private scheduleAutoValidateRows(): void {
+    if (!this.showImportModal() || this.importStep() !== 0) return;
+    if (this.autoValidateTimer) clearTimeout(this.autoValidateTimer);
+    this.autoValidateTimer = setTimeout(() => {
+      if (!this.showImportModal() || this.importStep() !== 0) return;
+      const rows = this.importRows();
+      if (!rows.length) return;
+      this.csrPlansApi.importValidateRows(rows).subscribe({
+        next: (res) => this.importPreviewErrors.set(res.errors ?? []),
+        error: () => {},
+      });
+    }, 600);
+  }
+
+  private scheduleAutoConflictsCheck(): void {
+    if (!this.showImportModal() || this.importStep() !== 0) return;
+    if (this.autoConflictsTimer) clearTimeout(this.autoConflictsTimer);
+    this.autoConflictsTimer = setTimeout(() => {
+      if (!this.showImportModal() || this.importStep() !== 0) return;
+      const rows = this.importRows();
+      if (!rows.length) return;
+      this.csrPlansApi.importExcelCheckConflicts(rows).subscribe({
+        next: (res) => {
+          const conflicts = res.conflicts ?? [];
+          this.importConflicts.set(conflicts);
+          this.importConflictIndices.set(new Set(conflicts.map((c) => c.row_index)));
+        },
+        error: () => {},
+      });
+    }, 600);
   }
 
   /** Stable identity for import table rows so the input keeps focus when typing. */
@@ -544,27 +1045,12 @@ export class AnnualPlansComponent implements OnInit {
     const rows = this.importRows().length ? this.importRows() : undefined;
     if (!file || !plans.length) return;
     if (!rows?.length) {
-      this.doImport(file, plans, undefined);
+      this.doImport(file, plans, undefined, this.importDuplicateStrategy() ?? 'overwrite');
       return;
     }
-    this.importLoading.set(true);
-    this.csrPlansApi.importExcelCheckConflicts(rows).subscribe({
-      next: (res) => {
-        this.importLoading.set(false);
-        if (res.conflicts?.length) {
-          this.importConflicts.set(res.conflicts);
-          this.importConflictIndices.set(new Set(res.conflicts.map((c) => c.row_index)));
-          this.importTableEditable.set(true);
-          this.importStep.set(0);
-        } else {
-          this.doImport(file, plans, rows);
-        }
-      },
-      error: () => {
-        this.importLoading.set(false);
-        this.doImport(file, plans, rows);
-      },
-    });
+    const duplicate_strategy = this.importDuplicateStrategy();
+    if (this.importHasDuplicates() && !duplicate_strategy) return;
+    this.doImport(file, plans, rows, duplicate_strategy ?? 'overwrite');
   }
 
   /** Overwrite existing activities (use current import, backend will update). */
@@ -575,7 +1061,7 @@ export class AnnualPlansComponent implements OnInit {
     if (!file || !plans.length) return;
     this.importConflictIndices.set(new Set());
     this.importConflicts.set([]);
-    this.doImport(file, plans, rows);
+    this.doImport(file, plans, rows, 'overwrite');
   }
 
   /** Change activity numbers for conflicting rows: use sequential numbers starting from max+1 (201, 202, ...). */
@@ -595,7 +1081,7 @@ export class AnnualPlansComponent implements OnInit {
     this.resolveConflictsOverwrite();
   }
 
-  private doImport(file: File, plans: PlanWithMode[], rows?: ImportPreviewRow[]): void {
+  private doImport(file: File, plans: PlanWithMode[], rows?: ImportPreviewRow[], duplicate_strategy: 'delete' | 'ignore' | 'overwrite' = 'overwrite'): void {
     this.importLoading.set(true);
     this.importProgress.set(0);
     this.startSimulatedProgress();
@@ -603,6 +1089,7 @@ export class AnnualPlansComponent implements OnInit {
     this.csrPlansApi.importExcel(file, {
       validation_modes,
       rows: rows?.length ? rows : undefined,
+      duplicate_strategy,
       onProgress: (p) => {
         this.stopSimulatedProgress();
         this.importProgress.set(p);
@@ -617,28 +1104,23 @@ export class AnnualPlansComponent implements OnInit {
         this.importPlansWithModes.set([]);
         this.importRows.set([]);
         this.importStep.set(0);
-        const details = [
+        const summary = [
           this.i18n.t('ANNUAL_PLANS.MESSAGES.CREATED_PLANS').replace('{n}', String(res.plans_created)),
           this.i18n.t('ANNUAL_PLANS.MESSAGES.CREATED_ACTIVITIES').replace('{n}', String(res.activities_created)),
           res.realized_created ? this.i18n.t('ANNUAL_PLANS.MESSAGES.CREATED_REALIZED').replace('{n}', String(res.realized_created)) : '',
-          res.errors?.length ? this.i18n.t('ANNUAL_PLANS.MESSAGES.WARNINGS').replace('{n}', String(res.errors.length)) : '',
         ].filter(Boolean).join(', ');
-        this.importResult.set({
-          success: true,
-          message: res.message,
-          details: details + (res.errors?.length ? '\n' + res.errors.slice(0, 5).join('\n') : ''),
-        });
+        const msg = `${res.message} — ${summary}` +
+          (res.errors?.length ? `\n\n${this.i18n.t('ANNUAL_PLANS.MESSAGES.WARNINGS').replace('{n}', String(res.errors.length))}` : '');
+        alert(msg);
         this.refreshPlans();
       },
       error: (err) => {
         this.stopSimulatedProgress();
         this.importLoading.set(false);
         this.importProgress.set(0);
-        this.importResult.set({
-          success: false,
-          message: err.error?.message || this.i18n.t('ANNUAL_PLANS.MESSAGES.IMPORT_ERROR'),
-          details: Array.isArray(err.error?.errors) ? err.error.errors.join('\n') : undefined,
-        });
+        const msg = err.error?.message || this.i18n.t('ANNUAL_PLANS.MESSAGES.IMPORT_ERROR');
+        const errors = err.error?.errors;
+        alert(msg + (Array.isArray(errors) && errors.length ? `\n\n${errors.slice(0, 10).join('\n')}` : ''));
       },
     });
   }
@@ -650,9 +1132,16 @@ export class AnnualPlansComponent implements OnInit {
     this.importRows.set([]);
     this.importPreviewErrors.set([]);
     this.importValidateLoading.set(false);
+    this.clearImportSelection();
     this.importStep.set(0);
     this.importConflictIndices.set(new Set());
     this.importConflicts.set([]);
+    this.importDuplicateStrategy.set(null);
+    this.importDragOver.set(false);
+    if (this.autoValidateTimer) clearTimeout(this.autoValidateTimer);
+    if (this.autoConflictsTimer) clearTimeout(this.autoConflictsTimer);
+    this.autoValidateTimer = null;
+    this.autoConflictsTimer = null;
     this.importTableEditable.set(false);
   }
 
@@ -663,6 +1152,11 @@ export class AnnualPlansComponent implements OnInit {
 
   nextImportStep(): void {
     this.importStep.set(1);
+  }
+
+  chooseDuplicateStrategy(strategy: 'delete' | 'ignore'): void {
+    this.importDuplicateStrategy.set(strategy);
+    this.goToNextImportStep();
   }
 
   /** Re-validate rows when user clicks Next; only proceed if no errors. */
@@ -690,9 +1184,8 @@ export class AnnualPlansComponent implements OnInit {
 
   prevImportStep(): void {
     this.importStep.set(0);
-    this.importConflictIndices.set(new Set());
-    this.importConflicts.set([]);
-    this.importTableEditable.set(false);
+    this.importTableEditable.set(true);
+    this.clearImportSelection();
   }
 
   /** True if row index has activity_number conflict. */
@@ -705,9 +1198,14 @@ export class AnnualPlansComponent implements OnInit {
     return this.importWarningIndices().has(index);
   }
 
+  /** True if row index is a duplicate (Excel internal or already exists in DB). */
+  hasImportDuplicate(index: number): boolean {
+    return this.importDuplicateRowIndices().has(index);
+  }
+
   /** True if row should be highlighted (conflict or warning). */
   hasImportConflictOrWarning(index: number): boolean {
-    return this.hasImportConflict(index) || this.hasImportWarning(index);
+    return this.hasImportDuplicate(index) || this.hasImportWarning(index);
   }
 
   /** Format import error with translated "Activity" prefix and message. */
@@ -752,6 +1250,10 @@ export class AnnualPlansComponent implements OnInit {
   // ── Plan create sidebar ───────────────────────────────────────────────────
   showCreateSidebar = signal(false);
 
+  // ── Plan edit sidebar ────────────────────────────────────────────────────
+  showEditSidebar = signal(false);
+  editSidebarPlan = signal<CsrPlan | null>(null);
+
   openCreateSidebar(): void {
     this.showCreateSidebar.set(true);
   }
@@ -761,6 +1263,21 @@ export class AnnualPlansComponent implements OnInit {
   }
 
   onPlanCreated(): void {
+    this.refreshPlans();
+  }
+
+  openEditSidebar(plan: CsrPlan): void {
+    this.editSidebarPlan.set(plan);
+    this.showEditSidebar.set(true);
+    this.closeMenu();
+  }
+
+  closeEditSidebar(): void {
+    this.showEditSidebar.set(false);
+    this.editSidebarPlan.set(null);
+  }
+
+  onPlanUpdated(): void {
     this.refreshPlans();
   }
 }

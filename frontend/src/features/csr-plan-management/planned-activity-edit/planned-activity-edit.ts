@@ -1,4 +1,4 @@
-import { Component, inject, OnInit, OnDestroy, ChangeDetectorRef, Input, Output, EventEmitter } from '@angular/core';
+import { Component, inject, OnInit, OnDestroy, ChangeDetectorRef, Input, Output, EventEmitter, HostBinding } from '@angular/core';
 import { CommonModule, Location } from '@angular/common';
 import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angular/forms';
 import { Router, ActivatedRoute, RouterLink } from '@angular/router';
@@ -46,6 +46,13 @@ export class PlannedActivityEditComponent implements OnInit, OnDestroy {
   @Output() closed = new EventEmitter<void>();
   @Output() updated = new EventEmitter<void>();
 
+  @HostBinding('class')
+  get hostClass(): string {
+    return this.sidebarMode
+      ? 'flex flex-col flex-1 min-h-0 min-w-0 h-full overflow-hidden'
+      : 'block';
+  }
+
   form!: FormGroup;
   /** Photos linked to this activity. */
   activityPhotos: Document[] = [];
@@ -75,6 +82,21 @@ export class PlannedActivityEditComponent implements OnInit, OnDestroy {
     return y != null && y < this.currentYear;
   }
 
+  /** Off-plan (any plan year) or past-year plan: show full realization fields like off-plan creation. */
+  get showRichRealizedSection(): boolean {
+    return this.isPlanRealized || !!this.activity?.is_off_plan;
+  }
+
+  get planRealizationDateMin(): string {
+    const y = this.planYear ?? this.activity?.year ?? this.currentYear;
+    return `${y}-01-01`;
+  }
+
+  get planRealizationDateMax(): string {
+    const y = this.planYear ?? this.activity?.year ?? this.currentYear;
+    return `${y}-12-31`;
+  }
+
   get pageTitle(): string {
     const key = this.isPlanRealized ? 'PLANNED_ACTIVITY_EDIT.PAGE_TITLE_REALIZED' : 'PLANNED_ACTIVITY_EDIT.PAGE_TITLE_PLANNED';
     return this.translate.instant(key);
@@ -88,15 +110,27 @@ export class PlannedActivityEditComponent implements OnInit, OnDestroy {
       title: ['', Validators.required],
       description: [''],
       planned_budget: [null as number | null],
+      collaboration_nature: [''],
+      start_year: [null as number | null],
+      edition: [null as number | null],
+      external_partner: [''],
     });
     this.realizedForm = this.fb.group({
       year: [this.planYear ?? new Date().getFullYear(), [Validators.required, Validators.min(2000), Validators.max(2100)]],
       month: [1, [Validators.required, Validators.min(1), Validators.max(12)]],
       realized_budget: [null as number | null],
       participants: [null as number | null],
+      total_hc: [null as number | null],
+      percentage_employees: [null as number | null],
       action_impact_actual: [null as number | null],
       action_impact_unit: [''],
       organizer: [''],
+      number_external_partners: [null as number | null],
+      realization_date: [''],
+      comment: [''],
+      contact_name: [''],
+      contact_email: [''],
+      contact_department: [''],
     });
 
     const id = this.activityId ?? this.route.snapshot.paramMap.get('id');
@@ -134,11 +168,16 @@ export class PlannedActivityEditComponent implements OnInit, OnDestroy {
           activity_number: a.activity_number ?? '',
           title: a.title ?? '',
           description: a.description ?? '',
-          planned_budget: a.planned_budget ?? null,
+          planned_budget: a.is_off_plan ? null : (a.planned_budget ?? null),
+          collaboration_nature: a.collaboration_nature ?? '',
+          start_year: a.start_year ?? null,
+          edition: a.edition ?? null,
+          external_partner: a.external_partner_name ?? '',
         });
         this.loadCategories();
-        if (this.isPlanRealized && a.id) this.loadFirstRealization(a.id);
+        if ((this.isPlanRealized || a.is_off_plan) && a.id) this.loadFirstRealization(a.id);
         this.loadActivityPhotos(a.id);
+        this.configureRealizedValidators();
       },
       error: () => {
         this.errorMsg = 'Impossible de charger l\'activité.';
@@ -157,21 +196,51 @@ export class PlannedActivityEditComponent implements OnInit, OnDestroy {
         const first = list.length ? list[0] : null;
         this.firstRealization = first ?? null;
         if (first) {
+          const rd =
+            first.realization_date && first.realization_date.length >= 10
+              ? first.realization_date.slice(0, 10)
+              : '';
           this.realizedForm.patchValue({
             year: first.year,
             month: first.month,
             realized_budget: first.realized_budget ?? null,
             participants: first.participants ?? null,
+            total_hc: first.total_hc ?? null,
+            percentage_employees: first.percentage_employees ?? null,
             action_impact_actual: first.action_impact_actual ?? null,
             action_impact_unit: first.action_impact_unit ?? '',
             organizer: first.organizer ?? '',
+            number_external_partners: first.number_external_partners ?? null,
+            realization_date: rd,
+            comment: first.comment ?? '',
+            contact_name: first.contact_name ?? '',
+            contact_email: first.contact_email ?? '',
+            contact_department: first.contact_department ?? '',
           });
         } else if (this.planYear != null) {
           this.realizedForm.patchValue({ year: this.planYear, month: 1 });
         }
+        this.configureRealizedValidators();
         this.cdr.markForCheck();
       },
     });
+  }
+
+  private configureRealizedValidators(): void {
+    const yCtrl = this.realizedForm.get('year');
+    const mCtrl = this.realizedForm.get('month');
+    if (this.activity?.is_off_plan) {
+      yCtrl?.clearValidators();
+      mCtrl?.clearValidators();
+    } else if (this.isPlanRealized) {
+      yCtrl?.setValidators([Validators.required, Validators.min(2000), Validators.max(2100)]);
+      mCtrl?.setValidators([Validators.required, Validators.min(1), Validators.max(12)]);
+    } else {
+      yCtrl?.clearValidators();
+      mCtrl?.clearValidators();
+    }
+    yCtrl?.updateValueAndValidity({ emitEvent: false });
+    mCtrl?.updateValueAndValidity({ emitEvent: false });
   }
 
   private loadActivityPhotos(activityId: string): void {
@@ -296,12 +365,21 @@ export class PlannedActivityEditComponent implements OnInit, OnDestroy {
       this.form.markAllAsTouched();
       return;
     }
-    if (this.isPlanRealized && this.realizedForm.invalid) {
+    if (this.showRichRealizedSection && this.realizedForm.invalid) {
       this.realizedForm.markAllAsTouched();
       return;
     }
     const raw = this.form.getRawValue();
-    const plannedBudget = raw.planned_budget != null && raw.planned_budget !== '' ? Number(raw.planned_budget) : null;
+    const plannedBudget =
+      this.activity.is_off_plan
+        ? null
+        : raw.planned_budget != null && raw.planned_budget !== ''
+          ? Number(raw.planned_budget)
+          : null;
+    const r = this.realizedForm.getRawValue();
+    const organizerForActivity = this.showRichRealizedSection
+      ? r.organizer?.trim() || null
+      : (this.activity as PlannedActivityListItem).organizer ?? null;
 
     const categoryId$ = raw.category_id === CATEGORY_OTHER_VALUE && raw.new_category_name?.trim()
       ? this.categoriesApi.create(raw.new_category_name.trim()).pipe(switchMap((cat) => of(cat.id)))
@@ -318,26 +396,59 @@ export class PlannedActivityEditComponent implements OnInit, OnDestroy {
           description: raw.description?.trim() || null,
           planned_budget: plannedBudget,
           organization: (this.activity as PlannedActivityListItem).organization ?? null,
-          collaboration_nature: (this.activity as PlannedActivityListItem).collaboration_nature ?? null,
-          organizer: (this.activity as PlannedActivityListItem).organizer ?? null,
+          collaboration_nature: this.showRichRealizedSection
+            ? raw.collaboration_nature?.trim() || null
+            : (this.activity as PlannedActivityListItem).collaboration_nature ?? null,
+          organizer: organizerForActivity,
           planned_volunteers: (this.activity as PlannedActivityListItem).planned_volunteers ?? null,
           action_impact_target: (this.activity as PlannedActivityListItem).action_impact_target ?? null,
           action_impact_unit: (this.activity as PlannedActivityListItem).action_impact_unit ?? null,
+          edition: raw.edition != null && raw.edition !== '' ? Number(raw.edition) : null,
+          start_year: raw.start_year != null && raw.start_year !== '' ? Number(raw.start_year) : null,
+          ...(this.showRichRealizedSection
+            ? { external_partner: raw.external_partner?.trim() || null }
+            : {}),
         })
       ),
       switchMap(() => {
-        if (!this.isPlanRealized) return of(null);
-        const r = this.realizedForm.getRawValue();
-        const year = Number(r.year);
-        const month = Number(r.month);
+        if (!this.showRichRealizedSection) return of(null);
+        const planY = this.planYear ?? this.activity!.year;
+        let year: number;
+        let month: number;
+        if (this.activity!.is_off_plan && planY != null) {
+          year = planY;
+          const rd = r.realization_date?.trim();
+          if (rd && rd.length >= 10) {
+            const d = new Date(`${rd.slice(0, 10)}T12:00:00`);
+            month = !Number.isNaN(d.getTime()) ? d.getMonth() + 1 : Number(r.month) || 1;
+          } else {
+            month = Number(r.month) || 1;
+          }
+        } else {
+          year = Number(r.year);
+          month = Number(r.month);
+        }
+        const realizationDateStr = r.realization_date?.trim() ? r.realization_date.trim().slice(0, 10) : null;
         const payload = {
           year,
           month,
           realized_budget: r.realized_budget != null && r.realized_budget !== '' ? Number(r.realized_budget) : null,
           participants: r.participants != null && r.participants !== '' ? Number(r.participants) : null,
+          total_hc: r.total_hc != null && r.total_hc !== '' ? Number(r.total_hc) : null,
+          percentage_employees:
+            r.percentage_employees != null && r.percentage_employees !== '' ? Number(r.percentage_employees) : null,
           action_impact_actual: r.action_impact_actual != null && r.action_impact_actual !== '' ? Number(r.action_impact_actual) : null,
           action_impact_unit: r.action_impact_unit?.trim() || null,
           organizer: r.organizer?.trim() || null,
+          number_external_partners:
+            r.number_external_partners != null && r.number_external_partners !== ''
+              ? Number(r.number_external_partners)
+              : null,
+          realization_date: realizationDateStr,
+          comment: r.comment?.trim() || null,
+          contact_name: r.contact_name?.trim() || null,
+          contact_email: r.contact_email?.trim() || null,
+          contact_department: r.contact_department?.trim() || null,
         };
         if (this.firstRealization) {
           return this.realizedApi.update(this.firstRealization.id, payload).pipe(switchMap(() => of(null)));

@@ -24,11 +24,11 @@
         </div>
         <div class="flex items-center gap-3">
           <button *ngIf="plan()!.status === 'VALIDATED' && !isUnlockUntilFuture()" type="button" (click)="goToChangeRequest(plan()!.id)"
-            class="inline-flex items-center justify-center p-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors cursor-pointer" [title]="'PLAN_DETAIL.CHANGE_REQUEST_TITLE' | translate">
-            <i class="fas fa-lock-open text-lg"></i>
+            class="inline-flex items-center justify-center px-5 py-2.5 rounded-xl text-sm font-semibold bg-white text-brand-900 border-2 border-brand-900 hover:bg-gray-50 active:bg-gray-100 shadow-sm hover:shadow transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-brand-900 focus:ring-offset-2">
+            {{ 'PLAN_DETAIL.CHANGE_REQUEST_TITLE' | translate }}
           </button>
           <button *ngIf="canSubmitForValidation()" type="button" (click)="submitForValidation()" [disabled]="actionLoading()"
-            class="bg-brand-900 text-white px-4 py-2 rounded-xl hover:opacity-90 disabled:opacity-60">
+            class="inline-flex items-center justify-center px-5 py-2.5 rounded-xl text-sm font-semibold bg-white text-brand-900 border-2 border-brand-900 hover:bg-gray-50 active:bg-gray-100 shadow-sm hover:shadow transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-brand-900 focus:ring-offset-2">
             {{ submitButtonLabel() }}
           </button>
           <div *ngIf="plan()!.status === 'SUBMITTED' && (canApprove || canReject)" class="flex items-center gap-2">
@@ -43,8 +43,15 @@
           </div>
           <button *ngIf="canEditPlan()"
             type="button" (click)="addActivity()"
-            class="bg-green-600 text-white px-4 py-2 rounded-xl hover:bg-green-700">
-            + {{ 'PLAN_DETAIL.ADD_ACTIVITY' | translate }}
+            class="inline-flex items-center justify-center gap-1.5 px-5 py-2.5 rounded-xl text-sm font-semibold text-white bg-brand-900 hover:opacity-90 active:opacity-95 shadow-sm hover:shadow transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-brand-900 focus:ring-offset-2">
+            <span class="text-base leading-none font-medium" aria-hidden="true">+</span>
+            {{ 'PLAN_DETAIL.ADD_ACTIVITY' | translate }}
+          </button>
+          <button *ngIf="plan()!.status === 'VALIDATED' && (isPlanPlanned || !canEditPlan())"
+            type="button" (click)="openOffPlanSidebar()"
+            class="inline-flex items-center justify-center gap-1.5 px-5 py-2.5 rounded-xl text-sm font-semibold text-white bg-brand-900 hover:opacity-90 active:opacity-95 shadow-sm hover:shadow transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-brand-900 focus:ring-offset-2">
+            <span class="text-base leading-none font-medium" aria-hidden="true">+</span>
+            {{ 'PLAN_DETAIL.ADD_OFF_PLAN_ACTIVITY' | translate }}
           </button>
         </div>
       </div>
@@ -101,7 +108,24 @@
       </div>
     </div>
 
-
+    <!-- Reject off-plan activity modal -->
+    <div *ngIf="showOffPlanRejectModal()" class="fixed inset-0 z-[9998] flex items-center justify-center bg-black/50 !mt-0" (click)="closeOffPlanRejectModal()" role="dialog" aria-modal="true">
+      <div class="bg-white rounded-2xl shadow-xl max-w-md w-full mx-4 overflow-hidden" (click)="$event.stopPropagation()">
+        <div class="p-6 border-b border-gray-100">
+          <h2 class="text-lg font-semibold text-gray-800">{{ 'PLAN_DETAIL.OFF_PLAN_REJECT_TITLE' | translate }}</h2>
+        </div>
+        <div class="p-6">
+          <label for="off-plan-reject-comment" class="block text-sm font-medium text-gray-700 mb-1">{{ 'PLAN_DETAIL.REJECT_REASON_LABEL' | translate }} <span class="text-red-500">*</span></label>
+          <textarea id="off-plan-reject-comment" rows="3" class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm"
+            [value]="offPlanRejectComment()" (input)="offPlanRejectComment.set($any($event.target).value)"></textarea>
+          <p *ngIf="offPlanRejectError()" class="text-sm text-red-600 mt-2">{{ offPlanRejectError() }}</p>
+        </div>
+        <div class="p-6 pt-0 flex justify-end gap-3">
+          <button type="button" (click)="closeOffPlanRejectModal()" class="px-4 py-2 rounded-xl text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200">{{ 'COMMON.CANCEL' | translate }}</button>
+          <button type="button" (click)="submitOffPlanReject()" [disabled]="actionLoading()" class="px-4 py-2 rounded-xl text-sm font-semibold bg-white text-brand-900 border-2 border-brand-900 hover:bg-gray-50 disabled:opacity-50">{{ 'PLAN_DETAIL.OFF_PLAN_REJECT_BUTTON' | translate }}</button>
+        </div>
+      </div>
+    </div>
 
     <!-- Activity row 3-point dropdown (same style as plan list dropdown) -->
     <div *ngIf="activityMenuId()"
@@ -135,69 +159,109 @@
         <i class="fas fa-trash w-4 text-center"></i>
         Supprimer
       </button>
+
+      <div *ngIf="canApproveOffPlan(activityMenuId()!) || canRejectOffPlan(activityMenuId()!) || canResubmitOffPlan(activityMenuId()!) || canSubmitModificationReview(activityMenuId()!) || canResubmitModificationReview(activityMenuId()!)" class="border-t border-gray-100 my-1"></div>
+
+      <button *ngIf="canSubmitModificationReview(activityMenuId()!)" (click)="submitActivityModificationReview(activityMenuId()!)"
+        class="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-brand-900 hover:bg-gray-50 transition-colors">
+        <i class="fas fa-paper-plane w-4 text-center"></i>
+        {{ 'PLAN_DETAIL.SUBMIT_ACTIVITY_FOR_REVIEW' | translate }}
+      </button>
+
+      <button *ngIf="canApproveOffPlan(activityMenuId()!)" (click)="approveOffPlanActivity(activityMenuId()!)"
+        class="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-emerald-700 hover:bg-emerald-50 transition-colors">
+        <i class="fas fa-check w-4 text-center"></i>
+        {{ 'PLAN_DETAIL.OFF_PLAN_APPROVE' | translate }}
+      </button>
+      <button *ngIf="canRejectOffPlan(activityMenuId()!)" (click)="openOffPlanRejectModal(activityMenuId()!)"
+        class="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-amber-800 hover:bg-amber-50 transition-colors">
+        <i class="fas fa-undo w-4 text-center"></i>
+        {{ 'PLAN_DETAIL.OFF_PLAN_REJECT' | translate }}
+      </button>
+      <button *ngIf="canResubmitOffPlan(activityMenuId()!) || canResubmitModificationReview(activityMenuId()!)" (click)="resubmitOffPlanActivity(activityMenuId()!)"
+        class="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-brand-900 hover:bg-gray-50 transition-colors">
+        <i class="fas fa-paper-plane w-4 text-center"></i>
+        {{ 'PLAN_DETAIL.OFF_PLAN_RESUBMIT' | translate }}
+      </button>
     </div>
 
     <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
       <div class="p-4 border-b border-gray-100 flex flex-wrap items-center gap-4">
         <h2 class="font-semibold text-gray-800">{{ 'PLAN_DETAIL.ACTIVITIES_COUNT' | translate }} ({{ plan()!.activities?.length ?? 0 }})</h2>
-        <ng-container *ngIf="hasUnlockHighlights()">
-          <span class="text-xs text-gray-500 flex items-center gap-2">
-            <span class="inline-block w-4 h-4 rounded bg-brand-100"></span> Ajouté lors de la dernière ouverture
-            <span class="inline-block w-4 h-4 rounded bg-amber-100 ml-2"></span> Modifié lors de la dernière ouverture
+        <div *ngIf="hasOffPlanPendingReview() || hasOffPlanRejected()" class="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-gray-500">
+          <span *ngIf="hasOffPlanPendingReview()" class="inline-flex items-center gap-2">
+            <span class="inline-block w-4 h-4 rounded bg-yellow-200 border border-amber-400 shrink-0"></span>
+            <span>{{ 'PLAN_DETAIL.OFF_PLAN_ROW_LEGEND' | translate }}</span>
           </span>
-        </ng-container>
+          <span *ngIf="hasOffPlanRejected()" class="inline-flex items-center gap-2">
+            <span class="inline-block w-4 h-4 rounded bg-red-100 border border-red-400 shrink-0"></span>
+            <span>{{ 'PLAN_DETAIL.OFF_PLAN_REJECTED_LEGEND' | translate }}</span>
+          </span>
+        </div>
       </div>
       <div class="overflow-x-auto">
         <!-- Plan planifié (année en cours ou future) : toutes les colonnes -->
-        <table *ngIf="isPlanPlanned" class="w-full text-sm min-w-[1000px]">
-          <thead class="bg-gray-50 text-gray-600 uppercase text-xs whitespace-nowrap">
+        <table *ngIf="isPlanPlanned" class="w-full text-sm min-w-[1520px] border-collapse [&_th]:align-top [&_td]:align-top">
+          <thead class="bg-gray-50 text-gray-600 uppercase text-xs">
             <tr>
-              <th class="p-3 text-left min-w-[7rem] w-28">N°</th>
-              <th class="p-3 text-left">{{ 'PLAN_DETAIL.REGION' | translate }}</th>
-              <th class="p-3 text-left">{{ 'PLAN_DETAIL.COUNTRY' | translate }}</th>
-              <th class="p-3 text-left">{{ 'PLAN_DETAIL.TITLE' | translate }}</th>
-              <th class="p-3 text-left max-w-[200px]">{{ 'PLAN_DETAIL.DESCRIPTION' | translate }}</th>
-              <th class="p-3 text-left">{{ 'PLANNED_ACTIVITIES.CATEGORY' | translate }}</th>
-              <th class="p-3 text-left">{{ 'PLAN_DETAIL.COLLAB_NATURE' | translate }}</th>
-              <th class="p-3 text-left">{{ 'PLAN_DETAIL.ORGANISATION' | translate }}</th>
-              <th class="p-3 text-left">{{ 'PLAN_DETAIL.ORGANIZER' | translate }}</th>
-              <th class="p-3 text-left">{{ 'PLAN_DETAIL.EDITION' | translate }}</th>
-              <th class="p-3 text-left">{{ 'PLAN_DETAIL.START_YEAR' | translate }}</th>
-              <th class="p-3 text-right">{{ 'PLAN_DETAIL.VOLUNTEERS_PLANNED' | translate }}</th>
-              <th class="p-3 text-right">{{ 'PLAN_DETAIL.BUDGET_PLANNED' | translate }}</th>
-              <th class="p-3 text-right">{{ 'PLAN_DETAIL.TARGET_IMPACT' | translate }}</th>
-              <th class="p-3 text-left">{{ 'PLAN_DETAIL.IMPACT_UNIT' | translate }}</th>
-              <th class="p-3 text-left">{{ 'PLAN_DETAIL.EXTERNAL_PARTNER' | translate }}</th>
-              <th class="p-3 text-center w-48">{{ 'COMMON.ACTION' | translate }}</th>
+              <th class="p-3 text-left min-w-[7rem] w-28 whitespace-nowrap">N°</th>
+              <th class="p-3 text-left whitespace-nowrap min-w-[5rem]">{{ 'PLAN_DETAIL.REGION' | translate }}</th>
+              <th class="p-3 text-left whitespace-nowrap min-w-[5rem]">{{ 'PLAN_DETAIL.COUNTRY' | translate }}</th>
+              <th class="p-3 text-left min-w-[10rem] max-w-[14rem]">{{ 'PLAN_DETAIL.TITLE' | translate }}</th>
+              <th class="p-3 text-center whitespace-nowrap min-w-[5rem]">{{ 'PLAN_DETAIL.OFF_PLAN' | translate }}</th>
+              <th class="p-3 text-left min-w-[10rem] max-w-[200px]">{{ 'PLAN_DETAIL.DESCRIPTION' | translate }}</th>
+              <th class="p-3 text-left min-w-[7rem]">{{ 'PLANNED_ACTIVITIES.CATEGORY' | translate }}</th>
+              <th class="p-3 text-left min-w-[6rem]">{{ 'PLAN_DETAIL.COLLAB_NATURE' | translate }}</th>
+              <th class="p-3 text-left whitespace-nowrap min-w-[6rem]">{{ 'PLAN_DETAIL.ORGANISATION' | translate }}</th>
+              <th class="p-3 text-left min-w-[7rem]">{{ 'PLAN_DETAIL.ORGANIZER' | translate }}</th>
+              <th class="p-3 text-left whitespace-nowrap min-w-[4rem]">{{ 'PLAN_DETAIL.EDITION' | translate }}</th>
+              <th class="p-3 text-left whitespace-nowrap min-w-[4rem]">{{ 'PLAN_DETAIL.START_YEAR' | translate }}</th>
+              <th class="p-3 text-right whitespace-nowrap min-w-[5rem] tabular-nums">{{ 'PLAN_DETAIL.VOLUNTEERS_PLANNED' | translate }}</th>
+              <th class="p-3 text-right whitespace-nowrap min-w-[5rem] tabular-nums">{{ 'PLAN_DETAIL.BUDGET_PLANNED' | translate }}</th>
+              <th class="p-3 text-right whitespace-nowrap min-w-[5rem] tabular-nums">{{ 'PLAN_DETAIL.TARGET_IMPACT' | translate }}</th>
+              <th class="p-3 text-left min-w-[5rem]">{{ 'PLAN_DETAIL.IMPACT_UNIT' | translate }}</th>
+              <th class="p-3 text-left min-w-[7rem]">{{ 'PLAN_DETAIL.EXTERNAL_PARTNER' | translate }}</th>
+              <th class="p-3 text-center whitespace-nowrap min-w-[3.5rem] w-14">{{ 'COMMON.ACTION' | translate }}</th>
             </tr>
           </thead>
           <tbody>
             <tr *ngFor="let a of plan()!.activities"
-              class="border-t"
-              [class.hover:bg-gray-100]="!a.added_during_unlock && !a.modified_during_unlock"
-              [class.bg-brand-100]="a.added_during_unlock"
-              [class.bg-amber-100]="a.modified_during_unlock && !a.added_during_unlock"
-              [attr.title]="(a.added_during_unlock ? 'Ajouté lors de la dernière ouverture pour modification' : a.modified_during_unlock ? 'Modifié lors de la dernière ouverture pour modification' : null)">
-              <td class="p-3 font-medium min-w-[7rem] w-28">
-                <span *ngIf="a.modified_during_unlock && !a.added_during_unlock" class="text-xs text-amber-700 mr-1" [attr.title]="'PLAN_DETAIL.MODIFIED_TITLE' | translate">✎</span>
+              class="border-t border-gray-100"
+              [ngClass]="{
+                'bg-yellow-100 border-l-4 border-l-amber-500 shadow-sm': offPlanAwaitingValidation(a),
+                'hover:bg-amber-50': offPlanAwaitingValidation(a),
+                'bg-red-50 border-l-4 border-l-red-500 shadow-sm': offPlanRejected(a),
+                'hover:bg-red-100': offPlanRejected(a),
+                'hover:bg-gray-100': !offPlanAwaitingValidation(a) && !offPlanRejected(a)
+              }"
+              [attr.title]="activityRowTooltip(a) || null">
+              <td class="p-3 font-medium min-w-[7rem] w-28 whitespace-nowrap">
                 {{ a.activity_number }}
               </td>
-              <td class="p-3">{{ plan()!.site_region || '–' }}</td>
-              <td class="p-3">{{ plan()!.site_country || '–' }}</td>
-              <td class="p-3">{{ a.title }}</td>
-              <td class="p-3 text-gray-600 max-w-[200px] truncate" [title]="a.description">{{ a.description || '–' }}</td>
-              <td class="p-3">{{ a.category_name || '–' }}</td>
-              <td class="p-3">{{ a.collaboration_nature || '–' }}</td>
-              <td class="p-3">{{ a.organization || '–' }}</td>
-              <td class="p-3">{{ a.organizer || '–' }}</td>
-              <td class="p-3">{{ a.edition != null ? a.edition : '–' }}</td>
-              <td class="p-3">{{ a.start_year != null ? a.start_year : '–' }}</td>
-              <td class="p-3 text-right">{{ a.planned_volunteers != null ? a.planned_volunteers : '–' }}</td>
-              <td class="p-3 text-right">{{ a.planned_budget != null ? (a.planned_budget | number:'1.0-0') + ' €' : '–' }}</td>
-              <td class="p-3 text-right">{{ a.action_impact_target != null ? a.action_impact_target : '–' }}</td>
-              <td class="p-3">{{ a.action_impact_unit || '–' }}</td>
-              <td class="p-3">{{ a.external_partner_name || '–' }}</td>
-              <td class="p-3 text-center">
+              <td class="p-3 whitespace-nowrap">{{ plan()!.site_region || '–' }}</td>
+              <td class="p-3 whitespace-nowrap">{{ plan()!.site_country || '–' }}</td>
+              <td class="p-3 min-w-[10rem] max-w-[14rem] break-words">{{ a.title }}</td>
+              <td class="p-3 text-center whitespace-nowrap align-middle">
+                <ng-container *ngIf="a.is_off_plan">
+                  <span class="font-medium">{{ 'PLAN_DETAIL.OFF_PLAN_YES' | translate }}</span>
+                  <span *ngIf="offPlanAwaitingValidation(a)" class="block mt-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-900">{{ 'PLAN_DETAIL.OFF_PLAN_PENDING_BADGE' | translate }}</span>
+                  <span *ngIf="offPlanRejected(a)" class="block mt-0.5 text-[10px] font-semibold uppercase tracking-wide text-red-800">{{ 'PLAN_DETAIL.OFF_PLAN_REJECTED_BADGE' | translate }}</span>
+                </ng-container>
+                <span *ngIf="!a.is_off_plan" class="text-gray-600">{{ 'PLAN_DETAIL.OFF_PLAN_NO' | translate }}</span>
+              </td>
+              <td class="p-3 text-gray-600 max-w-[200px] truncate align-top" [title]="a.description">{{ a.description || '–' }}</td>
+              <td class="p-3 min-w-[7rem] break-words">{{ a.category_name || '–' }}</td>
+              <td class="p-3 min-w-[6rem] break-words">{{ a.collaboration_nature || '–' }}</td>
+              <td class="p-3 whitespace-nowrap">{{ a.organization || '–' }}</td>
+              <td class="p-3 min-w-[7rem] break-words">{{ a.organizer || '–' }}</td>
+              <td class="p-3 tabular-nums whitespace-nowrap">{{ a.edition != null ? a.edition : '–' }}</td>
+              <td class="p-3 tabular-nums whitespace-nowrap">{{ a.start_year != null ? a.start_year : '–' }}</td>
+              <td class="p-3 text-right tabular-nums whitespace-nowrap">{{ a.planned_volunteers != null ? a.planned_volunteers : '–' }}</td>
+              <td class="p-3 text-right tabular-nums whitespace-nowrap">{{ a.planned_budget != null ? (a.planned_budget | number:'1.0-0') + ' €' : '–' }}</td>
+              <td class="p-3 text-right tabular-nums whitespace-nowrap">{{ a.action_impact_target != null ? a.action_impact_target : '–' }}</td>
+              <td class="p-3 min-w-[5rem] break-words">{{ a.action_impact_unit || '–' }}</td>
+              <td class="p-3 min-w-[7rem] break-words">{{ a.external_partner_name || '–' }}</td>
+              <td class="p-3 text-center whitespace-nowrap">
                 <div class="relative flex items-center justify-center">
                   <button type="button" (click)="toggleActivityMenu($event, a.id)"
                     class="inline-flex items-center justify-center p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
@@ -208,7 +272,7 @@
               </td>
             </tr>
             <tr *ngIf="!plan()!.activities?.length" class="border-t">
-              <td colspan="16" class="p-8 text-center text-gray-500">
+              <td colspan="18" class="p-8 text-center text-gray-500">
                 {{ 'PLAN_DETAIL.NO_ACTIVITIES_IN_PLAN' | translate }}
                 <ng-container *ngIf="canEditPlan()">
                   <button type="button" (click)="addActivity()" class="text-brand-700 hover:underline">{{ 'PLAN_DETAIL.ADD_ACTIVITY' | translate }}</button>
@@ -219,71 +283,81 @@
           </tbody>
         </table>
         <!-- Plan réalisé (année passée) : toutes les colonnes Excel -->
-        <table *ngIf="!isPlanPlanned" class="w-full text-sm min-w-[1400px]">
-          <thead class="bg-gray-50 text-gray-600 uppercase text-xs whitespace-nowrap">
+        <table *ngIf="!isPlanPlanned" class="w-full text-sm min-w-[2480px] border-collapse [&_th]:align-top [&_td]:align-top">
+          <thead class="bg-gray-50 text-gray-600 uppercase text-xs">
             <tr>
-              <th class="p-3 text-left min-w-[7rem] w-28">N°</th>
-              <th class="p-3 text-left">{{ 'PLAN_DETAIL.REGION' | translate }}</th>
-              <th class="p-3 text-left">{{ 'PLAN_DETAIL.COUNTRY' | translate }}</th>
-              <th class="p-3 text-left">{{ 'PLAN_DETAIL.TITLE' | translate }}</th>
-              <th class="p-3 text-left max-w-[200px]">{{ 'PLAN_DETAIL.DESCRIPTION' | translate }}</th>
-              <th class="p-3 text-left">{{ 'PLANNED_ACTIVITIES.CATEGORY' | translate }}</th>
-              <th class="p-3 text-left">{{ 'PLAN_DETAIL.COLLAB_NATURE' | translate }}</th>
-              <th class="p-3 text-left">{{ 'PLAN_DETAIL.ORGANISATION' | translate }}</th>
-              <th class="p-3 text-left">{{ 'PLAN_DETAIL.ORGANIZER' | translate }}</th>
-              <th class="p-3 text-left">{{ 'PLAN_DETAIL.EDITION' | translate }}</th>
-              <th class="p-3 text-left">{{ 'PLAN_DETAIL.START_YEAR' | translate }}</th>
-              <th class="p-3 text-right">{{ 'PLAN_DETAIL.VOLUNTEERS_PLANNED' | translate }}</th>
-              <th class="p-3 text-right">{{ 'PLAN_DETAIL.BUDGET_PLANNED' | translate }}</th>
-              <th class="p-3 text-right">{{ 'PLAN_DETAIL.TARGET_IMPACT' | translate }}</th>
-              <th class="p-3 text-left">{{ 'PLAN_DETAIL.IMPACT_UNIT' | translate }}</th>
-              <th class="p-3 text-left">{{ 'PLAN_DETAIL.EXTERNAL_PARTNER' | translate }}</th>
-              <th class="p-3 text-right">{{ 'PLAN_DETAIL.BUDGET_REALIZED' | translate }}</th>
-              <th class="p-3 text-right">{{ 'REALIZED.PARTICIPANTS' | translate }}</th>
-              <th class="p-3 text-right">{{ 'PLAN_DETAIL.TOTAL_HC' | translate }}</th>
-              <th class="p-3 text-right">{{ 'PLAN_DETAIL.PERCENTAGE_EMPLOYEES' | translate }}</th>
-              <th class="p-3 text-right">{{ 'PLAN_DETAIL.NUMBER_EXTERNAL_PARTNERS' | translate }}</th>
-              <th class="p-3 text-right">{{ 'PLAN_DETAIL.IMPACT_REALIZED' | translate }}</th>
-              <th class="p-3 text-left">{{ 'PLAN_DETAIL.UNIT_REALIZED' | translate }}</th>
-              <th class="p-3 text-center">{{ 'PLAN_DETAIL.REALIZATIONS' | translate }}</th>
-              <th class="p-3 text-center w-48">{{ 'COMMON.ACTION' | translate }}</th>
+              <th class="p-3 text-left min-w-[7rem] w-28 whitespace-nowrap">N°</th>
+              <th class="p-3 text-left whitespace-nowrap min-w-[5rem]">{{ 'PLAN_DETAIL.REGION' | translate }}</th>
+              <th class="p-3 text-left whitespace-nowrap min-w-[5rem]">{{ 'PLAN_DETAIL.COUNTRY' | translate }}</th>
+              <th class="p-3 text-left min-w-[10rem] max-w-[14rem]">{{ 'PLAN_DETAIL.TITLE' | translate }}</th>
+              <th class="p-3 text-center whitespace-nowrap min-w-[5rem]">{{ 'PLAN_DETAIL.OFF_PLAN' | translate }}</th>
+              <th class="p-3 text-left min-w-[10rem] max-w-[200px]">{{ 'PLAN_DETAIL.DESCRIPTION' | translate }}</th>
+              <th class="p-3 text-left min-w-[7rem]">{{ 'PLANNED_ACTIVITIES.CATEGORY' | translate }}</th>
+              <th class="p-3 text-left min-w-[6rem]">{{ 'PLAN_DETAIL.COLLAB_NATURE' | translate }}</th>
+              <th class="p-3 text-left whitespace-nowrap min-w-[6rem]">{{ 'PLAN_DETAIL.ORGANISATION' | translate }}</th>
+              <th class="p-3 text-left min-w-[7rem]">{{ 'PLAN_DETAIL.ORGANIZER' | translate }}</th>
+              <th class="p-3 text-left whitespace-nowrap min-w-[4rem]">{{ 'PLAN_DETAIL.EDITION' | translate }}</th>
+              <th class="p-3 text-left whitespace-nowrap min-w-[4rem]">{{ 'PLAN_DETAIL.START_YEAR' | translate }}</th>
+              <th class="p-3 text-right whitespace-nowrap min-w-[5rem] tabular-nums">{{ 'PLAN_DETAIL.VOLUNTEERS_PLANNED' | translate }}</th>
+              <th class="p-3 text-right whitespace-nowrap min-w-[5rem] tabular-nums">{{ 'PLAN_DETAIL.BUDGET_PLANNED' | translate }}</th>
+              <th class="p-3 text-right whitespace-nowrap min-w-[5rem] tabular-nums">{{ 'PLAN_DETAIL.TARGET_IMPACT' | translate }}</th>
+              <th class="p-3 text-left min-w-[5rem]">{{ 'PLAN_DETAIL.IMPACT_UNIT' | translate }}</th>
+              <th class="p-3 text-left min-w-[7rem]">{{ 'PLAN_DETAIL.EXTERNAL_PARTNER' | translate }}</th>
+              <th class="p-3 text-right whitespace-nowrap min-w-[5rem] tabular-nums">{{ 'PLAN_DETAIL.BUDGET_REALIZED' | translate }}</th>
+              <th class="p-3 text-right whitespace-nowrap min-w-[4rem] tabular-nums">{{ 'REALIZED.PARTICIPANTS' | translate }}</th>
+              <th class="p-3 text-right whitespace-nowrap min-w-[4rem] tabular-nums">{{ 'PLAN_DETAIL.TOTAL_HC' | translate }}</th>
+              <th class="p-3 text-right whitespace-nowrap min-w-[5rem] tabular-nums">{{ 'PLAN_DETAIL.PERCENTAGE_EMPLOYEES' | translate }}</th>
+              <th class="p-3 text-right whitespace-nowrap min-w-[4rem] tabular-nums">{{ 'PLAN_DETAIL.NUMBER_EXTERNAL_PARTNERS' | translate }}</th>
+              <th class="p-3 text-right whitespace-nowrap min-w-[5rem] tabular-nums">{{ 'PLAN_DETAIL.IMPACT_REALIZED' | translate }}</th>
+              <th class="p-3 text-left min-w-[5rem]">{{ 'PLAN_DETAIL.UNIT_REALIZED' | translate }}</th>
+              <th class="p-3 text-center whitespace-nowrap min-w-[3.5rem] w-14">{{ 'COMMON.ACTION' | translate }}</th>
             </tr>
           </thead>
           <tbody>
             <tr *ngFor="let a of plan()!.activities"
-              class="border-t"
-              [class.hover:bg-gray-100]="!a.added_during_unlock && !a.modified_during_unlock"
-              [class.bg-brand-100]="a.added_during_unlock"
-              [class.bg-amber-100]="a.modified_during_unlock && !a.added_during_unlock"
-              [attr.title]="(a.added_during_unlock ? 'Ajouté lors de la dernière ouverture pour modification' : a.modified_during_unlock ? 'Modifié lors de la dernière ouverture pour modification' : null)">
-              <td class="p-3 font-medium min-w-[7rem] w-28">
-                <span *ngIf="a.modified_during_unlock && !a.added_during_unlock" class="text-xs text-amber-700 mr-1" [attr.title]="'PLAN_DETAIL.MODIFIED_TITLE' | translate">✎</span>
+              class="border-t border-gray-100"
+              [ngClass]="{
+                'bg-yellow-100 border-l-4 border-l-amber-500 shadow-sm': offPlanAwaitingValidation(a),
+                'hover:bg-amber-50': offPlanAwaitingValidation(a),
+                'bg-red-50 border-l-4 border-l-red-500 shadow-sm': offPlanRejected(a),
+                'hover:bg-red-100': offPlanRejected(a),
+                'hover:bg-gray-100': !offPlanAwaitingValidation(a) && !offPlanRejected(a)
+              }"
+              [attr.title]="activityRowTooltip(a) || null">
+              <td class="p-3 font-medium min-w-[7rem] w-28 whitespace-nowrap">
                 {{ a.activity_number }}
               </td>
-              <td class="p-3">{{ plan()!.site_region || '–' }}</td>
-              <td class="p-3">{{ plan()!.site_country || '–' }}</td>
-              <td class="p-3">{{ a.title }}</td>
-              <td class="p-3 text-gray-600 max-w-[200px] truncate" [title]="a.description">{{ a.description || '–' }}</td>
-              <td class="p-3">{{ a.category_name || '–' }}</td>
-              <td class="p-3">{{ a.collaboration_nature || '–' }}</td>
-              <td class="p-3">{{ a.organization || '–' }}</td>
-              <td class="p-3">{{ a.organizer || '–' }}</td>
-              <td class="p-3">{{ a.edition != null ? a.edition : '–' }}</td>
-              <td class="p-3">{{ a.start_year != null ? a.start_year : '–' }}</td>
-              <td class="p-3 text-right">{{ a.planned_volunteers != null ? a.planned_volunteers : '–' }}</td>
-              <td class="p-3 text-right">{{ a.planned_budget != null ? (a.planned_budget | number:'1.0-0') + ' €' : '–' }}</td>
-              <td class="p-3 text-right">{{ a.action_impact_target != null ? a.action_impact_target : '–' }}</td>
-              <td class="p-3">{{ a.action_impact_unit || '–' }}</td>
-              <td class="p-3">{{ a.external_partner_name || '–' }}</td>
-              <td class="p-3 text-right">{{ a.realized_budget != null ? (a.realized_budget | number:'1.0-0') + ' €' : '–' }}</td>
-              <td class="p-3 text-right">{{ a.participants != null ? a.participants : '–' }}</td>
-              <td class="p-3 text-right">{{ a.total_hc != null ? a.total_hc : '–' }}</td>
-              <td class="p-3 text-right">{{ a.percentage_employees != null ? (a.percentage_employees | number:'1.0-2') + '%' : '–' }}</td>
-              <td class="p-3 text-right">{{ a.number_external_partners != null ? a.number_external_partners : '–' }}</td>
-              <td class="p-3 text-right">{{ a.action_impact_actual != null ? a.action_impact_actual : '–' }}</td>
-              <td class="p-3">{{ a.action_impact_unit_realized || '–' }}</td>
-              <td class="p-3 text-center">{{ a.realization_count ?? 0 }}</td>
-              <td class="p-3 text-center">
+              <td class="p-3 whitespace-nowrap">{{ plan()!.site_region || '–' }}</td>
+              <td class="p-3 whitespace-nowrap">{{ plan()!.site_country || '–' }}</td>
+              <td class="p-3 min-w-[10rem] max-w-[14rem] break-words">{{ a.title }}</td>
+              <td class="p-3 text-center whitespace-nowrap align-middle">
+                <ng-container *ngIf="a.is_off_plan">
+                  <span class="font-medium">{{ 'PLAN_DETAIL.OFF_PLAN_YES' | translate }}</span>
+                  <span *ngIf="offPlanAwaitingValidation(a)" class="block mt-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-900">{{ 'PLAN_DETAIL.OFF_PLAN_PENDING_BADGE' | translate }}</span>
+                  <span *ngIf="offPlanRejected(a)" class="block mt-0.5 text-[10px] font-semibold uppercase tracking-wide text-red-800">{{ 'PLAN_DETAIL.OFF_PLAN_REJECTED_BADGE' | translate }}</span>
+                </ng-container>
+                <span *ngIf="!a.is_off_plan" class="text-gray-600">{{ 'PLAN_DETAIL.OFF_PLAN_NO' | translate }}</span>
+              </td>
+              <td class="p-3 text-gray-600 max-w-[200px] truncate align-top" [title]="a.description">{{ a.description || '–' }}</td>
+              <td class="p-3 min-w-[7rem] break-words">{{ a.category_name || '–' }}</td>
+              <td class="p-3 min-w-[6rem] break-words">{{ a.collaboration_nature || '–' }}</td>
+              <td class="p-3 whitespace-nowrap">{{ a.organization || '–' }}</td>
+              <td class="p-3 min-w-[7rem] break-words">{{ a.organizer || '–' }}</td>
+              <td class="p-3 tabular-nums whitespace-nowrap">{{ a.edition != null ? a.edition : '–' }}</td>
+              <td class="p-3 tabular-nums whitespace-nowrap">{{ a.start_year != null ? a.start_year : '–' }}</td>
+              <td class="p-3 text-right tabular-nums whitespace-nowrap">{{ a.planned_volunteers != null ? a.planned_volunteers : '–' }}</td>
+              <td class="p-3 text-right tabular-nums whitespace-nowrap">{{ a.planned_budget != null ? (a.planned_budget | number:'1.0-0') + ' €' : '–' }}</td>
+              <td class="p-3 text-right tabular-nums whitespace-nowrap">{{ a.action_impact_target != null ? a.action_impact_target : '–' }}</td>
+              <td class="p-3 min-w-[5rem] break-words">{{ a.action_impact_unit || '–' }}</td>
+              <td class="p-3 min-w-[7rem] break-words">{{ a.external_partner_name || '–' }}</td>
+              <td class="p-3 text-right tabular-nums whitespace-nowrap">{{ a.realized_budget != null ? (a.realized_budget | number:'1.0-0') + ' €' : '–' }}</td>
+              <td class="p-3 text-right tabular-nums whitespace-nowrap">{{ a.participants != null ? a.participants : '–' }}</td>
+              <td class="p-3 text-right tabular-nums whitespace-nowrap">{{ a.total_hc != null ? a.total_hc : '–' }}</td>
+              <td class="p-3 text-right tabular-nums whitespace-nowrap">{{ a.percentage_employees != null ? (a.percentage_employees | number:'1.0-2') + '%' : '–' }}</td>
+              <td class="p-3 text-right tabular-nums whitespace-nowrap">{{ a.number_external_partners != null ? a.number_external_partners : '–' }}</td>
+              <td class="p-3 text-right tabular-nums whitespace-nowrap">{{ a.action_impact_actual != null ? a.action_impact_actual : '–' }}</td>
+              <td class="p-3 min-w-[5rem] break-words">{{ a.action_impact_unit_realized || '–' }}</td>
+              <td class="p-3 text-center whitespace-nowrap">
                 <div class="relative flex items-center justify-center">
                   <button type="button" (click)="toggleActivityMenu($event, a.id)"
                     class="inline-flex items-center justify-center p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
@@ -306,10 +380,32 @@
         </table>
       </div>
     </div>
+
+    <!-- Confirmation modal (replaces browser confirm popup) -->
+    <div *ngIf="confirmOpen()" class="fixed inset-0 z-[9998] flex items-center justify-center bg-black/50 !mt-0" (click)="closeConfirm()" role="dialog" aria-modal="true">
+      <div class="relative z-[9999] bg-white rounded-2xl shadow-xl border border-gray-200 w-full max-w-md overflow-hidden" (click)="$event.stopPropagation()">
+        <div class="p-6 border-b border-gray-100">
+          <h2 class="text-lg font-semibold text-gray-800">{{ confirmTitle() }}</h2>
+          <p class="text-gray-600 text-sm mt-2 whitespace-pre-wrap">{{ confirmMessage() }}</p>
+        </div>
+        <div class="p-4 flex items-center justify-end gap-3 bg-gray-50">
+          <button type="button"
+            class="px-4 py-2 rounded-xl border border-gray-300 text-gray-700 hover:bg-gray-100 transition"
+            (click)="closeConfirm()">
+            {{ 'COMMON.CANCEL' | translate }}
+          </button>
+          <button type="button"
+            class="px-4 py-2 rounded-xl bg-brand-900 text-white hover:opacity-90 transition"
+            (click)="runConfirm()">
+            {{ confirmButtonLabel() }}
+          </button>
+        </div>
+      </div>
+    </div>
   </div>
 </div>
 
-<!-- Add planned activity sidebar (for current/future year plans) -->
+<!-- Add planned activity (brouillon) : année en cours ou future uniquement -->
 <div *ngIf="showAddActivitySidebar()"
   class="fixed inset-0 z-50 flex"
   (click)="closeAddActivitySidebar()">
@@ -318,35 +414,58 @@
     (click)="$event.stopPropagation()">
     <app-planned-activity-create-sidebar
       [initialPlanId]="plan()?.id ?? null"
+      [contextPlanYear]="plan()?.year ?? null"
+      [planAmendmentMode]="plan()?.status === 'VALIDATED' && isUnlockUntilFuture()"
       (closed)="closeAddActivitySidebar()"
       (created)="onActivityAdded()">
     </app-planned-activity-create-sidebar>
   </aside>
 </div>
 
-<!-- Add realization sidebar (for past-year plans - Nouvelle réalisation) -->
-<div *ngIf="showAddRealizationSidebar()"
+<!-- Année passée : mêmes champs que hors plan, enregistrement brouillon dans le plan (pas hors plan) -->
+<div *ngIf="showPastYearRichCreate() && plan()"
   class="fixed inset-0 z-50 flex"
-  (click)="closeAddRealizationSidebar()">
+  (click)="closePastYearRichCreate()">
   <div class="flex-1 bg-black/40 transition-opacity" aria-hidden="true"></div>
   <aside class="w-full max-w-md bg-white shadow-2xl flex flex-col h-full min-h-0 overflow-hidden animate-slide-in-right"
     (click)="$event.stopPropagation()">
-    <app-realized-create-sidebar
-      [initialPlanId]="plan()?.id ?? null"
-      (closed)="closeAddRealizationSidebar()"
-      (created)="onRealizationAdded()">
-    </app-realized-create-sidebar>
+    <app-off-plan-activity-sidebar
+      [planId]="plan()!.id"
+      [siteLabel]="plan()!.site_name || plan()!.site_code || plan()!.site_id || ''"
+      [planYear]="plan()!.year"
+      submissionMode="plan_realized_draft"
+      [titleTranslateKey]="pastYearRichTitleKey()"
+      [hintTranslateKey]="pastYearRichHintKey()"
+      (closed)="closePastYearRichCreate()"
+      (created)="onPastYearRichCreated()">
+    </app-off-plan-activity-sidebar>
   </aside>
 </div>
 
-<!-- Edit planned activity sidebar -->
+<!-- Off-plan activity (bouton dédié) -->
+<div *ngIf="showOffPlanSidebar() && plan()"
+  class="fixed inset-0 z-50 flex"
+  (click)="closeOffPlanSidebar()">
+  <div class="flex-1 bg-black/40 transition-opacity" aria-hidden="true"></div>
+  <aside class="w-full max-w-md bg-white shadow-2xl flex flex-col h-full min-h-0 overflow-hidden animate-slide-in-right"
+    (click)="$event.stopPropagation()">
+    <app-off-plan-activity-sidebar
+      [planId]="plan()!.id"
+      [siteLabel]="plan()!.site_name || plan()!.site_code || plan()!.site_id || ''"
+      [planYear]="plan()!.year"
+      (closed)="closeOffPlanSidebar()"
+      (created)="onOffPlanCreated()">
+    </app-off-plan-activity-sidebar>
+  </aside>
+</div>
+
+<!-- Edit planned activity sidebar (same shell as create: max-w-md, scroll inside component) -->
 <div *ngIf="showEditActivitySidebar()"
   class="fixed inset-0 z-50 flex"
   (click)="closeEditActivitySidebar()">
   <div class="flex-1 bg-black/40 transition-opacity" aria-hidden="true"></div>
-  <aside class="w-full max-w-2xl bg-white shadow-2xl flex flex-col h-full min-h-0 overflow-hidden animate-slide-in-right"
+  <aside class="w-full max-w-md bg-white shadow-2xl flex flex-col h-full min-h-0 overflow-hidden animate-slide-in-right"
     (click)="$event.stopPropagation()">
-    <div class="flex-1 min-h-0 overflow-y-auto">
     <app-planned-activity-edit
       [activityId]="activityIdToEdit()"
       [planId]="plan()?.id ?? null"
@@ -355,6 +474,5 @@
       (closed)="closeEditActivitySidebar()"
       (updated)="onActivityUpdated()">
     </app-planned-activity-edit>
-    </div>
   </aside>
 </div>

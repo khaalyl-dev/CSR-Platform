@@ -4,7 +4,8 @@
  */
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable } from 'rxjs';
+import { Observable, throwError } from 'rxjs';
+import { catchError, tap } from 'rxjs/operators';
 
 /** Response from POST /api/auth/login */
 export interface LoginResponse {
@@ -61,10 +62,19 @@ export class AuthApi {
   constructor(private http: HttpClient) {}
 
   login(email: string, password: string): Observable<LoginResponse> {
+    console.log('[AuthApi] login() called with email:', email);
     return this.http.post<LoginResponse>(`${this.apiUrl}/auth/login`, {
       email,
       password,
-    });
+    }).pipe(
+      tap((res) => {
+        console.log('[AuthApi] login() response:', res);
+      }),
+      catchError((err) => {
+        console.error('[AuthApi] login() error:', err);
+        return throwError(() => err);
+      }),
+    );
   }
 
   logout(): Observable<{ message: string }> {

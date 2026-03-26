@@ -1,7 +1,14 @@
 <div class="flex flex-col flex-1 min-h-0 h-full overflow-hidden">
   <!-- Header -->
-  <div class="flex items-center justify-between px-6 py-4 border-b border-gray-200 flex-shrink-0">
-    <h2 class="text-lg font-bold text-gray-800">{{ 'BREADCRUMB.PLANNED_ACTIVITY' | translate }}</h2>
+  <div class="flex items-start justify-between gap-3 px-6 py-4 border-b border-gray-200 flex-shrink-0">
+    <div>
+      <h2 class="text-lg font-bold text-gray-800">
+        {{ createSidebarTitleKey() | translate }}
+      </h2>
+      <p *ngIf="planAmendmentMode" class="text-xs text-gray-500 mt-1 max-w-sm">
+        {{ (isRealizedYearPlan ? 'PLANNED_ACTIVITY_CREATE.REALIZED_YEAR_AMENDMENT_HINT' : 'PLANNED_ACTIVITY_CREATE.AMENDMENT_HINT') | translate }}
+      </p>
+    </div>
     <button type="button" (click)="close()"
       class="p-2 rounded-full text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
       [attr.aria-label]="'PLANNED_ACTIVITY_CREATE.CLOSE_ARIA' | translate">
@@ -15,7 +22,7 @@
     <div class="flex-1 min-h-0 overflow-y-auto px-6 py-6 space-y-4">
       <div *ngIf="loadingData" class="py-8 text-center text-gray-500 text-sm">{{ 'PLANNED_ACTIVITY_CREATE.LOADING' | translate }}</div>
       <ng-container *ngIf="!loadingData">
-        <div>
+        <div *ngIf="!initialPlanId">
           <label class="block text-sm font-medium text-gray-700 mb-1.5">{{ 'PLANNED_ACTIVITY_CREATE.PLAN_REQ' | translate }}</label>
           <select formControlName="plan_id"
             class="w-full pl-9 pr-10 py-2.5 bg-gray-100 border-0 rounded-xl text-sm text-gray-700 font-medium focus:ring-2 focus:ring-blue-500 focus:bg-white focus:outline-none transition-all appearance-none cursor-pointer hover:bg-gray-200"
@@ -25,6 +32,11 @@
             <option *ngFor="let p of plansForSelection" [value]="p.id">{{ p.site_name ?? p.site_code ?? p.site_id }} – {{ p.year }}</option>
           </select>
           <p class="text-xs text-red-500 mt-1" *ngIf="form.get('plan_id')?.touched && form.get('plan_id')?.invalid">{{ 'PLANNED_ACTIVITY_CREATE.PLAN_REQUIRED' | translate }}</p>
+        </div>
+
+        <div *ngIf="initialPlanId && plan" class="text-sm text-gray-600">
+          <span class="font-medium text-gray-800">{{ plan.site_name ?? plan.site_code ?? plan.site_id }}</span>
+          <span class="text-gray-400">— {{ plan.year }}</span>
         </div>
 
         <div *ngIf="plan" class="space-y-4">
@@ -70,7 +82,9 @@
           </div>
 
           <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1.5">{{ 'PLANNED_ACTIVITY_CREATE.BUDGET_PLANNED_LABEL' | translate }}</label>
+            <label class="block text-sm font-medium text-gray-700 mb-1.5">
+              {{ (isRealizedYearPlan ? 'PLANNED_ACTIVITY_CREATE.BUDGET_ACTIVITY_LABEL' : 'PLANNED_ACTIVITY_CREATE.BUDGET_PLANNED_LABEL') | translate }}
+            </label>
             <input type="number" formControlName="planned_budget" min="0" step="0.01" [placeholder]="'PLANNED_ACTIVITY_CREATE.PLACEHOLDER_ESTIMATION' | translate"
               class="w-full px-4 py-2.5 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"/>
           </div>

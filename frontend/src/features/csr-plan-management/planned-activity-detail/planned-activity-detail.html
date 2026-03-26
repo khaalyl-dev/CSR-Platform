@@ -15,8 +15,21 @@
   <div *ngIf="activity() && !loading()" class="space-y-6">
     <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
       <div class="flex flex-wrap items-center justify-between gap-4">
-        <div>
+        <div class="space-y-2 min-w-0">
           <h1 class="text-2xl font-bold tracking-tight text-gray-800">{{ activityTitle() }}</h1>
+          <p class="text-sm text-gray-500">
+            <span class="font-medium text-gray-700">{{ 'PLANNED_ACTIVITY_DETAIL.ACTIVITY_NUMBER' | translate }}:</span>
+            {{ activity()!.activity_number || '–' }}
+          </p>
+          <div class="flex flex-wrap items-center gap-2">
+      
+            <span *ngIf="activity()!.plan_status" class="inline-flex px-2.5 py-0.5 rounded-lg text-xs font-medium bg-slate-100 text-slate-700">
+              {{ 'PLANNED_ACTIVITY_DETAIL.PLAN_STATUS_LABEL' | translate }}: {{ csrStatusLabel(activity()!.plan_status) }}
+            </span>
+            <span *ngIf="activity()!.is_off_plan" class="inline-flex px-2.5 py-0.5 rounded-lg text-xs font-semibold bg-amber-100 text-amber-900">
+              {{ 'PLAN_DETAIL.BADGE_OFF_PLAN' | translate }}
+            </span>
+          </div>
         </div>
         <div class="flex items-center gap-3">
           <a *ngIf="activity()!.plan_id" [routerLink]="['/csr-plans', activity()!.plan_id]"
@@ -27,7 +40,7 @@
             class="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-gray-300 text-gray-700 hover:bg-gray-50 text-sm font-medium">
             {{ 'PLANNED_ACTIVITY_DETAIL.EDIT' | translate }}
           </button>
-          <button *ngIf="activity()!.plan_id" type="button" (click)="openAddRealizationSidebar()"
+          <button *ngIf="activity()!.plan_id && !isPlanRealized()" type="button" (click)="openAddRealizationSidebar()"
             class="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-amber-600 text-white hover:bg-amber-700 text-sm font-medium">
             <i class="fas fa-clipboard-check text-sm"></i>
             {{ 'PLANNED_ACTIVITIES.ADD_REALIZATION' | translate }}
@@ -38,14 +51,54 @@
 
     <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
       <h2 class="p-4 font-semibold text-gray-800 border-b border-gray-100">{{ sectionTitle() }}</h2>
-      <div class="p-6 grid grid-cols-1 md:grid-cols-2 gap-6 text-sm">
+      <div class="p-6 grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-5 text-sm">
         <div>
           <p class="text-gray-500 text-xs uppercase tracking-wider">{{ 'PLANNED_ACTIVITY_DETAIL.CATEGORY' | translate }}</p>
           <p class="text-gray-800 mt-0.5">{{ activity()!.category_name ?? '–' }}</p>
         </div>
-        <div>
+        <div *ngIf="!activity()!.is_off_plan">
           <p class="text-gray-500 text-xs uppercase tracking-wider">{{ 'PLANNED_ACTIVITY_DETAIL.BUDGET_PLANNED' | translate }}</p>
           <p class="font-semibold text-gray-800 mt-0.5">{{ activity()!.planned_budget != null ? (activity()!.planned_budget | number:'1.0-0') + ' €' : '–' }}</p>
+        </div>
+        <div>
+          <p class="text-gray-500 text-xs uppercase tracking-wider">{{ 'PLANNED_ACTIVITY_EDIT.ORGANIZATION' | translate }}</p>
+          <p class="text-gray-800 mt-0.5">{{ activity()!.organization ?? '–' }}</p>
+        </div>
+        <div>
+          <p class="text-gray-500 text-xs uppercase tracking-wider">{{ 'PLANNED_ACTIVITY_EDIT.COLLAB_NATURE' | translate }}</p>
+          <p class="text-gray-800 mt-0.5">{{ activity()!.collaboration_nature ?? '–' }}</p>
+        </div>
+        <div>
+          <p class="text-gray-500 text-xs uppercase tracking-wider">{{ 'PLANNED_ACTIVITY_EDIT.ORGANIZER' | translate }}</p>
+          <p class="text-gray-800 mt-0.5">{{ activity()!.organizer ?? '–' }}</p>
+        </div>
+        <div>
+          <p class="text-gray-500 text-xs uppercase tracking-wider">{{ 'PLAN_DETAIL.START_YEAR' | translate }}</p>
+          <p class="text-gray-800 mt-0.5">{{ activity()!.start_year != null ? activity()!.start_year : '–' }}</p>
+        </div>
+        <div>
+          <p class="text-gray-500 text-xs uppercase tracking-wider">{{ 'PLAN_DETAIL.EDITION' | translate }}</p>
+          <p class="text-gray-800 mt-0.5">{{ activity()!.edition != null ? activity()!.edition : '–' }}</p>
+        </div>
+        <div>
+          <p class="text-gray-500 text-xs uppercase tracking-wider">{{ 'PLAN_DETAIL.EXTERNAL_PARTNER' | translate }}</p>
+          <p class="text-gray-800 mt-0.5">{{ activity()!.external_partner_name ?? '–' }}</p>
+        </div>
+        <div>
+          <p class="text-gray-500 text-xs uppercase tracking-wider">{{ 'PLANNED_ACTIVITY_EDIT.PLANNED_VOLUNTEERS' | translate }}</p>
+          <p class="text-gray-800 mt-0.5">{{ activity()!.planned_volunteers != null ? activity()!.planned_volunteers : '–' }}</p>
+        </div>
+        <div>
+          <p class="text-gray-500 text-xs uppercase tracking-wider">{{ 'PLANNED_ACTIVITY_EDIT.IMPACT_TARGET' | translate }}</p>
+          <p class="text-gray-800 mt-0.5">{{ activity()!.action_impact_target != null ? activity()!.action_impact_target : '–' }}</p>
+        </div>
+        <div>
+          <p class="text-gray-500 text-xs uppercase tracking-wider">{{ 'PLANNED_ACTIVITY_EDIT.IMPACT_UNIT' | translate }}</p>
+          <p class="text-gray-800 mt-0.5">{{ activity()!.action_impact_unit || '–' }}</p>
+        </div>
+        <div *ngIf="activity()!.is_off_plan" class="md:col-span-2">
+          <p class="text-gray-500 text-xs uppercase tracking-wider">{{ 'PLANNED_ACTIVITY_DETAIL.VALIDATION_MODE' | translate }}</p>
+          <p class="text-gray-800 mt-0.5">{{ validationModeLabel(activity()!.off_plan_validation_mode) }}</p>
         </div>
         <div *ngIf="activity()!.description" class="md:col-span-2">
           <p class="text-gray-500 text-xs uppercase tracking-wider">{{ 'PLANNED_ACTIVITY_DETAIL.DESCRIPTION' | translate }}</p>

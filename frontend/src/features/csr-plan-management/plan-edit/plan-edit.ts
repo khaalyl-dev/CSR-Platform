@@ -35,6 +35,7 @@ export class PlanEditComponent implements OnInit, OnDestroy {
     this.planForm = this.fb.group({
       year: [this.currentYear, [Validators.required, Validators.min(2000), Validators.max(2100)]],
       validation_mode: ['101'],
+      total_budget: [null as number | null],
     });
 
     const id = this.planId();
@@ -45,8 +46,9 @@ export class PlanEditComponent implements OnInit, OnDestroy {
     this.csrPlansApi.get(id).subscribe({
       next: (p) => {
         const plan = p as CsrPlan;
-        if (plan.status !== 'DRAFT' && plan.status !== 'REJECTED') {
-          this.errorMsg = 'Seuls les plans en brouillon ou rejetés peuvent être modifiés.';
+        const isUnlockedValidated = plan.status === 'VALIDATED' && !!plan.unlock_until && new Date(plan.unlock_until) > new Date();
+        if (plan.status !== 'DRAFT' && plan.status !== 'REJECTED' && !isUnlockedValidated) {
+          this.errorMsg = 'Ce plan est verrouillé et ne peut pas être modifié.';
           this.loading = false;
           return;
         }
@@ -54,6 +56,7 @@ export class PlanEditComponent implements OnInit, OnDestroy {
         this.planForm.patchValue({
           year: plan.year,
           validation_mode: plan.validation_mode || '101',
+          total_budget: plan.total_budget ?? null,
         });
         this.loading = false;
         const siteName = plan.site_name ?? plan.site_code ?? plan.site_id ?? 'Plan';
@@ -82,6 +85,7 @@ export class PlanEditComponent implements OnInit, OnDestroy {
     const payload: UpdateCsrPlanPayload = {
       year: Number(raw.year),
       validation_mode: raw.validation_mode === '111' ? '111' : '101',
+      total_budget: raw.total_budget != null && raw.total_budget !== '' ? Number(raw.total_budget) : null,
     };
     this.csrPlansApi.update(p.id, payload).subscribe({
       next: () => {

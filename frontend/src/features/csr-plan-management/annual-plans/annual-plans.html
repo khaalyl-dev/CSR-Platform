@@ -9,7 +9,15 @@
       <h1 class="text-2xl font-bold tracking-tight text-gray-800">{{ 'ANNUAL_PLANS.TITLE' | translate }}</h1>
     </div>
     <div class="flex items-center gap-3 flex-wrap">
-      <label class="bg-brand-900 text-white px-5 py-2.5 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 inline-flex items-center gap-2 cursor-pointer">
+      <label
+        class="bg-brand-900 text-white px-5 py-2.5 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 inline-flex items-center gap-2 cursor-pointer"
+        [class.ring-2]="importDragOver()"
+        [class.ring-amber-300]="importDragOver()"
+        [class.ring-offset-2]="importDragOver()"
+        (dragover)="onImportDragOver($event)"
+        (dragleave)="onImportDragLeave()"
+        (drop)="onImportDrop($event)"
+      >
         <input type="file" accept=".xlsx" class="hidden" (change)="onImportFile($event)" [disabled]="importLoading()" />
         <span *ngIf="!importLoading()"><i class="fas fa-file-excel mr-1"></i> {{ 'ANNUAL_PLANS.IMPORT_EXCEL' | translate }}</span>
         <span *ngIf="importLoading()"><i class="fas fa-spinner fa-spin mr-1"></i> {{ 'ANNUAL_PLANS.IMPORTING' | translate }}</span>
@@ -42,9 +50,16 @@
       <div class="flex-1 min-h-0 overflow-y-auto px-6 pb-4">
         <div *ngIf="importStep() === 0">
         <div class="overflow-x-auto border border-gray-200 rounded-xl import-preview-table" [class.import-table-readonly]="!canEditImportTable()">
-          <table class="w-full text-sm min-w-[1800px]">
+          <table class="w-full text-sm min-w-[1860px]">
             <thead class="bg-gray-50">
               <tr>
+                <th class="p-2 text-center text-gray-600 font-semibold whitespace-nowrap">
+                  <input type="checkbox"
+                    [checked]="isAllImportRowsSelected()"
+                    [indeterminate]="isSomeImportRowsSelected()"
+                    (change)="toggleSelectAllImportRows()"
+                    class="rounded border-gray-300 text-slate-700 focus:ring-brand-700 w-4 h-4" />
+                </th>
                 <th (click)="sortByImportColumn('activity_number')" class="p-2 text-left text-gray-600 font-semibold whitespace-nowrap cursor-pointer hover:bg-gray-100 transition select-none">
                   <div class="flex items-center gap-1"><span>{{ 'ANNUAL_PLANS.MODAL.ACTIVITY_N' | translate }}</span><span class="text-xs" [class.opacity-0]="importSortColumn() !== 'activity_number'">{{ importSortDirection() === 'asc' ? '↑' : '↓' }}</span></div>
                 </th>
@@ -65,9 +80,6 @@
                 </th>
                 <th (click)="sortByImportColumn('collaboration_nature')" class="p-2 text-left text-gray-600 font-semibold whitespace-nowrap cursor-pointer hover:bg-gray-100 transition select-none">
                   <div class="flex items-center gap-1"><span>{{ 'ANNUAL_PLANS.MODAL.COLLABORATION_NATURE' | translate }}</span><span class="text-xs" [class.opacity-0]="importSortColumn() !== 'collaboration_nature'">{{ importSortDirection() === 'asc' ? '↑' : '↓' }}</span></div>
-                </th>
-                <th (click)="sortByImportColumn('year')" class="p-2 text-left text-gray-600 font-semibold whitespace-nowrap cursor-pointer hover:bg-gray-100 transition select-none">
-                  <div class="flex items-center gap-1"><span>{{ 'ANNUAL_PLANS.TABLE.YEAR' | translate }}</span><span class="text-xs" [class.opacity-0]="importSortColumn() !== 'year'">{{ importSortDirection() === 'asc' ? '↑' : '↓' }}</span></div>
                 </th>
                 <th (click)="sortByImportColumn('start_year')" class="p-2 text-left text-gray-600 font-semibold whitespace-nowrap cursor-pointer hover:bg-gray-100 transition select-none">
                   <div class="flex items-center gap-1"><span>{{ 'ANNUAL_PLANS.MODAL.START_YEAR' | translate }}</span><span class="text-xs" [class.opacity-0]="importSortColumn() !== 'start_year'">{{ importSortDirection() === 'asc' ? '↑' : '↓' }}</span></div>
@@ -110,10 +122,20 @@
             <tbody>
               <ng-container *ngIf="sortedImportRows() as sorted">
               <tr *ngFor="let row of sorted.rows; let i = index; trackBy: trackByImportOriginalIndex"
+                [attr.data-import-row-index]="row.__originalIndex"
                 class="border-t border-gray-100 transition-colors"
                 [class.bg-red-100]="hasImportConflictOrWarning(row.__originalIndex)"
                 [class.hover:bg-red-200]="hasImportConflictOrWarning(row.__originalIndex)"
-                [class.hover:bg-gray-50/50]="!hasImportConflictOrWarning(row.__originalIndex)">
+                [class.hover:bg-gray-50/50]="!hasImportConflictOrWarning(row.__originalIndex)"
+                [class.ring-2]="importFocusedRowIndex() === row.__originalIndex"
+                [class.ring-brand-700]="importFocusedRowIndex() === row.__originalIndex"
+                [class.ring-offset-2]="importFocusedRowIndex() === row.__originalIndex">
+                <td class="p-2 text-center" (click)="$event.stopPropagation()">
+                  <input type="checkbox"
+                    [checked]="selectedImportRowIndices().has(row.__originalIndex)"
+                    (change)="toggleSelectImportRow(row.__originalIndex)"
+                    class="rounded border-gray-300 text-slate-700 focus:ring-brand-700 w-4 h-4" />
+                </td>
                 <td class="p-2"><input type="text" [disabled]="!canEditImportTable()" [class.bg-transparent]="!canEditImportTable()" [value]="row.activity_number ?? ''" (input)="updateImportRow(row.__originalIndex, 'activity_number', $any($event.target).value)"
                   class="w-full min-w-[70px] px-2 py-1.5 rounded-lg text-gray-700 text-sm border-0 focus:ring-2 focus:ring-emerald-500 focus:outline-none import-preview-input" /></td>
                 <td class="p-2"><input type="text" [disabled]="!canEditImportTable()" [class.bg-transparent]="!canEditImportTable()" [value]="row.region ?? ''" (input)="updateImportRow(row.__originalIndex, 'region', $any($event.target).value)"
@@ -128,8 +150,6 @@
                   class="w-full min-w-[90px] px-2 py-1.5 rounded-lg text-gray-700 text-sm border-0 focus:ring-2 focus:ring-emerald-500 focus:outline-none import-preview-input" /></td>
                 <td class="p-2"><input type="text" [disabled]="!canEditImportTable()" [class.bg-transparent]="!canEditImportTable()" [value]="row.collaboration_nature ?? ''" (input)="updateImportRow(row.__originalIndex, 'collaboration_nature', $any($event.target).value)"
                   class="w-full min-w-[90px] px-2 py-1.5 rounded-lg text-gray-700 text-sm border-0 focus:ring-2 focus:ring-emerald-500 focus:outline-none import-preview-input" /></td>
-                <td class="p-2"><input type="text" [disabled]="!canEditImportTable()" [class.bg-transparent]="!canEditImportTable()" [value]="row.year ?? ''" (input)="updateImportRow(row.__originalIndex, 'year', $any($event.target).value)"
-                  class="w-full min-w-[60px] px-2 py-1.5 rounded-lg text-gray-700 text-sm border-0 focus:ring-2 focus:ring-emerald-500 focus:outline-none import-preview-input" /></td>
                 <td class="p-2"><input type="text" [disabled]="!canEditImportTable()" [class.bg-transparent]="!canEditImportTable()" [value]="row.start_year ?? ''" (input)="updateImportRow(row.__originalIndex, 'start_year', $any($event.target).value)"
                   class="w-full min-w-[70px] px-2 py-1.5 rounded-lg text-gray-700 text-sm border-0 focus:ring-2 focus:ring-emerald-500 focus:outline-none import-preview-input" /></td>
                 <td class="p-2"><input type="text" [disabled]="!canEditImportTable()" [class.bg-transparent]="!canEditImportTable()" [value]="row.edition ?? ''" (input)="updateImportRow(row.__originalIndex, 'edition', $any($event.target).value)"
@@ -157,7 +177,7 @@
               </tr>
               </ng-container>
               <tr *ngIf="!importRows().length" class="border-t border-gray-100">
-                <td colspan="19" class="p-4 text-center text-gray-500">{{ 'ANNUAL_PLANS.MODAL.NO_ROWS' | translate }}</td>
+                <td colspan="20" class="p-4 text-center text-gray-500">{{ 'ANNUAL_PLANS.MODAL.NO_ROWS' | translate }}</td>
               </tr>
             </tbody>
           </table>
@@ -193,14 +213,37 @@
         </div>
       </div>
       <div class="flex flex-wrap items-center justify-end gap-3 p-6 border-t border-gray-100">
-        <div class="flex-1 min-w-0 mr-2 space-y-2">
-          <div *ngIf="importPreviewErrors().length" class="p-3 text-amber-800 text-sm">
-            <p class="font-medium">{{ 'ANNUAL_PLANS.MODAL.WARNINGS' | translate:{ n: importPreviewErrors().length } }}</p>
-            <div class="mt-1 max-h-10 overflow-y-auto space-y-0.5 text-xs whitespace-pre-wrap"><div *ngFor="let err of importPreviewErrors()">{{ formatImportError(err) }}</div></div>
-          </div>
-          <div *ngIf="importConflicts().length" class="text-sm text-gray-700">
-            <p class="font-medium">{{ 'ANNUAL_PLANS.MODAL.CONFLICT_MESSAGE' | translate:{ n: importConflicts().length } }}</p>
-            <p class="mt-0.5">{{ 'ANNUAL_PLANS.MODAL.CONFLICT_CHOOSE' | translate }}</p>
+        <div class="flex-1 min-w-0 mr-2">
+          <div *ngIf="importPreviewErrors().length || importDuplicateGroups().length"
+            class="p-3 border border-gray-200 rounded-xl bg-white text-sm">
+            <div class="flex flex-wrap items-center justify-between gap-2">
+              <p class="font-semibold text-gray-800">
+                {{ 'ANNUAL_PLANS.MODAL.ISSUES_TITLE' | translate }}
+              </p>
+              <div class="flex items-center gap-2 text-xs">
+                <span *ngIf="importPreviewErrors().length"
+                  class="px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 border border-amber-200">
+                  {{ issuesWarningsBadgeText() }}
+                </span>
+                <span *ngIf="importDuplicateGroups().length"
+                  class="px-2 py-0.5 rounded-full bg-red-100 text-red-800 border border-red-200">
+                  {{ issuesDuplicatesBadgeText() }}
+                </span>
+              </div>
+            </div>
+
+            <!-- Warnings -->
+            <!-- Merged issues list (warnings + duplicates) -->
+            <div class="mt-3">
+              <div class="max-h-24 overflow-y-auto space-y-1 text-xs text-gray-800">
+                <button *ngFor="let it of mergedIssuesList()" type="button"
+                  class="w-full text-left whitespace-pre-wrap cursor-pointer hover:bg-gray-50 rounded-md px-1 py-0.5 transition"
+                  (click)="focusImportRowByExcelLine(it.firstExcelLine)">
+                  {{ it.text }}
+                </button>
+              </div>
+           
+            </div>
           </div>
         </div>
         <div class="flex flex-wrap gap-3">
@@ -209,21 +252,26 @@
             class="px-5 py-2.5 rounded-xl border border-gray-300 text-gray-700 hover:bg-gray-50 font-medium transition text-sm">
             {{ 'COMMON.CANCEL' | translate }}
           </button>
-          <ng-container *ngIf="!importConflicts().length">
+          <button type="button" (click)="deleteSelectedImportRows()"
+            [disabled]="selectedImportCount() === 0"
+            class="px-5 py-2.5 rounded-xl border border-red-200 text-red-700 hover:bg-red-50 font-medium transition text-sm disabled:opacity-50 disabled:cursor-not-allowed">
+            {{ 'COMMON.DELETE' | translate }} ({{ selectedImportCount() }})
+          </button>
+          <ng-container *ngIf="!importHasDuplicates() || importDuplicateStrategy()">
             <button type="button" (click)="goToNextImportStep()" [disabled]="!importRequiredValid() || importValidateLoading()"
               class="px-6 py-2.5 rounded-xl bg-brand-900 hover:bg-brand-800 text-white font-semibold transition text-sm disabled:opacity-50 disabled:cursor-not-allowed">
               <span *ngIf="!importValidateLoading()">{{ 'COMMON.NEXT' | translate }}</span>
               <span *ngIf="importValidateLoading()"><i class="fas fa-spinner fa-spin mr-1"></i> {{ 'COMMON.NEXT' | translate }}</span>
             </button>
           </ng-container>
-          <ng-container *ngIf="importConflicts().length">
-            <button type="button" (click)="resolveConflictsOverwrite()" [disabled]="importLoading() || !importRequiredValid() || importPreviewErrors().length"
-              class="px-5 py-2.5 rounded-xl border border-gray-300 text-gray-700 hover:bg-gray-50 font-medium transition text-sm disabled:opacity-50 disabled:cursor-not-allowed">
-              {{ 'ANNUAL_PLANS.MODAL.OVERWRITE_EXISTING' | translate }}
-            </button>
-            <button type="button" (click)="resolveConflictsChangeNumbers()" [disabled]="importLoading() || !importRequiredValid() || importPreviewErrors().length"
+          <ng-container *ngIf="importHasDuplicates() && !importDuplicateStrategy()">
+            <button type="button" (click)="chooseDuplicateStrategy('delete')" [disabled]="importLoading() || !importRequiredValid() || importPreviewErrors().length"
               class="px-6 py-2.5 rounded-xl bg-brand-900 hover:bg-brand-800 text-white font-semibold transition text-sm disabled:opacity-50 disabled:cursor-not-allowed">
-              {{ 'ANNUAL_PLANS.MODAL.CHANGE_ACTIVITY_NUMBERS' | translate }}
+              {{ 'ANNUAL_PLANS.MODAL.DELETE_DUPLICATES' | translate }}
+            </button>
+            <button type="button" (click)="chooseDuplicateStrategy('ignore')" [disabled]="importLoading() || !importRequiredValid() || importPreviewErrors().length"
+              class="px-5 py-2.5 rounded-xl border border-gray-300 text-gray-700 hover:bg-gray-50 font-medium transition text-sm disabled:opacity-50 disabled:cursor-not-allowed">
+              {{ 'ANNUAL_PLANS.MODAL.IGNORE_DUPLICATES' | translate }}
             </button>
           </ng-container>
         </ng-container>
@@ -232,7 +280,8 @@
             class="px-5 py-2.5 rounded-xl border border-gray-300 text-gray-700 hover:bg-gray-50 font-medium transition text-sm">
             {{ 'COMMON.BACK' | translate }}
           </button>
-          <button type="button" (click)="confirmImport()" [disabled]="importLoading() || !importPlansWithModes().length || !importRequiredValid() || importPreviewErrors().length"
+          <button type="button" (click)="confirmImport()"
+            [disabled]="importLoading() || !importPlansWithModes().length || !importRequiredValid() || importPreviewErrors().length || (importHasDuplicates() && !importDuplicateStrategy())"
             class="px-6 py-2.5 rounded-xl bg-brand-900 hover:bg-brand-800 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold transition text-sm">
             <span *ngIf="!importLoading()">{{ 'ANNUAL_PLANS.IMPORT' | translate }}</span>
             <span *ngIf="importLoading()"><i class="fas fa-spinner fa-spin mr-1"></i> {{ 'ANNUAL_PLANS.IMPORTING' | translate }}</span>
@@ -241,22 +290,6 @@
         </div>
       </div>
     </div>
-  </div>
-
-  <!-- Import result message -->
-  <div *ngIf="importResult() as result"
-    class="rounded-xl border p-4 flex items-start justify-between gap-4"
-    [class.bg-green-50]="result.success"
-    [class.border-green-200]="result.success"
-    [class.bg-red-50]="!result.success"
-    [class.border-red-200]="!result.success">
-    <div class="min-w-0">
-      <p [class.text-green-800]="result.success" [class.text-red-800]="!result.success" class="font-medium">{{ result.message }}</p>
-      <pre *ngIf="result.details" class="mt-2 text-sm whitespace-pre-wrap break-words" [class.text-green-700]="result.success" [class.text-red-700]="!result.success">{{ result.details }}</pre>
-    </div>
-    <button type="button" (click)="clearImportResult()" class="text-gray-500 hover:text-gray-700 shrink-0">
-      <i class="fas fa-times"></i>
-    </button>
   </div>
 
   <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -495,13 +528,21 @@
   [style.left.px]="menuPosition.left"
   (click)="$event.stopPropagation()">
 
+  <button *ngIf="isPlanEditable(activeMenuPlan!)" (click)="openEditSidebar(activeMenuPlan!); $event.stopPropagation()"
+    class="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors">
+    <i class="fas fa-pen-to-square text-gray-500 w-4 text-center"></i>
+    {{ 'COMMON.EDIT' | translate }}
+  </button>
+
+  <div *ngIf="isPlanEditable(activeMenuPlan!) && canSubmitFromList(activeMenuPlan!)" class="border-t border-gray-100 my-1"></div>
+
   <button *ngIf="canSubmitFromList(activeMenuPlan!)" (click)="submitFromMenu(activeMenuPlan!)"
     class="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors">
     <i class="fas fa-paper-plane text-brand-700 w-4 text-center"></i>
     {{ 'ANNUAL_PLANS.ACTIONS.SUBMIT' | translate }}
   </button>
 
-  <div *ngIf="canSubmitFromList(activeMenuPlan!) && (activeMenuPlan!.status === 'DRAFT' || activeMenuPlan!.status === 'REJECTED')" class="border-t border-gray-100 my-1"></div>
+  <div *ngIf="(isPlanEditable(activeMenuPlan!) || canSubmitFromList(activeMenuPlan!)) && (activeMenuPlan!.status === 'DRAFT' || activeMenuPlan!.status === 'REJECTED')" class="border-t border-gray-100 my-1"></div>
 
   <button *ngIf="activeMenuPlan!.status === 'DRAFT' || activeMenuPlan!.status === 'REJECTED'" (click)="deleteFromMenu(activeMenuPlan!)"
     class="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 transition-colors">
@@ -509,6 +550,33 @@
     {{ 'ANNUAL_PLANS.ACTIONS.DELETE' | translate }}
   </button>
 
+</div>
+
+<!-- Confirmation modal (replaces browser confirm popup) -->
+<div *ngIf="confirmOpen()"
+  class="fixed inset-0 z-[10000] flex items-center justify-center bg-black/50 !mt-0"
+  (click)="closeConfirm()"
+  role="dialog"
+  aria-modal="true">
+  <div class="relative z-[10001] bg-white rounded-2xl shadow-xl border border-gray-200 w-full max-w-md overflow-hidden"
+    (click)="$event.stopPropagation()">
+    <div class="p-6 border-b border-gray-100">
+      <h2 class="text-lg font-semibold text-gray-800">{{ confirmTitle() }}</h2>
+      <p class="text-gray-600 text-sm mt-2 whitespace-pre-wrap">{{ confirmMessage() }}</p>
+    </div>
+    <div class="p-4 flex items-center justify-end gap-3 bg-gray-50">
+      <button type="button"
+        class="px-4 py-2 rounded-xl border border-gray-300 text-gray-700 hover:bg-gray-100 transition"
+        (click)="closeConfirm()">
+        {{ 'COMMON.CANCEL' | translate }}
+      </button>
+      <button type="button"
+        class="px-4 py-2 rounded-xl bg-brand-900 text-white hover:opacity-90 transition"
+        (click)="runConfirm()">
+        {{ confirmButtonLabel() }}
+      </button>
+    </div>
+  </div>
 </div>
 
 <!-- Plan create sidebar (slide from right) -->
@@ -522,5 +590,20 @@
       (closed)="closeCreateSidebar()"
       (created)="onPlanCreated()">
     </app-plan-create-sidebar>
+  </aside>
+</div>
+
+<!-- Plan edit sidebar (slide from right) -->
+<div *ngIf="showEditSidebar() && editSidebarPlan()"
+  class="fixed inset-0 z-50 flex"
+  (click)="closeEditSidebar()">
+  <div class="flex-1 bg-black/40 transition-opacity" aria-hidden="true"></div>
+  <aside class="w-full max-w-md bg-white shadow-2xl flex flex-col h-full animate-slide-in-right"
+    (click)="$event.stopPropagation()">
+    <app-plan-edit-sidebar
+      [plan]="editSidebarPlan()!"
+      (closed)="closeEditSidebar()"
+      (updated)="onPlanUpdated()">
+    </app-plan-edit-sidebar>
   </aside>
 </div>

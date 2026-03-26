@@ -7,6 +7,7 @@ from typing import List, Optional
 
 from flask import Blueprint, request, jsonify
 from sqlalchemy import func, distinct
+from sqlalchemy.orm import joinedload
 
 from core import db, token_required, role_required
 from models import (
@@ -17,6 +18,10 @@ from models import (
     Site,
     UserSite,
     ChangeRequest,
+)
+from features.change_request_management.change_requests_routes import (
+    _in_plan_mod_awaits_corporate_validation,
+    _off_plan_awaits_corporate_validation,
 )
 
 
@@ -575,12 +580,24 @@ def dashboard_notifications():
         else:
             cr_q = cr_q.filter(False)
     pending_count = cr_q.count()
+    if role in ("CORPORATE_USER", "CORPORATE"):
+        off_acts = CsrActivity.query.filter(
+            CsrActivity.is_off_plan.is_(True),
+            CsrActivity.status == "SUBMITTED",
+        ).all()
+        pending_count += sum(1 for a in off_acts if _off_plan_awaits_corporate_validation(a))
+        in_mod_acts = (
+            CsrActivity.query.options(joinedload(CsrActivity.plan))
+            .filter(CsrActivity.is_off_plan.is_(False), CsrActivity.status == "SUBMITTED")
+            .all()
+        )
+        pending_count += sum(1 for a in in_mod_acts if _in_plan_mod_awaits_corporate_validation(a))
     if pending_count > 0:
         notifications.append({
             "id": "change_request",
             "type": "change_request",
             "title": "Change requests pending",
-            "message": f"{pending_count} change request(s) awaiting approval",
+            "message": f"{pending_count} item(s) awaiting corporate review (change requests and/or off-plan activities)",
             "count": pending_count,
             "link": "/changes/pending",
         })

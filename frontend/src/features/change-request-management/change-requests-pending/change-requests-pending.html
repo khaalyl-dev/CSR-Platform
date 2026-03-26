@@ -1,6 +1,7 @@
 <div class="p-8 bg-gray-50 min-h-screen">
   <div class="mb-6">
     <h1 class="text-2xl font-bold tracking-tight text-gray-800">{{ 'CHANGE_REQUEST.PENDING_TITLE' | translate }}</h1>
+    <p class="text-gray-600 text-sm mt-1">{{ 'CHANGE_REQUEST.PENDING_SUBTITLE' | translate }}</p>
   </div>
 
   <div *ngIf="loading()" class="text-center py-12 text-gray-500">{{ 'CHANGE_REQUEST.LOADING' | translate }}</div>
@@ -13,6 +14,7 @@
     <table class="w-full text-sm">
       <thead class="bg-gray-50 text-gray-600 uppercase text-xs">
         <tr>
+          <th class="p-4 text-left">{{ 'CHANGE_REQUEST.TYPE' | translate }}</th>
           <th class="p-4 text-left">{{ 'CHANGE_REQUEST.PLAN_YEAR' | translate }}</th>
           <th class="p-4 text-left">{{ 'CHANGE_REQUEST.REQUESTER' | translate }}</th>
           <th class="p-4 text-left">{{ 'CHANGE_REQUEST.JUSTIFICATION' | translate }}</th>
@@ -22,26 +24,35 @@
       </thead>
       <tbody>
         <tr *ngFor="let r of requests()" class="border-t hover:bg-gray-50">
+          <td class="p-4 align-top">
+            <span *ngIf="!isOffPlanRow(r) && r.pending_item_type !== 'IN_PLAN_ACTIVITY_MOD'" class="text-gray-700 text-xs font-medium uppercase tracking-wide">{{ 'CHANGE_REQUEST.TYPE_CHANGE_REQUEST' | translate }}</span>
+            <span *ngIf="isOffPlanRow(r)" class="text-gray-700 text-xs font-medium uppercase tracking-wide">{{ 'CHANGE_REQUEST.TYPE_OFF_PLAN' | translate }}</span>
+            <span *ngIf="r.pending_item_type === 'IN_PLAN_ACTIVITY_MOD'" class="text-gray-700 text-xs font-medium uppercase tracking-wide">{{ 'CHANGE_REQUEST.TYPE_IN_PLAN_MOD' | translate }}</span>
+          </td>
           <td class="p-4 font-medium">
-            <a [routerLink]="['/csr-plans', r.entity_type === 'ACTIVITY' && r.plan_id ? r.plan_id : r.entity_id]" class="text-brand-700 hover:underline">
+            <a [routerLink]="['/csr-plans', planLinkId(r)]" class="text-brand-700 hover:underline">
               {{ r.plan_site_name ?? r.site_name ?? r.site_id }} – {{ r.plan_year ?? r.year }}
-              <ng-container *ngIf="r.entity_type === 'ACTIVITY' && (r.activity_number || r.activity_title)"> ({{ r.activity_number }} – {{ r.activity_title }})</ng-container>
+              <ng-container *ngIf="(r.entity_type === 'ACTIVITY' || isOffPlanRow(r)) && (r.activity_number || r.activity_title)"> ({{ r.activity_number }} – {{ r.activity_title }})</ng-container>
             </a>
           </td>
           <td class="p-4 text-gray-600">{{ r.requested_by_name ?? '–' }}</td>
-          <td class="p-4 text-gray-600 max-w-md truncate">{{ r.reason }}</td>
-          <td class="p-4 text-gray-500">{{ r.created_at | date:'short' }}</td>
+          <td class="p-4 text-gray-600 max-w-md truncate" [title]="r.reason">{{ r.reason }}</td>
+          <td class="p-4 text-gray-500 whitespace-nowrap">{{ r.created_at | date:'short' }}</td>
           <td class="p-4 text-right">
-            <div class="flex justify-end gap-2">
-            <a [routerLink]="['/changes', r.id]"
+            <div class="flex flex-wrap justify-end gap-2">
+            <a *ngIf="!isOffPlanRow(r) && r.id" [routerLink]="['/changes', r.id]"
               class="px-3 py-1.5 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg">
               {{ 'CHANGE_REQUEST.DETAILS' | translate }}
             </a>
-            <button type="button" (click)="approve(r.id)" [disabled]="actionLoading() === r.id"
+            <a *ngIf="(isOffPlanRow(r) || r.pending_item_type === 'IN_PLAN_ACTIVITY_MOD') && r.plan_id" [routerLink]="['/csr-plans', r.plan_id]"
+              class="px-3 py-1.5 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg">
+              {{ 'CHANGE_REQUEST.VIEW_PLAN' | translate }}
+            </a>
+            <button type="button" (click)="approve(r)" [disabled]="actionLoading() === rowActionKey(r)"
               class="px-3 py-1.5 text-sm font-medium text-white bg-brand-900 hover:opacity-90 rounded-lg disabled:opacity-50">
               {{ 'CHANGE_REQUEST.APPROVE' | translate }}
             </button>
-            <button type="button" (click)="reject(r.id)" [disabled]="actionLoading() === r.id"
+            <button type="button" (click)="reject(r)" [disabled]="actionLoading() === rowActionKey(r)"
               class="px-3 py-1.5 text-sm font-medium bg-white text-brand-900 border border-brand-900 rounded-lg disabled:opacity-50">
               {{ 'CHANGE_REQUEST.REJECT' | translate }}
             </button>

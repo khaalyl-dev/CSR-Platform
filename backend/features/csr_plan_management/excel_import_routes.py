@@ -13,7 +13,7 @@ from flask import Blueprint, request, jsonify
 
 from core import db, token_required
 from models import CsrPlan, CsrActivity, RealizedCsr, Site, Category, ExternalPartner, UserSite, Document, User
-from .excel_import import parse_excel_rows
+from .excel_import import parse_excel_rows, validate_rows_values
 
 # Same media root as file_management so downloads work (project root/frontend/src/media)
 MEDIA_FOLDER = os.path.join(
@@ -208,9 +208,13 @@ def _collect_plan_keys_from_rows(rows, site_id_override, year_override, role, us
             errors.append(f"Activity {row_num}: accès refusé au site {site.name or site_id}")
             continue
         if year is None:
-            y = row.get("year")
-            if y is not None and y != "":
-                year = _safe_int(y)
+            sy = row.get("start_year")
+            if sy is not None and sy != "":
+                year = _safe_int(sy)
+            if year is None:
+                y = row.get("year")
+                if y is not None and y != "":
+                    year = _safe_int(y)
             if year is None and year_override is not None:
                 year = year_override
             if year is None:
@@ -259,11 +263,16 @@ def import_excel_preview():
         with tempfile.NamedTemporaryFile(delete=False, suffix=".xlsx") as tmp:
             f.save(tmp.name)
             tmp_path = tmp.name
-        rows, parse_errors = parse_excel_rows(tmp_path)
-        if parse_errors:
-            return jsonify({"message": "Erreurs lors de la lecture du fichier", "errors": parse_errors}), 400
+        rows, structure_errors, row_errors = parse_excel_rows(tmp_path)
+        if structure_errors:
+            return jsonify({"message": "Erreurs lors de la lecture du fichier", "errors": structure_errors}), 400
         if not rows:
-            return jsonify({"message": "Aucune ligne de données trouvée", "plans": [], "errors": []}), 200
+            return jsonify({
+                "message": "Aucune ligne de données trouvée",
+                "plans": [],
+                "rows": [],
+                "errors": row_errors[:50],
+            }), 200
         site_cache = _build_site_cache()
         known_regions, known_countries = _build_region_country_sets()
         if site_id_override:
@@ -274,10 +283,46 @@ def import_excel_preview():
                 return jsonify({"message": "Vous n'avez pas accès à ce site"}), 403
         if year_override is not None and (year_override < 2000 or year_override > 2100):
             return jsonify({"message": "Année invalide"}), 400
-        plans, errors = _collect_plan_keys_from_rows(rows, site_id_override, year_override, role, user_id, site_cache, known_regions, known_countries)
+
+        # For SITE users: keep only accessible rows in preview table,
+        # but report inaccessible sites in errors.
+        denied_access_errors = []
+        denied_sites_seen = set()
+        if role in ("SITE_USER", "SITE") and not site_id_override:
+            filtered = []
+            for r in rows:
+                site_val = r.get("site")
+                if not site_val:
+                    filtered.append(r)
+                    continue
+                site_obj = _resolve_site_cached(str(site_val), site_cache)
+                if not site_obj:
+                    filtered.append(r)
+                    continue
+                if _user_can_access_site(user_id, site_obj.id):
+                    filtered.append(r)
+                else:
+                    site_label = str(site_obj.name or site_val).strip()
+                    key = site_label.lower()
+                    if key and key not in denied_sites_seen:
+                        denied_sites_seen.add(key)
+                        denied_access_errors.append(f"accès refusé au site {site_label}")
+            rows = filtered
+            if not rows:
+                return jsonify({
+                    "message": "Aucune ligne accessible trouvée pour vos sites",
+                    "plans": [],
+                    "rows": [],
+                    "errors": denied_access_errors[:50],
+                }), 200
+
+        plans, errors = _collect_plan_keys_from_rows(
+            rows, site_id_override, year_override, role, user_id, site_cache, known_regions, known_countries
+        )
+        all_errors = (row_errors or []) + (denied_access_errors or []) + (errors or [])
         # Convert rows to JSON-safe dicts for editable preview
         rows_safe = [_row_to_json_safe(r) for r in rows]
-        return jsonify({"plans": plans, "rows": rows_safe, "errors": errors}), 200
+        return jsonify({"plans": plans, "rows": rows_safe, "errors": all_errors}), 200
     finally:
         if tmp_path and os.path.exists(tmp_path):
             try:
@@ -330,9 +375,13 @@ def _check_row_conflicts(rows, site_id_override, year_override, role, user_id, s
         if role in ("SITE_USER", "SITE") and not _user_can_access_site(user_id, site_id):
             continue
         if year is None:
-            y = row.get("year")
-            if y is not None and y != "":
-                year = _safe_int(y)
+            sy = row.get("start_year")
+            if sy is not None and sy != "":
+                year = _safe_int(sy)
+            if year is None:
+                y = row.get("year")
+                if y is not None and y != "":
+                    year = _safe_int(y)
             if year is None and year_override is not None:
                 year = year_override
             if year is None:
@@ -342,7 +391,9 @@ def _check_row_conflicts(rows, site_id_override, year_override, role, user_id, s
         plan = CsrPlan.query.filter_by(site_id=site_id, year=year).first()
         if not plan:
             continue
-        activity_number = _safe_str(row.get("activity_number") or row.get("title")) or f"CSR-{i + 2}"
+        activity_number = _safe_str(row.get("activity_number"))
+        if not activity_number:
+            continue
         existing = CsrActivity.query.filter_by(plan_id=plan.id, activity_number=activity_number).first()
         if existing:
             plan_key = (site_id, year)
@@ -416,7 +467,9 @@ def import_validate_rows():
     _, errors = _collect_plan_keys_from_rows(
         rows, None, None, role, user_id, site_cache, known_regions, known_countries
     )
-    return jsonify({"errors": errors}), 200
+    row_type_errors = validate_rows_values(rows)
+    all_errors = (row_type_errors or []) + (errors or [])
+    return jsonify({"errors": all_errors}), 200
 
 
 @bp.post("/import-excel")
@@ -486,6 +539,10 @@ def import_excel():
         except (TypeError, ValueError, KeyError):
             rows = None
 
+    duplicate_strategy = (request.form.get("duplicate_strategy") or "overwrite").strip().lower()
+    if duplicate_strategy not in ("delete", "ignore", "overwrite"):
+        duplicate_strategy = "overwrite"
+
     tmp_path = None
     try:
         with tempfile.NamedTemporaryFile(delete=False, suffix=".xlsx") as tmp:
@@ -493,15 +550,27 @@ def import_excel():
             tmp_path = tmp.name
 
         if rows is None:
-            rows, parse_errors = parse_excel_rows(tmp_path)
-            if parse_errors:
+            rows, structure_errors, row_errors = parse_excel_rows(tmp_path)
+            if structure_errors:
                 return jsonify({
                     "message": "Erreurs lors de la lecture du fichier",
-                    "errors": parse_errors,
+                    "errors": structure_errors,
+                }), 400
+            if row_errors:
+                return jsonify({
+                    "message": "Erreurs de validation du fichier",
+                    "errors": row_errors,
                 }), 400
 
         if not rows:
             return jsonify({"message": "Aucune ligne de données trouvée dans le fichier"}), 400
+
+        validation_errors = validate_rows_values(rows or [])
+        if validation_errors:
+            return jsonify({
+                "message": "Erreurs de validation (aperçu)",
+                "errors": validation_errors[:50],
+            }), 400
 
         # Save uploaded file to media folder for later download
         original_filename = (f.filename or "import.xlsx").strip()
@@ -539,6 +608,7 @@ def import_excel():
         external_partner_cache = {}  # name_lower -> ExternalPartner
         created_partners = {}
         activity_numbers_cache = {}  # plan_id -> {activity_number -> activity}
+        excel_seen_keys = set() if duplicate_strategy in ("delete", "ignore") else None
 
         for i, row in enumerate(rows):
             row_num = i + 2  # 1-based + header
@@ -579,9 +649,13 @@ def import_excel():
                 continue
 
             if year is None:
-                y = row.get("year")
-                if y is not None and y != "":
-                    year = _safe_int(y)
+                sy = row.get("start_year")
+                if sy is not None and sy != "":
+                    year = _safe_int(sy)
+                if year is None:
+                    y = row.get("year")
+                    if y is not None and y != "":
+                        year = _safe_int(y)
                 if year is None and year_override is not None:
                     year = year_override
                 if year is None:
@@ -616,31 +690,39 @@ def import_excel():
                 errors.append(f"Activity {row_num}: impossible de créer la catégorie")
                 continue
 
-            activity_number = _safe_str(row.get("activity_number") or row.get("title")) or f"CSR-{row_num}"
-            title = _safe_str(row.get("title"), 255) or _safe_str(row.get("activity_number"), 255) or f"Activité {row_num}"
+            activity_number = _safe_str(row.get("activity_number"))
+            if not activity_number:
+                errors.append(f"Activity {row_num}: activity_number manquant")
+                continue
+            title = _safe_str(row.get("title"), 255)
+            if not title:
+                errors.append(f"Activity {row_num}: titre manquant")
+                continue
+
+            # Skip duplicated keys inside the Excel file for delete/ignore modes.
+            # Key is aligned with DB unique constraint: (plan_id, activity_number).
+            if excel_seen_keys is not None:
+                excel_key = (plan.id, activity_number)
+                if excel_key in excel_seen_keys:
+                    continue
+                excel_seen_keys.add(excel_key)
 
             if plan.id not in activity_numbers_cache:
                 acts = CsrActivity.query.filter_by(plan_id=plan.id).all()
                 activity_numbers_cache[plan.id] = {a.activity_number: a for a in acts}
             existing_act = activity_numbers_cache[plan.id].get(activity_number)
             if existing_act:
-                activity = existing_act
-                # Update planned volunteers, impact target, impact unit, external partner when present in row
-                pv = _safe_int(row.get("planned_volunteers"))
-                it = _safe_float(row.get("impact_target"))
-                iu = _safe_str(row.get("impact_unit"), 100)
-                ep_name = _safe_str(row.get("external_partner"), 255)
-                if pv is not None or it is not None or iu is not None or ep_name is not None:
-                    if pv is not None:
-                        activity.planned_volunteers = pv
-                    if it is not None:
-                        activity.action_impact_target = it
-                    if iu is not None:
-                        activity.action_impact_unit = iu
-                    if ep_name is not None:
-                        ep = _resolve_external_partner_cached(ep_name, external_partner_cache, created_partners)
-                        activity.external_partner_id = ep.id if ep else None
-            else:
+                if duplicate_strategy == "ignore":
+                    continue
+
+                if duplicate_strategy == "delete":
+                    # Remove existing activity so we can recreate it from the import row.
+                    db.session.delete(existing_act)
+                    db.session.flush()
+                    activity_numbers_cache[plan.id].pop(activity_number, None)
+                    existing_act = None
+
+            if not existing_act:
                 collab_raw = _safe_str(row.get("collaboration_nature"), 50)
                 collab = None
                 if collab_raw:
@@ -677,6 +759,23 @@ def import_excel():
                 db.session.flush()
                 activities_created += 1
                 activity_numbers_cache[plan.id][activity_number] = activity
+            else:
+                # overwrite mode: update planned volunteers, impact target, impact unit, external partner.
+                activity = existing_act
+                pv = _safe_int(row.get("planned_volunteers"))
+                it = _safe_float(row.get("impact_target"))
+                iu = _safe_str(row.get("impact_unit"), 100)
+                ep_name = _safe_str(row.get("external_partner"), 255)
+                if pv is not None or it is not None or iu is not None or ep_name is not None:
+                    if pv is not None:
+                        activity.planned_volunteers = pv
+                    if it is not None:
+                        activity.action_impact_target = it
+                    if iu is not None:
+                        activity.action_impact_unit = iu
+                    if ep_name is not None:
+                        ep = _resolve_external_partner_cached(ep_name, external_partner_cache, created_partners)
+                        activity.external_partner_id = ep.id if ep else None
 
             # Optional: realization row (Actual Budget in € or Nbr of internal Participants, etc.)
             real_budget = _safe_float(row.get("realized_budget"))
@@ -684,6 +783,9 @@ def import_excel():
             real_year = _safe_int(row.get("realization_year")) or year
             real_month = _safe_int(row.get("realization_month")) or 1
             impact_actual = _safe_float(row.get("impact_actual"))
+            pe = _safe_float(row.get("percentage_employees"))
+            if pe is not None and 0 < pe <= 1:
+                pe = pe * 100
             if real_budget is not None or participants is not None or impact_actual is not None:
                 rc = RealizedCsr(
                     activity_id=activity.id,
@@ -692,7 +794,7 @@ def import_excel():
                     realized_budget=real_budget,
                     participants=participants,
                     total_hc=_safe_int(row.get("total_hc")),
-                    percentage_employees=_safe_float(row.get("percentage_employees")),
+                    percentage_employees=pe,
                     action_impact_actual=impact_actual,
                     action_impact_unit=_safe_str(row.get("impact_unit"), 100),
                     volunteer_hours=_safe_float(row.get("volunteer_hours")),

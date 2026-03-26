@@ -2,18 +2,25 @@ import { Component, inject, OnInit, OnDestroy, signal, HostListener } from '@ang
 import { CommonModule, Location } from '@angular/common';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { TranslateModule, TranslateService } from '@ngx-translate/core';
-import { CsrPlansApi, CsrPlanDetail } from '../api/csr-plans-api';
+import { CsrPlansApi, CsrPlanDetail, type CsrPlanActivityDetail } from '../api/csr-plans-api';
 import { CsrActivitiesApi } from '@features/realized-activity-management/api/csr-activities-api';
 import { AuthStore } from '@core/services/auth-store';
 import { BreadcrumbService } from '@core/services/breadcrumb.service';
 import { PlannedActivityCreateSidebarComponent } from '../planned-activity-create-sidebar/planned-activity-create-sidebar';
 import { PlannedActivityEditComponent } from '../planned-activity-edit/planned-activity-edit';
-import { RealizedCreateSidebarComponent } from '@features/realized-activity-management/realized-create-sidebar/realized-create-sidebar';
+import { OffPlanActivitySidebarComponent } from '../off-plan-activity-sidebar/off-plan-activity-sidebar';
 
 @Component({
   selector: 'app-plan-detail',
   standalone: true,
-  imports: [CommonModule, RouterModule, TranslateModule, PlannedActivityCreateSidebarComponent, PlannedActivityEditComponent, RealizedCreateSidebarComponent],
+  imports: [
+    CommonModule,
+    RouterModule,
+    TranslateModule,
+    PlannedActivityCreateSidebarComponent,
+    PlannedActivityEditComponent,
+    OffPlanActivitySidebarComponent,
+  ],
   templateUrl: './plan-detail.html'
 })
 export class PlanDetailComponent implements OnInit, OnDestroy {
@@ -46,16 +53,52 @@ export class PlanDetailComponent implements OnInit, OnDestroy {
   activityMenuId = signal<string | null>(null);
   activityMenuPosition = { top: 0, left: 0 };
 
-  // ── Add activity sidebar (planned) ───────────────────────────────────────
+  // ── Add activity : année courante / future (formulaire simple) ──
   showAddActivitySidebar = signal(false);
-  // ── Add realization sidebar (for past-year plans) ────────────────────────
-  showAddRealizationSidebar = signal(false);
+  // ── Année passée : formulaire complet type hors plan → API plan-realized-draft (brouillon, pas hors plan) ──
+  showPastYearRichCreate = signal(false);
+  pastYearRichTitleKey = signal('PLANNED_ACTIVITY_CREATE.REALIZED_YEAR_DRAFT_TITLE');
+  pastYearRichHintKey = signal<string | null>(null);
+  // ── Off-plan activity (bouton dédié uniquement) ──
+  showOffPlanSidebar = signal(false);
   // ── Edit planned activity sidebar ────────────────────────────────────────
   showEditActivitySidebar = signal(false);
   activityIdToEdit = signal<string | null>(null);
 
   // ── Reject modal ────────────────────────────────────────────────────────
   showRejectModal = signal(false);
+
+  /** Off-plan activity reject (separate from plan reject). */
+  showOffPlanRejectModal = signal(false);
+  offPlanRejectActivityId = signal<string | null>(null);
+  offPlanRejectComment = signal('');
+  offPlanRejectError = signal('');
+
+  // ── Confirmation modal (replace window.confirm) ──────────────────────────
+  confirmOpen = signal(false);
+  confirmTitle = signal<string>('');
+  confirmMessage = signal<string>('');
+  confirmButtonLabel = signal<string>('');
+  private confirmAction: (() => void) | null = null;
+
+  openConfirm(options: { title?: string; message: string; confirmLabel?: string; onConfirm: () => void }): void {
+    this.confirmTitle.set(options.title ?? this.translate.instant('COMMON.CONFIRM'));
+    this.confirmMessage.set(options.message);
+    this.confirmButtonLabel.set(options.confirmLabel ?? this.translate.instant('COMMON.CONFIRM'));
+    this.confirmAction = options.onConfirm;
+    this.confirmOpen.set(true);
+  }
+
+  closeConfirm(): void {
+    this.confirmOpen.set(false);
+    this.confirmAction = null;
+  }
+
+  runConfirm(): void {
+    const fn = this.confirmAction;
+    this.closeConfirm();
+    try { fn?.(); } catch {}
+  }
   rejectComment = signal('');
   rejectActivityIds = signal<string[]>([]);
   rejectModalError = signal('');
@@ -66,6 +109,31 @@ export class PlanDetailComponent implements OnInit, OnDestroy {
 
   get canReject(): boolean {
     return this.plan()?.can_reject ?? false;
+  }
+
+  canApproveOffPlan(activityId: string): boolean {
+    const a = this.plan()?.activities?.find((x) => x.id === activityId);
+    return a?.can_approve_off_plan ?? false;
+  }
+
+  canRejectOffPlan(activityId: string): boolean {
+    const a = this.plan()?.activities?.find((x) => x.id === activityId);
+    return a?.can_reject_off_plan ?? false;
+  }
+
+  canResubmitOffPlan(activityId: string): boolean {
+    const a = this.plan()?.activities?.find((x) => x.id === activityId);
+    return !!(a?.is_off_plan && a.status === 'REJECTED' && (a.activity_editable ?? false));
+  }
+
+  canSubmitModificationReview(activityId: string): boolean {
+    const a = this.plan()?.activities?.find((x) => x.id === activityId);
+    return !!(a?.can_submit_modification_review ?? false);
+  }
+
+  canResubmitModificationReview(activityId: string): boolean {
+    const a = this.plan()?.activities?.find((x) => x.id === activityId);
+    return !!(a?.can_resubmit_modification_review ?? false);
   }
 
   validationStepLabel(): string {
@@ -96,10 +164,38 @@ export class PlanDetailComponent implements OnInit, OnDestroy {
     return s ?? '';
   }
 
-  /** True if any activity is marked as added or modified during the last unlock period (show legend). */
-  hasUnlockHighlights(): boolean {
-    const activities = this.plan()?.activities ?? [];
-    return activities.some((a) => a.added_during_unlock || a.modified_during_unlock);
+  /** Activity submitted for validation (off-plan or in-plan modification on validated plan). */
+  offPlanAwaitingValidation(a: CsrPlanActivityDetail): boolean {
+    const p = this.plan();
+    return !!(a.status === 'SUBMITTED' && p?.status === 'VALIDATED');
+  }
+
+  hasOffPlanPendingReview(): boolean {
+    return (this.plan()?.activities ?? []).some((x) => this.offPlanAwaitingValidation(x));
+  }
+
+  /** Off-plan or in-plan modification rejected on a validated plan; row highlighted. */
+  offPlanRejected(a: CsrPlanActivityDetail): boolean {
+    const p = this.plan();
+    return !!(a.status === 'REJECTED' && p?.status === 'VALIDATED');
+  }
+
+  hasOffPlanRejected(): boolean {
+    return (this.plan()?.activities ?? []).some((x) => this.offPlanRejected(x));
+  }
+
+  activityRowTooltip(a: CsrPlanActivityDetail): string | null {
+    if (this.offPlanAwaitingValidation(a)) {
+      return this.translate.instant(
+        a.is_off_plan ? 'PLAN_DETAIL.OFF_PLAN_ROW_TOOLTIP' : 'PLAN_DETAIL.ACTIVITY_MOD_PENDING_ROW_TOOLTIP',
+      );
+    }
+    if (this.offPlanRejected(a)) {
+      return this.translate.instant(
+        a.is_off_plan ? 'PLAN_DETAIL.OFF_PLAN_REJECTED_TOOLTIP' : 'PLAN_DETAIL.ACTIVITY_MOD_REJECTED_TOOLTIP',
+      );
+    }
+    return null;
   }
 
   /** True if plan has unlock_until in the future (open for edit period). */
@@ -133,17 +229,13 @@ export class PlanDetailComponent implements OnInit, OnDestroy {
     return a?.activity_editable ?? false;
   }
 
-  /** True if plan can be edited: DRAFT/REJECTED (and not past unlock_until), or VALIDATED with unlock_until in the future. */
+  /** True if plan can be edited: DRAFT/REJECTED always, or VALIDATED with unlock_until in the future. */
   canEditPlan(): boolean {
     const p = this.plan();
     if (!p) return false;
     const u = p.unlock_until;
-    const now = new Date();
-    const unlockFuture = u ? new Date(u) > now : false;
-    if (p.status === 'DRAFT' || p.status === 'REJECTED') {
-      if (!u) return true;
-      return unlockFuture;
-    }
+    const unlockFuture = u ? new Date(u) > new Date() : false;
+    if (p.status === 'DRAFT' || p.status === 'REJECTED') return true;
     if (p.status === 'VALIDATED' && unlockFuture) return true;
     return false;
   }
@@ -183,16 +275,21 @@ export class PlanDetailComponent implements OnInit, OnDestroy {
     const msg = isResubmit
       ? 'Soumettre les modifications pour validation ?'
       : 'Soumettre ce plan pour validation ?';
-    if (!confirm(msg)) return;
-    this.actionLoading.set(true);
-    this.plansApi.submitForValidation(p.id).subscribe({
-      next: (updated) => {
-        this.plan.set({ ...p, ...updated });
-        this.actionLoading.set(false);
-      },
-      error: (err) => {
-        this.actionLoading.set(false);
-        this.errorMsg.set(err.error?.message || 'Erreur lors de la soumission');
+    this.openConfirm({
+      title: this.translate.instant('COMMON.CONFIRM'),
+      message: msg,
+      onConfirm: () => {
+        this.actionLoading.set(true);
+        this.plansApi.submitForValidation(p.id).subscribe({
+          next: (updated) => {
+            this.plan.set({ ...p, ...updated });
+            this.actionLoading.set(false);
+          },
+          error: (err) => {
+            this.actionLoading.set(false);
+            this.errorMsg.set(err.error?.message || 'Erreur lors de la soumission');
+          },
+        });
       },
     });
   }
@@ -241,6 +338,131 @@ export class PlanDetailComponent implements OnInit, OnDestroy {
     return this.rejectActivityIds().includes(activityId);
   }
 
+  approveOffPlanActivity(activityId: string): void {
+    this.closeActivityMenu();
+    const p = this.plan();
+    if (!p) return;
+    this.actionLoading.set(true);
+    this.activitiesApi.approveOffPlan(activityId).subscribe({
+      next: () => {
+        this.plansApi.get(p.id).subscribe({
+          next: (updated) => {
+            this.plan.set(updated);
+            this.actionLoading.set(false);
+          },
+          error: () => this.actionLoading.set(false),
+        });
+      },
+      error: (err: { error?: { message?: string } }) => {
+        this.actionLoading.set(false);
+        this.errorMsg.set(err.error?.message ?? 'Erreur');
+      },
+    });
+  }
+
+  openOffPlanRejectModal(activityId: string): void {
+    this.closeActivityMenu();
+    this.offPlanRejectActivityId.set(activityId);
+    this.offPlanRejectComment.set('');
+    this.offPlanRejectError.set('');
+    this.showOffPlanRejectModal.set(true);
+  }
+
+  closeOffPlanRejectModal(): void {
+    this.showOffPlanRejectModal.set(false);
+    this.offPlanRejectActivityId.set(null);
+    this.offPlanRejectComment.set('');
+    this.offPlanRejectError.set('');
+  }
+
+  submitOffPlanReject(): void {
+    const comment = this.offPlanRejectComment().trim();
+    if (!comment) {
+      this.offPlanRejectError.set('Le motif de rejet est obligatoire.');
+      return;
+    }
+    const id = this.offPlanRejectActivityId();
+    const p = this.plan();
+    if (!id || !p) return;
+    this.offPlanRejectError.set('');
+    this.actionLoading.set(true);
+    this.activitiesApi.rejectOffPlan(id, { comment }).subscribe({
+      next: () => {
+        this.plansApi.get(p.id).subscribe({
+          next: (updated) => {
+            this.plan.set(updated);
+            this.actionLoading.set(false);
+            this.closeOffPlanRejectModal();
+          },
+          error: () => this.actionLoading.set(false),
+        });
+      },
+      error: (err: { error?: { message?: string } }) => {
+        this.actionLoading.set(false);
+        this.offPlanRejectError.set(err.error?.message ?? 'Erreur');
+      },
+    });
+  }
+
+  submitActivityModificationReview(activityId: string): void {
+    this.closeActivityMenu();
+    const p = this.plan();
+    if (!p) return;
+    this.openConfirm({
+      title: this.translate.instant('COMMON.CONFIRM'),
+      message: this.translate.instant('PLAN_DETAIL.SUBMIT_ACTIVITY_FOR_REVIEW') + ' ?',
+      onConfirm: () => {
+        this.actionLoading.set(true);
+        this.activitiesApi.submitModificationReview(activityId).subscribe({
+          next: () => {
+            this.plansApi.get(p.id).subscribe({
+              next: (updated) => {
+                this.plan.set(updated);
+                this.actionLoading.set(false);
+              },
+              error: () => this.actionLoading.set(false),
+            });
+          },
+          error: (err: { error?: { message?: string } }) => {
+            this.actionLoading.set(false);
+            this.errorMsg.set(err.error?.message ?? 'Erreur');
+          },
+        });
+      },
+    });
+  }
+
+  resubmitOffPlanActivity(activityId: string): void {
+    this.closeActivityMenu();
+    const p = this.plan();
+    if (!p) return;
+    if (!this.canResubmitOffPlan(activityId) && !this.canResubmitModificationReview(activityId)) {
+      return;
+    }
+    this.openConfirm({
+      title: this.translate.instant('COMMON.CONFIRM'),
+      message: this.translate.instant('PLAN_DETAIL.OFF_PLAN_RESUBMIT') + ' ?',
+      onConfirm: () => {
+        this.actionLoading.set(true);
+        this.activitiesApi.resubmitOffPlan(activityId).subscribe({
+          next: () => {
+            this.plansApi.get(p.id).subscribe({
+              next: (updated) => {
+                this.plan.set(updated);
+                this.actionLoading.set(false);
+              },
+              error: () => this.actionLoading.set(false),
+            });
+          },
+          error: (err: { error?: { message?: string } }) => {
+            this.actionLoading.set(false);
+            this.errorMsg.set(err.error?.message ?? 'Erreur');
+          },
+        });
+      },
+    });
+  }
+
   submitReject(): void {
     const comment = this.rejectComment().trim();
     if (!comment) {
@@ -283,25 +505,56 @@ export class PlanDetailComponent implements OnInit, OnDestroy {
 
   addActivity(): void {
     const p = this.plan();
-    if (!p) return;
-    const currentYear = new Date().getFullYear();
-    if (p.year >= currentYear) {
-      this.showAddActivitySidebar.set(true);
-    } else {
-      this.showAddRealizationSidebar.set(true);
+    if (!p || !this.canEditPlan()) return;
+    if (p.year < this.currentYear) {
+      const unlock = p.status === 'VALIDATED' && this.isUnlockUntilFuture();
+      this.pastYearRichTitleKey.set(
+        unlock
+          ? 'PLANNED_ACTIVITY_CREATE.REALIZED_YEAR_AMENDMENT_TITLE'
+          : 'PLANNED_ACTIVITY_CREATE.REALIZED_YEAR_DRAFT_TITLE',
+      );
+      this.pastYearRichHintKey.set(
+        unlock
+          ? 'PLANNED_ACTIVITY_CREATE.REALIZED_YEAR_AMENDMENT_HINT'
+          : 'PLANNED_ACTIVITY_CREATE.REALIZED_YEAR_RICH_HINT',
+      );
+      this.showPastYearRichCreate.set(true);
+      return;
     }
+    this.showAddActivitySidebar.set(true);
   }
 
   closeAddActivitySidebar(): void {
     this.showAddActivitySidebar.set(false);
   }
 
-  closeAddRealizationSidebar(): void {
-    this.showAddRealizationSidebar.set(false);
+  closePastYearRichCreate(): void {
+    this.showPastYearRichCreate.set(false);
   }
 
-  onRealizationAdded(): void {
-    this.closeAddRealizationSidebar();
+  onPastYearRichCreated(): void {
+    this.closePastYearRichCreate();
+    const p = this.plan();
+    if (p) {
+      this.plansApi.get(p.id).subscribe({
+        next: (updated) => this.plan.set(updated),
+      });
+    }
+  }
+
+  openOffPlanSidebar(): void {
+    const p = this.plan();
+    // Hors plan autorisé dès que le plan est validé (backend idem), pas seulement pendant unlock_until.
+    if (!p || p.status !== 'VALIDATED') return;
+    this.showOffPlanSidebar.set(true);
+  }
+
+  closeOffPlanSidebar(): void {
+    this.showOffPlanSidebar.set(false);
+  }
+
+  onOffPlanCreated(): void {
+    this.closeOffPlanSidebar();
     const p = this.plan();
     if (p) {
       this.plansApi.get(p.id).subscribe({
@@ -384,15 +637,21 @@ export class PlanDetailComponent implements OnInit, OnDestroy {
   deletePlan(): void {
     const p = this.plan();
     if (!p || (p.status !== 'DRAFT' && p.status !== 'REJECTED')) return;
-    if (!confirm('Supprimer définitivement ce plan et toutes ses activités ?')) return;
-    this.actionLoading.set(true);
-    this.plansApi.delete(p.id).subscribe({
-      next: () => {
-        this.router.navigate(['/csr-plans']);
-      },
-      error: (err) => {
-        this.actionLoading.set(false);
-        this.errorMsg.set(err.error?.message || 'Erreur lors de la suppression');
+    this.openConfirm({
+      title: this.translate.instant('COMMON.CONFIRM'),
+      message: 'Supprimer définitivement ce plan et toutes ses activités ?',
+      confirmLabel: this.translate.instant('COMMON.DELETE'),
+      onConfirm: () => {
+        this.actionLoading.set(true);
+        this.plansApi.delete(p.id).subscribe({
+          next: () => {
+            this.router.navigate(['/csr-plans']);
+          },
+          error: (err) => {
+            this.actionLoading.set(false);
+            this.errorMsg.set(err.error?.message || 'Erreur lors de la suppression');
+          },
+        });
       },
     });
   }
@@ -428,25 +687,32 @@ export class PlanDetailComponent implements OnInit, OnDestroy {
 
   deleteActivity(activityId: string): void {
     this.closeActivityMenu();
-    if (!this.canEditPlan()) return;
-    if (!confirm('Supprimer définitivement cette activité ?')) return;
+    // Align with per-activity `activity_editable` (e.g. rejected off-plan on a locked VALIDATED plan).
+    if (!this.canEditActivity(activityId)) return;
     const planId = this.plan()?.id;
     if (!planId) return;
-    this.actionLoading.set(true);
-    this.activitiesApi.delete(activityId).subscribe({
-      next: () => {
-        this.errorMsg.set('');
-        this.plansApi.get(planId).subscribe({
-          next: (p) => {
-            this.plan.set(p);
-            this.actionLoading.set(false);
+    this.openConfirm({
+      title: this.translate.instant('COMMON.CONFIRM'),
+      message: 'Supprimer définitivement cette activité ?',
+      confirmLabel: this.translate.instant('COMMON.DELETE'),
+      onConfirm: () => {
+        this.actionLoading.set(true);
+        this.activitiesApi.delete(activityId).subscribe({
+          next: () => {
+            this.errorMsg.set('');
+            this.plansApi.get(planId).subscribe({
+              next: (p) => {
+                this.plan.set(p);
+                this.actionLoading.set(false);
+              },
+              error: () => this.actionLoading.set(false),
+            });
           },
-          error: () => this.actionLoading.set(false),
+          error: (err: { error?: { message?: string } }) => {
+            this.actionLoading.set(false);
+            this.errorMsg.set(err.error?.message ?? 'Erreur lors de la suppression');
+          },
         });
-      },
-      error: (err: { error?: { message?: string } }) => {
-        this.actionLoading.set(false);
-        this.errorMsg.set(err.error?.message ?? 'Erreur lors de la suppression');
       },
     });
   }

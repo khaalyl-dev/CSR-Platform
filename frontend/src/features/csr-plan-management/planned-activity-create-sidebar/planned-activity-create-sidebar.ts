@@ -28,6 +28,10 @@ export class PlannedActivityCreateSidebarComponent implements OnInit {
   private documentsApi = inject(DocumentsApi);
 
   @Input() initialPlanId: string | null = null;
+  /** Année du plan (depuis la fiche plan) : permet d’afficher « plan réalisé » avant chargement de la liste. */
+  @Input() contextPlanYear: number | null = null;
+  /** Plan validé en période unlock : libellés indiquant une modification du plan (pas une activité hors plan). */
+  @Input() planAmendmentMode = false;
 
   @Output() closed = new EventEmitter<void>();
   @Output() created = new EventEmitter<void>();
@@ -41,6 +45,24 @@ export class PlannedActivityCreateSidebarComponent implements OnInit {
   loading = false;
   loadingData = true;
   readonly categoryOtherValue = CATEGORY_OTHER_VALUE;
+
+  /** Plan d’une année civile passée (ex. Tianjin 2025 en 2026) → titres « réalisé », pas « planifié ». */
+  get isRealizedYearPlan(): boolean {
+    const y = this.contextPlanYear ?? this.plan?.year;
+    return y != null && y < this.currentYear;
+  }
+
+  /** Clé i18n du titre du panneau. */
+  createSidebarTitleKey(): string {
+    if (this.isRealizedYearPlan) {
+      return this.planAmendmentMode
+        ? 'PLANNED_ACTIVITY_CREATE.REALIZED_YEAR_AMENDMENT_TITLE'
+        : 'PLANNED_ACTIVITY_CREATE.REALIZED_YEAR_DRAFT_TITLE';
+    }
+    return this.planAmendmentMode
+      ? 'PLANNED_ACTIVITY_CREATE.AMENDMENT_TITLE'
+      : 'BREADCRUMB.PLANNED_ACTIVITY';
+  }
 
   ngOnInit(): void {
     this.form = this.fb.group({

@@ -143,6 +143,30 @@ def _compute_can_approve(plan: CsrPlan, user_id: str, role: str) -> bool:
     return role in ("CORPORATE_USER", "CORPORATE")
 
 
+def _compute_can_approve_off_plan_activity(a, user_id: str, role: str) -> bool:
+    """True si l'utilisateur peut approuver/rejeter une activité en attente (hors plan ou modification sur plan validé)."""
+    from models import CsrActivity
+
+    if not isinstance(a, CsrActivity):
+        return False
+    if a.status != "SUBMITTED":
+        return False
+    plan = a.plan
+    if not plan:
+        return False
+    is_off = getattr(a, "is_off_plan", False)
+    if not is_off:
+        if plan.status != "VALIDATED":
+            return False
+    step_raw = getattr(a, "off_plan_validation_step", None)
+    step = int(step_raw) if step_raw is not None else None
+    mode = str(getattr(a, "off_plan_validation_mode", None) or "101")
+    site_id = plan.site_id
+    if mode == "111" and step == 1:
+        return _user_can_access_site(user_id, site_id) and _user_has_grade(user_id, site_id, "level_1")
+    return role in ("CORPORATE_USER", "CORPORATE")
+
+
 @bp.get("")
 @token_required
 def list_plans():
@@ -276,6 +300,9 @@ def _bulk_delete_plan(plan_id: str, user_id: str, role: str) -> Tuple[bool, Opti
         return False, f"Seuls brouillon/rejeté (statut: {plan.status})"
     if role in ("SITE_USER", "SITE") and not _user_can_access_site(user_id, plan.site_id):
         return False, "Accès refusé"
+    # Explicitly delete activities first to avoid SQLAlchemy nulling plan_id on flush.
+    from models import CsrActivity
+    db.session.query(CsrActivity).filter_by(plan_id=plan.id).delete(synchronize_session=False)
     db.session.delete(plan)
     return True, None
 
@@ -377,6 +404,19 @@ def update_plan(plan_id):
         if mode in ("101", "111"):
             plan.validation_mode = mode
 
+    if "total_budget" in data:
+        tb = data.get("total_budget")
+        if tb is None or tb == "":
+            plan.total_budget = None
+        else:
+            try:
+                tb_val = float(tb)
+            except (TypeError, ValueError):
+                return jsonify({"message": "Le budget total doit être un nombre"}), 400
+            if tb_val < 0:
+                return jsonify({"message": "Le budget total doit être >= 0"}), 400
+            plan.total_budget = tb_val
+
     if plan.status == "REJECTED":
         plan.rejected_comment = None
         plan.rejected_activity_ids = None
@@ -395,12 +435,10 @@ def update_plan(plan_id):
 
 
 def _plan_is_editable(plan: CsrPlan) -> bool:
-    """True if plan can be edited: DRAFT/REJECTED (and not past unlock_until), or VALIDATED with unlock_until in the future."""
+    """True if plan can be edited: DRAFT/REJECTED always, or VALIDATED with unlock_until in the future."""
     unlock_until = getattr(plan, "unlock_until", None)
     now = datetime.utcnow()
     if plan.status in ("DRAFT", "REJECTED"):
-        if unlock_until and now > unlock_until:
-            return False
         return True
     if plan.status == "VALIDATED" and unlock_until and now <= unlock_until:
         return True
@@ -425,8 +463,6 @@ def get_plan(plan_id):
     now = datetime.utcnow()
     if unlock_until and now > unlock_until:
         plan.unlock_until = None
-        if plan.status == "DRAFT":
-            plan.status = "VALIDATED"
         db.session.commit()
 
     from models import CsrActivity, RealizedCsr
@@ -444,6 +480,14 @@ def get_plan(plan_id):
 
     def _activity_is_editable(a):
         """True if activity can be edited: plan editable OR activity individually unlocked."""
+        if getattr(a, "is_off_plan", False) and a.status == "SUBMITTED":
+            return False
+        if not getattr(a, "is_off_plan", False) and a.status == "SUBMITTED":
+            return False
+        if getattr(a, "is_off_plan", False) and a.status == "REJECTED":
+            return True
+        if not getattr(a, "is_off_plan", False) and a.status == "REJECTED":
+            return True
         if _plan_is_editable(plan):
             return True
         unlock_until = getattr(a, "unlock_until", None)
@@ -472,6 +516,7 @@ def get_plan(plan_id):
     if ref_ts is not None and plan_created is not None and ref_ts < plan_created - timedelta(days=1):
         ref_ts = None  # reject ref older than plan (avoid marking all as added)
 
+    user_id = getattr(request, "user_id", None)
     out["activities"] = []
     for a in activities:
         added_during_unlock = False
@@ -500,6 +545,7 @@ def get_plan(plan_id):
             "title": a.title or "",
             "description": a.description or "",
             "status": a.status,
+            "is_off_plan": bool(getattr(a, "is_off_plan", False)),
             "category_name": a.category.name if a.category else "",
             "collaboration_nature": a.collaboration_nature or "",
             "organization": a.organization or "INTERNAL",
@@ -519,10 +565,31 @@ def get_plan(plan_id):
             "number_external_partners": first_real.number_external_partners if first_real else None,
             "action_impact_actual": float(first_real.action_impact_actual) if first_real and first_real.action_impact_actual is not None else None,
             "action_impact_unit_realized": first_real.action_impact_unit if first_real else "",
-            "realization_count": len(realizations),
             "added_during_unlock": added_during_unlock,
             "modified_during_unlock": modified_during_unlock,
             "activity_editable": _activity_is_editable(a),
+            "off_plan_validation_mode": getattr(a, "off_plan_validation_mode", None),
+            "off_plan_validation_step": getattr(a, "off_plan_validation_step", None),
+            "can_approve_off_plan": bool(
+                user_id and _compute_can_approve_off_plan_activity(a, user_id, role_str)
+            ),
+            "can_reject_off_plan": bool(
+                user_id and _compute_can_approve_off_plan_activity(a, user_id, role_str)
+            ),
+            "can_submit_modification_review": bool(
+                plan.status == "VALIDATED"
+                and not _plan_is_editable(plan)
+                and not getattr(a, "is_off_plan", False)
+                and a.status != "SUBMITTED"
+                and getattr(a, "unlock_until", None) is not None
+                and now <= getattr(a, "unlock_until"),
+            ),
+            "can_resubmit_modification_review": bool(
+                plan.status == "VALIDATED"
+                and not _plan_is_editable(plan)
+                and not getattr(a, "is_off_plan", False)
+                and a.status == "REJECTED"
+            ),
         })
     return jsonify(out), 200
 
@@ -741,6 +808,10 @@ def delete_plan(plan_id):
         description=f"Suppression plan {plan.year}",
         old_snapshot=old_snapshot,
     )
+    # Explicitly delete activities first to avoid SQLAlchemy trying to NULL plan_id
+    # (plan_id is NOT NULL on csr_activities).
+    from models import CsrActivity
+    db.session.query(CsrActivity).filter_by(plan_id=plan.id).delete(synchronize_session=False)
     db.session.delete(plan)
     db.session.commit()
     return jsonify({"message": "Plan supprimé"}), 200

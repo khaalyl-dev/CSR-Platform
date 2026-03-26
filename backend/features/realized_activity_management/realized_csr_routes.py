@@ -16,12 +16,10 @@ bp = Blueprint("realized_csr", __name__, url_prefix="/api/realized-csr")
 
 
 def _plan_is_editable(plan: CsrPlan) -> bool:
-    """True if plan can be edited: DRAFT/REJECTED (and not past unlock_until), or VALIDATED with unlock_until in the future."""
+    """True if plan can be edited: DRAFT/REJECTED always, or VALIDATED with unlock_until in the future."""
     unlock_until = getattr(plan, "unlock_until", None)
     now = datetime.utcnow()
     if plan.status in ("DRAFT", "REJECTED"):
-        if unlock_until and now > unlock_until:
-            return False
         return True
     if plan.status == "VALIDATED" and unlock_until and now <= unlock_until:
         return True
@@ -32,6 +30,10 @@ def _activity_is_editable(activity: CsrActivity) -> bool:
     """True if this activity can be edited: plan editable OR activity individually unlocked."""
     if not activity or not activity.plan:
         return False
+    if getattr(activity, "is_off_plan", False) and activity.status == "SUBMITTED":
+        return False
+    if getattr(activity, "is_off_plan", False) and activity.status == "REJECTED":
+        return True
     if _plan_is_editable(activity.plan):
         return True
     unlock_until = getattr(activity, "unlock_until", None)
@@ -112,8 +114,11 @@ def list_realized():
     if month is not None:
         q = q.filter_by(month=month)
 
-    # Only show realized activities whose plan is validated (locked or temporarily open for edit)
-    q = q.join(RealizedCsr.activity).join(CsrActivity.plan).filter(CsrPlan.status == "VALIDATED")
+    # Keep dashboard/list behavior (validated plans only), but when querying
+    # a specific activity (edit screen), return its realizations regardless of plan status.
+    q = q.join(RealizedCsr.activity).join(CsrActivity.plan)
+    if not activity_id:
+        q = q.filter(CsrPlan.status == "VALIDATED")
 
     records = q.order_by(RealizedCsr.year.desc(), RealizedCsr.month.desc(), RealizedCsr.created_at.desc()).all()
     return jsonify([_realized_to_json(r) for r in records]), 200
@@ -162,9 +167,16 @@ def create_realized():
     if month < 1 or month > 12:
         return jsonify({"message": "month doit être entre 1 et 12"}), 400
 
-    activity = CsrActivity.query.get(activity_id)
+    activity = CsrActivity.query.options(db.joinedload(CsrActivity.plan)).get(activity_id)
     if not activity:
         return jsonify({"message": "Activité introuvable"}), 404
+
+    plan_obj = activity.plan
+    if not plan_obj:
+        return jsonify({"message": "Plan introuvable pour cette activité"}), 404
+    plan_year = plan_obj.year
+    if year != plan_year:
+        return jsonify({"message": f"L'année de réalisation doit être l'année du plan ({plan_year})."}), 400
 
     allowed = _allowed_activity_ids(request.user_id, getattr(request, "role", ""))
     if allowed is not None and activity_id not in allowed:
@@ -310,6 +322,15 @@ def update_realized(realized_id: str):
             pass
     if realization_date is not None:
         r.realization_date = realization_date
+
+    plan_year = r.activity.plan.year if r.activity and r.activity.plan else None
+    if plan_year is not None:
+        if r.year != plan_year:
+            return jsonify({"message": f"L'année de réalisation doit être l'année du plan ({plan_year})."}), 400
+        if r.realization_date is not None and r.realization_date.year != plan_year:
+            return jsonify(
+                {"message": f"La date de réalisation doit être comprise dans l'année du plan ({plan_year})."},
+            ), 400
 
     r.realized_budget = _num("realized_budget", r.realized_budget)
     r.participants = _int_val("participants", r.participants)

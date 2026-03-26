@@ -7,6 +7,7 @@ export interface CsrActivity {
   description?: string | null;
   category_id?: string;
   status?: string;
+  is_off_plan?: boolean;
   planned_budget?: number | null;
   organization?: string | null;
   collaboration_nature?: string | null;
@@ -14,4 +15,9 @@ export interface CsrActivity {
   planned_volunteers?: number | null;
   action_impact_target?: number | null;
   action_impact_unit?: string | null;
+  edition?: number | null;
+  start_year?: number | null;
+  external_partner_name?: string | null;
+  off_plan_validation_mode?: string | null;
+  off_plan_validation_step?: number | null;
 }

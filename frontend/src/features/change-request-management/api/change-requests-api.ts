@@ -17,6 +17,9 @@ export interface ChangeRequestWithDocs extends ChangeRequest {
   requested_duration?: string | null;
   reviewed_by_name?: string;
   site_name?: string;
+  pending_item_type?: 'CHANGE_REQUEST' | 'OFF_PLAN_ACTIVITY' | 'IN_PLAN_ACTIVITY_MOD';
+  activity_id?: string;
+  off_plan_validation_mode?: string | null;
 }
 
 @Injectable({ providedIn: 'root' })
