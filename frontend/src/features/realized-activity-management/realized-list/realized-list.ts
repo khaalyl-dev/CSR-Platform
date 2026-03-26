@@ -6,6 +6,7 @@ import { RealizedCsrApi } from '../api/realized-csr-api';
 import type { RealizedCsr } from '../models/realized-csr.model';
 import { RealizedCreateSidebarComponent } from '../realized-create-sidebar/realized-create-sidebar';
 import { RealizedEditComponent } from '../realized-edit/realized-edit';
+import { AuthStore } from '@core/services/auth-store';
 
 @Component({
   selector: 'app-realized-list',
@@ -17,6 +18,7 @@ export class RealizedListComponent implements OnInit {
   private api = inject(RealizedCsrApi);
   private router = inject(Router);
   private route = inject(ActivatedRoute);
+  private authStore = inject(AuthStore);
 
   activeMenuRealized: RealizedCsr | null = null;
   activeRequestChangeRealized: RealizedCsr | null = null;
@@ -24,12 +26,17 @@ export class RealizedListComponent implements OnInit {
 
   /** True if user can request a change for this realization (plan validated and locked, has plan_id and activity_id). */
   canRequestChange(r: RealizedCsr): boolean {
+    if (this.isCorporateUser()) return false;
     return !!(
       !r.plan_editable &&
       r.plan_status === 'VALIDATED' &&
       r.plan_id &&
       r.activity_id
     );
+  }
+
+  private isCorporateUser(): boolean {
+    return (this.authStore.user()?.role ?? '').toLowerCase() === 'corporate';
   }
 
   @HostListener('document:click')
@@ -58,6 +65,12 @@ export class RealizedListComponent implements OnInit {
     if (!r.plan_id || !r.activity_id) return;
     this.closeRequestChangeMenu();
     this.router.navigate(['/changes/create'], { queryParams: { planId: r.plan_id, activityId: r.activity_id } });
+  }
+
+  goToDetail(r: RealizedCsr): void {
+    this.closeMenu();
+    this.closeRequestChangeMenu();
+    this.router.navigate(['/realized-csr', r.id]);
   }
 
   toggleMenu(r: RealizedCsr, event: MouseEvent): void {

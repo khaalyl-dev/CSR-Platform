@@ -9,9 +9,9 @@ What it does:
 1. Drops all existing tables
 2. Creates all tables (users, sites, categories, etc.)
 2. Adds default CSR categories (Environment, Social, Gouvernance, etc.)
-3. Adds sample users (admin@test.com, user@test.com, john@example.com)
+3. Adds sample users (admin@test.com, user@test.com, john@example.com, user@level0.com, user@level1.com)
 4. Adds sample sites (Tianjin, Durrango, etc.)
-5. Assigns sites to users with validation grades (level_1, level_2)
+5. Assigns sites to users with validation grades (level_0, level_1, level_2)
 """
 from datetime import datetime
 
@@ -49,6 +49,8 @@ def init_db():
             {"email": "user@test.com", "password": "password123", "role": "SITE_USER", "first_name": "Site", "last_name": "User"},
             {"email": "admin@test.com", "password": "admin123", "role": "CORPORATE_USER", "first_name": "Corporate", "last_name": "Admin"},
             {"email": "john@example.com", "password": "john123", "role": "SITE_USER", "first_name": "John", "last_name": "Doe"},
+            {"email": "user@level0.com", "password": "password123", "role": "SITE_USER", "first_name": "Level", "last_name": "Zero"},
+            {"email": "user@level1.com", "password": "password123", "role": "SITE_USER", "first_name": "Level", "last_name": "One"},
         ]
         added = 0
         for u in sample_users:
@@ -150,8 +152,33 @@ def init_db():
                 else:
                     admin_us.grade = "level_2"
 
+        # Assign dedicated test users to the same site with different levels
+        first_site = Site.query.order_by(Site.code).first()
+        if first_site:
+            level_test_users = [
+                ("user@level0.com", "level_0"),
+                ("user@level1.com", "level_1"),
+            ]
+            for email, grade in level_test_users:
+                u = User.query.filter_by(email=email).first()
+                if not u:
+                    continue
+                existing = UserSite.query.filter_by(user_id=u.id, site_id=first_site.id).first()
+                if not existing:
+                    us = UserSite(
+                        user_id=u.id,
+                        site_id=first_site.id,
+                        is_active=True,
+                        grade=grade,
+                        granted_by=admin_user.id if admin_user else None,
+                        granted_at=datetime.utcnow(),
+                    )
+                    db.session.add(us)
+                else:
+                    existing.grade = grade
+
         db.session.commit()
-        print("✓ Site access assigned (level_1 for site users, level_2 for admin)")
+        print("✓ Site access assigned (level_0/level_1 for test users, level_1 for site users, level_2 for admin)")
 
 
 if __name__ == "__main__":

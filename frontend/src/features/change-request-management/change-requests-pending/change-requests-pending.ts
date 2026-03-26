@@ -1,6 +1,6 @@
 import { Component, OnInit, signal, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { RouterModule } from '@angular/router';
+import { Router, RouterModule } from '@angular/router';
 import { TranslateModule, TranslateService } from '@ngx-translate/core';
 import { ChangeRequestsApi } from '../api/change-requests-api';
 import type { ChangeRequestWithDocs } from '../api/change-requests-api';
@@ -16,9 +16,22 @@ export class ChangeRequestsPendingComponent implements OnInit {
   private api = inject(ChangeRequestsApi);
   private activitiesApi = inject(CsrActivitiesApi);
   private translate = inject(TranslateService);
+  private router = inject(Router);
+
   requests = signal<ChangeRequestWithDocs[]>([]);
   loading = signal(true);
   actionLoading = signal<string | null>(null);
+
+  showActionsModal = signal(false);
+  modalRejectStep = signal(false);
+  modalRejectComment = signal('');
+  modalRejectError = signal('');
+  selectedRequest = signal<ChangeRequestWithDocs | null>(null);
+
+  /** Safe template context when the actions modal is open. */
+  modalRow(): ChangeRequestWithDocs | null {
+    return this.showActionsModal() ? this.selectedRequest() : null;
+  }
 
   ngOnInit(): void {
     this.load();
@@ -39,7 +52,6 @@ export class ChangeRequestsPendingComponent implements OnInit {
     return r.pending_item_type === 'OFF_PLAN_ACTIVITY';
   }
 
-  /** Off-plan or in-plan modification submitted for validation — approve/reject via csr-activities API. */
   isActivityValidationPendingRow(r: ChangeRequestWithDocs): boolean {
     return r.pending_item_type === 'OFF_PLAN_ACTIVITY' || r.pending_item_type === 'IN_PLAN_ACTIVITY_MOD';
   }
@@ -54,7 +66,93 @@ export class ChangeRequestsPendingComponent implements OnInit {
     return r.entity_id ?? '';
   }
 
-  approve(r: ChangeRequestWithDocs): void {
+  modalContextTitle(r: ChangeRequestWithDocs): string {
+    const site = r.plan_site_name ?? r.site_name ?? r.site_id ?? '–';
+    const year = r.plan_year ?? r.year ?? '';
+    let act = '';
+    if (r.activity_number || r.activity_title) {
+      act = ` · ${r.activity_number ?? ''} – ${r.activity_title ?? ''}`;
+    }
+    return `${site} – ${year}${act}`;
+  }
+
+  modalTypeLabelKey(r: ChangeRequestWithDocs): string {
+    if (this.isOffPlanRow(r)) return 'CHANGE_REQUEST.TYPE_OFF_PLAN';
+    if (r.pending_item_type === 'IN_PLAN_ACTIVITY_MOD') return 'CHANGE_REQUEST.TYPE_IN_PLAN_MOD';
+    return 'CHANGE_REQUEST.TYPE_CHANGE_REQUEST';
+  }
+
+  openActionsModal(r: ChangeRequestWithDocs): void {
+    this.selectedRequest.set(r);
+    this.modalRejectStep.set(false);
+    this.modalRejectComment.set('');
+    this.modalRejectError.set('');
+    this.showActionsModal.set(true);
+  }
+
+  closeActionsModal(): void {
+    this.showActionsModal.set(false);
+    this.selectedRequest.set(null);
+    this.modalRejectStep.set(false);
+    this.modalRejectComment.set('');
+    this.modalRejectError.set('');
+  }
+
+  openFromModal(): void {
+    const r = this.selectedRequest();
+    if (!r) return;
+    this.closeActionsModal();
+    if (r.pending_item_type === 'CHANGE_REQUEST' && r.id) {
+      void this.router.navigate(['/changes', r.id]);
+    } else if (r.plan_id) {
+      void this.router.navigate(['/csr-plans', r.plan_id]);
+    }
+  }
+
+  canOpenFromModal(r: ChangeRequestWithDocs): boolean {
+    if (r.pending_item_type === 'CHANGE_REQUEST' && r.id) return true;
+    if ((this.isOffPlanRow(r) || r.pending_item_type === 'IN_PLAN_ACTIVITY_MOD') && r.plan_id) return true;
+    return false;
+  }
+
+  openButtonLabelKey(r: ChangeRequestWithDocs): string {
+    if (r.pending_item_type === 'CHANGE_REQUEST' && r.id) return 'CHANGE_REQUEST.DETAILS';
+    return 'CHANGE_REQUEST.VIEW_PLAN';
+  }
+
+  startModalReject(): void {
+    this.modalRejectStep.set(true);
+    this.modalRejectComment.set('');
+    this.modalRejectError.set('');
+  }
+
+  backModalReject(): void {
+    this.modalRejectStep.set(false);
+    this.modalRejectComment.set('');
+    this.modalRejectError.set('');
+  }
+
+  approveFromModal(): void {
+    const r = this.selectedRequest();
+    if (!r) return;
+    this.executeApprove(r, () => this.closeActionsModal());
+  }
+
+  submitModalReject(): void {
+    const r = this.selectedRequest();
+    if (!r) return;
+    const c = this.modalRejectComment().trim();
+    if (this.isActivityValidationPendingRow(r)) {
+      if (!c) {
+        this.modalRejectError.set(this.translate.instant('CHANGE_REQUEST.REJECT_COMMENT_REQUIRED'));
+        return;
+      }
+    }
+    this.modalRejectError.set('');
+    this.executeReject(r, c, () => this.closeActionsModal());
+  }
+
+  private executeApprove(r: ChangeRequestWithDocs, onSuccess?: () => void): void {
     const key = this.rowActionKey(r);
     if (this.isActivityValidationPendingRow(r)) {
       if (!r.activity_id) return;
@@ -67,6 +165,7 @@ export class ChangeRequestsPendingComponent implements OnInit {
       this.activitiesApi.approveOffPlan(r.activity_id).subscribe({
         next: () => {
           this.actionLoading.set(null);
+          onSuccess?.();
           this.load();
         },
         error: () => this.actionLoading.set(null),
@@ -78,29 +177,22 @@ export class ChangeRequestsPendingComponent implements OnInit {
     this.api.approve(r.id).subscribe({
       next: () => {
         this.actionLoading.set(null);
+        onSuccess?.();
         this.load();
       },
-      error: () => {
-        this.actionLoading.set(null);
-      },
+      error: () => this.actionLoading.set(null),
     });
   }
 
-  reject(r: ChangeRequestWithDocs): void {
+  private executeReject(r: ChangeRequestWithDocs, comment: string, onSuccess?: () => void): void {
     const key = this.rowActionKey(r);
-    const comment = prompt(this.translate.instant('CHANGE_REQUEST.REJECT_PROMPT'));
-    if (comment === null) return;
     if (this.isActivityValidationPendingRow(r)) {
       if (!r.activity_id) return;
-      const c = (comment ?? '').trim();
-      if (!c) {
-        alert(this.translate.instant('CHANGE_REQUEST.REJECT_COMMENT_REQUIRED'));
-        return;
-      }
       this.actionLoading.set(key);
-      this.activitiesApi.rejectOffPlan(r.activity_id, { comment: c }).subscribe({
+      this.activitiesApi.rejectOffPlan(r.activity_id, { comment }).subscribe({
         next: () => {
           this.actionLoading.set(null);
+          onSuccess?.();
           this.load();
         },
         error: () => this.actionLoading.set(null),
@@ -108,14 +200,13 @@ export class ChangeRequestsPendingComponent implements OnInit {
       return;
     }
     this.actionLoading.set(key);
-    this.api.reject(r.id, comment ?? undefined).subscribe({
+    this.api.reject(r.id, comment || undefined).subscribe({
       next: () => {
         this.actionLoading.set(null);
+        onSuccess?.();
         this.load();
       },
-      error: () => {
-        this.actionLoading.set(null);
-      },
+      error: () => this.actionLoading.set(null),
     });
   }
 }

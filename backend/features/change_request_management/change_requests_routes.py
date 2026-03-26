@@ -10,7 +10,7 @@ from flask import Blueprint, jsonify, request
 from sqlalchemy import and_, or_
 from sqlalchemy.orm import joinedload
 from core import db, token_required, role_required
-from models import ChangeRequest, CsrActivity, CsrPlan, Document, UserSite, User, RealizedCsr
+from models import AuditLog, ChangeRequest, CsrActivity, CsrPlan, Document, UserSite, User, RealizedCsr
 from features.notification_management.notification_helper import notify_corporate, notify_user
 from features.audit_history_management.audit_helper import write_audit
 
@@ -19,6 +19,25 @@ bp = Blueprint("change_requests", __name__, url_prefix="/api/change-requests")
 
 def _user_can_access_site(user_id: str, site_id: str) -> bool:
     us = UserSite.query.filter_by(user_id=user_id, site_id=site_id, is_active=True).first()
+    return us is not None
+
+
+def _user_has_grade(user_id: str, site_id: str, grade: str) -> bool:
+    us = UserSite.query.filter_by(
+        user_id=user_id,
+        site_id=site_id,
+        is_active=True,
+        grade=grade,
+    ).first()
+    return us is not None
+
+
+def _user_has_any_grade(user_id: str, grade: str) -> bool:
+    us = UserSite.query.filter_by(
+        user_id=user_id,
+        is_active=True,
+        grade=grade,
+    ).first()
     return us is not None
 
 
@@ -81,6 +100,22 @@ def _corporate_validation_step_pending(activity: CsrActivity) -> bool:
     return True
 
 
+def _level1_validation_step_pending(activity: CsrActivity) -> bool:
+    """True if activity is SUBMITTED and the next validator is level 1 (mode 111 step 1)."""
+    if not activity or activity.status != "SUBMITTED":
+        return False
+    mode = getattr(activity, "off_plan_validation_mode", None) or "101"
+    step = getattr(activity, "off_plan_validation_step", None)
+    return mode == "111" and step == 1
+
+
+def _off_plan_awaits_level1_validation(activity: CsrActivity) -> bool:
+    """True if this off-plan activity is SUBMITTED and awaits level 1 validation."""
+    if not activity or not getattr(activity, "is_off_plan", False):
+        return False
+    return _level1_validation_step_pending(activity)
+
+
 def _off_plan_awaits_corporate_validation(activity: CsrActivity) -> bool:
     """True if this off-plan activity is SUBMITTED and the next step is corporate (mode 101, or 111 after L1)."""
     if not activity or not getattr(activity, "is_off_plan", False):
@@ -139,16 +174,80 @@ def _pending_off_plan_corporate_item(activity: CsrActivity) -> dict:
     }
 
 
-def _pending_in_plan_mod_corporate_item(activity: CsrActivity) -> dict:
+def _pending_off_plan_level1_item(activity: CsrActivity) -> dict:
     plan = activity.plan
     site = plan.site if plan else None
     requester_name = None
-    rid = ""
+    realized = (
+        RealizedCsr.query.filter_by(activity_id=activity.id)
+        .order_by(RealizedCsr.created_at.desc())
+        .first()
+    )
+    if realized and getattr(realized, "created_by", None):
+        u = User.query.get(realized.created_by)
+        if u:
+            requester_name = f"{u.first_name or ''} {u.last_name or ''}".strip() or None
+    rid = (realized.created_by if realized else None) or ""
+    synthetic_id = f"off-plan-l1-{activity.id}"
+    return {
+        "pending_item_type": "OFF_PLAN_ACTIVITY",
+        "id": synthetic_id,
+        "activity_id": activity.id,
+        "plan_id": activity.plan_id,
+        "site_id": plan.site_id if plan else None,
+        "site_name": site.name if site else None,
+        "plan_site_name": site.name if site else None,
+        "plan_year": plan.year if plan else None,
+        "year": plan.year if plan else 0,
+        "activity_number": activity.activity_number or "",
+        "activity_title": activity.title or "",
+        "entity_type": "ACTIVITY",
+        "entity_id": activity.id,
+        "reason": "Activité hors plan — validation niveau 1 en attente.",
+        "requested_by_name": requester_name,
+        "requested_by": rid,
+        "status": "PENDING",
+        "reviewed_by": None,
+        "reviewed_at": None,
+        "created_at": activity.created_at.isoformat() if activity.created_at else None,
+        "off_plan_validation_mode": getattr(activity, "off_plan_validation_mode", None),
+    }
+
+
+def _in_plan_mod_review_requester(activity: CsrActivity) -> tuple:
+    """(user_id, display_name) for who submitted / resubmitted modification review; else responsible_user if set."""
+    rid, requester_name = "", None
+    log = (
+        AuditLog.query.filter(
+            AuditLog.entity_type == "ACTIVITY",
+            AuditLog.entity_id == activity.id,
+            AuditLog.user_id.isnot(None),
+            or_(
+                AuditLog.description == "Soumission modification activité (plan validé) pour validation",
+                AuditLog.description == "Renvoi modification activité (plan validé) pour validation",
+            ),
+        )
+        .order_by(AuditLog.created_at.desc())
+        .first()
+    )
+    if log and log.user_id:
+        rid = log.user_id
+        u = User.query.get(log.user_id)
+        if u:
+            requester_name = f"{u.first_name or ''} {u.last_name or ''}".strip() or None
+        return rid, requester_name
     if getattr(activity, "responsible_user_id", None):
         u = User.query.get(activity.responsible_user_id)
         if u:
             rid = activity.responsible_user_id
             requester_name = f"{u.first_name or ''} {u.last_name or ''}".strip() or None
+    return rid, requester_name
+
+
+def _pending_in_plan_mod_corporate_item(activity: CsrActivity) -> dict:
+    plan = activity.plan
+    site = plan.site if plan else None
+    rid, requester_name = _in_plan_mod_review_requester(activity)
     synthetic_id = f"in-plan-mod-{activity.id}"
     return {
         "pending_item_type": "IN_PLAN_ACTIVITY_MOD",
@@ -331,6 +430,7 @@ def list_change_requests():
     status = (request.args.get("status") or "").strip().upper() or None
     role = (getattr(request, "role", "") or "").upper()
     user_id = request.user_id
+    site_pending_inbox = role in ("SITE_USER", "SITE") and status == "PENDING"
     if role in ("CORPORATE_USER", "CORPORATE"):
         q = ChangeRequest.query
         if status:
@@ -338,17 +438,22 @@ def list_change_requests():
         q = q.order_by(ChangeRequest.created_at.desc())
         items = q.all()
     else:
-        q = ChangeRequest.query.filter_by(requested_by=user_id)
-        if status:
-            q = q.filter(ChangeRequest.status == status)
-        q = q.order_by(ChangeRequest.created_at.desc())
-        items = q.all()
+        # For site users, /changes/pending is a validation inbox (not "my pending requests").
+        # Their own requests are still available via /changes (without status filter).
+        if site_pending_inbox:
+            items = []
+        else:
+            q = ChangeRequest.query.filter_by(requested_by=user_id)
+            if status:
+                q = q.filter(ChangeRequest.status == status)
+            q = q.order_by(ChangeRequest.created_at.desc())
+            items = q.all()
     out = []
     for cr in items:
         row = _change_request_to_json(cr)
         row["pending_item_type"] = "CHANGE_REQUEST"
         out.append(row)
-    if role in ("SITE_USER", "SITE"):
+    if role in ("SITE_USER", "SITE") and not site_pending_inbox:
         aid_rows = (
             db.session.query(RealizedCsr.activity_id)
             .filter(RealizedCsr.created_by == user_id)
@@ -376,6 +481,40 @@ def list_change_requests():
                     if row["status"] != status:
                         continue
                 out.append(row)
+    # Site level-1 inbox for off-plan activities that require manager/site validation first (mode 111 step 1).
+    if site_pending_inbox:
+        # No level_1 assignment anywhere => no validation inbox entries.
+        if not _user_has_any_grade(user_id, "level_1"):
+            return jsonify([]), 200
+        activities = (
+            CsrActivity.query.options(
+                joinedload(CsrActivity.plan).joinedload(CsrPlan.site),
+            )
+            .join(CsrPlan, CsrActivity.plan_id == CsrPlan.id)
+            .filter(
+                CsrActivity.status == "SUBMITTED",
+                CsrActivity.is_off_plan.is_(True),
+            )
+            .all()
+        )
+        existing_activity_ids = {
+            row.get("activity_id")
+            for row in out
+            if row.get("pending_item_type") == "OFF_PLAN_ACTIVITY"
+        }
+        for a in activities:
+            if not _off_plan_awaits_level1_validation(a):
+                continue
+            plan = a.plan
+            if not plan:
+                continue
+            if not _user_can_access_site(user_id, plan.site_id):
+                continue
+            if not _user_has_grade(user_id, plan.site_id, "level_1"):
+                continue
+            if a.id in existing_activity_ids:
+                continue
+            out.append(_pending_off_plan_level1_item(a))
     # Only when explicitly filtering PENDING (corporate inbox), not for full history lists.
     if role in ("CORPORATE_USER", "CORPORATE") and status == "PENDING":
         activities = (

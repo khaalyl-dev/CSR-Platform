@@ -595,7 +595,7 @@
     "VIEW_ANNUAL_PLANS": "Voir les plans annuels",
     "PLAN": "Plan",
     "ACTION": "Action",
-    "ADD_REALIZATION": "Saisir les données réalisées"
+    "ADD_REALIZATION": "Saisir les données"
   },
   "DOCUMENTS": {
     "TITLE": "Gestion des Documents",
@@ -826,6 +826,8 @@
     "CONFIRM_APPROVE_IN_PLAN_MOD": "Approuver les modifications de cette activité planifiée ? Elle sera marquée comme validée dans le plan.",
     "REJECT_PROMPT": "Motif du rejet (optionnel pour une demande de déverrouillage, obligatoire pour la validation d'activité) :",
     "REJECT_COMMENT_REQUIRED": "Un motif de rejet est obligatoire pour cette activité.",
+    "REJECT_REASON_LABEL": "Motif du rejet",
+    "REJECT_REASON_PLACEHOLDER": "Indiquez ce qui doit être corrigé…",
     "PENDING_EMPTY": "Aucune demande en attente.",
     "HISTORY_TITLE": "Historique des demandes",
     "HISTORY_SUBTITLE": "Demandes approuvées ou rejetées (corporate)",
@@ -841,6 +843,16 @@
     "JUSTIFICATION": "Justification",
     "DATE": "Date",
     "ACTIONS": "Actions",
+    "PENDING_HANDLE": "Traiter",
+    "PENDING_MODAL_TITLE": "Traiter cette demande",
+    "PENDING_MODAL_SUBTITLE": "Ouvrir le détail, approuver pour déverrouiller ou valider, ou rejeter avec un motif.",
+    "PENDING_MODAL_OPEN_HINT": "Ouvrir la fiche complète dans l’application",
+    "PENDING_MODAL_REJECT_TITLE": "Rejet",
+    "PENDING_MODAL_REJECT_HINT": "Indiquez ce qui doit être corrigé. Le demandeur verra ce message.",
+    "PENDING_MODAL_REJECT_BACK": "Retour aux actions",
+    "PENDING_MODAL_REJECT_SUBMIT": "Confirmer le rejet",
+    "PENDING_MODAL_APPROVE_HINT": "Une confirmation vous sera demandée.",
+    "PENDING_MODAL_REJECT_CARD_HINT": "Motif à saisir à l’étape suivante.",
     "DETAILS": "Détails",
     "APPROVE": "Approuver",
     "REJECT": "Rejeter",
@@ -856,7 +868,7 @@
     "CREATE_TITLE": "Demande de modification",
     "CREATE_PLAN_LABEL": "Plan",
     "CREATE_ACTIVITY_LABEL": "Activité",
-    "REQUEST_ACTIVITY_CHANGE": "Demander une modification pour cette activité",
+    "REQUEST_ACTIVITY_CHANGE": "Demande de modification",
     "CREATE_ACCESS_HINT": "Accès : en cliquant sur le cadenas ouvert d'un plan validé (liste des plans ou fiche plan).",
     "CREATE_APPROVAL_HINT": "Seul un utilisateur corporate pourra approuver cette demande. Une fois approuvée, le plan sera déverrouillé pour modification.",
     "JUSTIFICATION_LABEL": "Justification de la demande",
@@ -1224,7 +1236,9 @@
     "STATUS": "Statut de l'activité",
     "PLAN_STATUS_LABEL": "Statut du plan",
     "OFF_PLAN_LABEL": "Hors plan",
-    "VALIDATION_MODE": "Mode validation hors plan"
+    "VALIDATION_MODE": "Mode validation hors plan",
+    "DELETE_CONFIRM": "Supprimer définitivement cette activité planifiée ? Cette action est irréversible.",
+    "DELETE_ERROR": "Impossible de supprimer cette activité. Veuillez réessayer."
   },
   "PLANNED_ACTIVITY_LIST": {
     "DELETE_CONFIRM": "Supprimer définitivement cette activité planifiée ?"

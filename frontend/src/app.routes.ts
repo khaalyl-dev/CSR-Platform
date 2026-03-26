@@ -64,7 +64,7 @@ export const routes: Routes = [
       { path: 'documents', component: DocumentsListComponent },
       { path: 'changes', component: ChangeRequestsListComponent },
       { path: 'changes/create', component: ChangeRequestCreateComponent },
-      { path: 'changes/pending', component: ChangeRequestsPendingComponent, canActivate: [roleGuard(['corporate'])] },
+      { path: 'changes/pending', component: ChangeRequestsPendingComponent, canActivate: [roleGuard(['site', 'corporate'])] },
       { path: 'changes/history', component: ChangeRequestsHistoryComponent, canActivate: [roleGuard(['corporate'])] },
       { path: 'changes/:id', component: ChangeRequestDetailComponent },
       { path: 'admin/audit', component: AuditListComponent, canActivate: [roleGuard(['corporate'])] },

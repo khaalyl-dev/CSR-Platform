@@ -17,8 +17,14 @@ from features.audit_history_management.audit_helper import (
 from features.csr_plan_management.csr_plans_routes import _user_can_access_site, _user_has_grade
 
 
-def _plan_is_editable(plan: CsrPlan) -> bool:
-    """True if plan can be edited: DRAFT/REJECTED always, or VALIDATED with unlock_until in the future."""
+def _is_corporate(role: str) -> bool:
+    return (role or "").upper() in ("CORPORATE_USER", "CORPORATE")
+
+
+def _plan_is_editable(plan: CsrPlan, role: str = "") -> bool:
+    """True if plan can be edited: corporate always; otherwise DRAFT/REJECTED, or VALIDATED with unlock_until in the future."""
+    if _is_corporate(role):
+        return True
     unlock_until = getattr(plan, "unlock_until", None)
     now = datetime.utcnow()
     if plan.status in ("DRAFT", "REJECTED"):
@@ -28,8 +34,10 @@ def _plan_is_editable(plan: CsrPlan) -> bool:
     return False
 
 
-def _activity_is_editable(activity: CsrActivity) -> bool:
-    """True if this activity can be edited: plan editable OR activity individually unlocked."""
+def _activity_is_editable(activity: CsrActivity, role: str = "") -> bool:
+    """True if this activity can be edited: corporate always, otherwise plan editable OR activity individually unlocked."""
+    if _is_corporate(role):
+        return True
     if not activity or not activity.plan:
         return False
     if getattr(activity, "is_off_plan", False) and activity.status == "SUBMITTED":
@@ -40,7 +48,7 @@ def _activity_is_editable(activity: CsrActivity) -> bool:
         return True
     if not getattr(activity, "is_off_plan", False) and activity.status == "REJECTED":
         return True
-    if _plan_is_editable(activity.plan):
+    if _plan_is_editable(activity.plan, role):
         return True
     # Activity-level unlock (change request approved for this activity only)
     unlock_until = getattr(activity, "unlock_until", None)
@@ -102,7 +110,7 @@ def _activity_to_json(a: CsrActivity):
     }
 
 
-def _activity_to_json_with_plan(a: CsrActivity):
+def _activity_to_json_with_plan(a: CsrActivity, role: str = ""):
     """Include plan and category info for list views."""
     out = _activity_to_json(a)
     if a.plan:
@@ -111,7 +119,7 @@ def _activity_to_json_with_plan(a: CsrActivity):
         out["site_code"] = a.plan.site.code if a.plan.site else None
         out["year"] = a.plan.year
         out["plan_status"] = a.plan.status
-        out["plan_editable"] = _activity_is_editable(a)
+        out["plan_editable"] = _activity_is_editable(a, role)
     else:
         out["site_id"] = None
         out["site_name"] = out["site_code"] = None
@@ -166,7 +174,7 @@ def list_activities():
         q = q.filter(CsrPlan.status.in_(["VALIDATED", "DRAFT", "REJECTED"]))
 
     activities = q.order_by(CsrPlan.year.desc(), CsrActivity.plan_id, CsrActivity.activity_number).all()
-    return jsonify([_activity_to_json_with_plan(a) for a in activities]), 200
+    return jsonify([_activity_to_json_with_plan(a, role) for a in activities]), 200
 
 
 def _user_can_access_plan(user_id: str, plan_id: str, role: str) -> bool:
@@ -211,7 +219,7 @@ def create_activity():
     plan = CsrPlan.query.get(plan_id)
     if not plan:
         return jsonify({"message": "Plan introuvable"}), 404
-    if not _plan_is_editable(plan):
+    if not _plan_is_editable(plan, getattr(request, "role", "")):
         return jsonify(
             {
                 "message": "Création d’activité autorisée uniquement pour un plan modifiable (brouillon, rejeté, ou validé pendant la période d’ouverture).",
@@ -293,7 +301,7 @@ def create_plan_realized_draft_with_realization():
     plan = CsrPlan.query.get(plan_id)
     if not plan:
         return jsonify({"message": "Plan introuvable"}), 404
-    if not _plan_is_editable(plan):
+    if not _plan_is_editable(plan, getattr(request, "role", "")):
         return jsonify({"message": "Plan non modifiable"}), 403
 
     plan_year = plan.year
@@ -398,6 +406,7 @@ def create_plan_realized_draft_with_realization():
             return jsonify({"message": "month doit être entre 1 et 12"}), 400
 
     rb = _num("realized_budget")
+
     a = CsrActivity(
         plan_id=plan_id,
         category_id=category_id,
@@ -472,6 +481,9 @@ def create_off_plan_realization():
     if not plan_id:
         return jsonify({"message": "plan_id est obligatoire"}), 400
 
+    role = (getattr(request, "role", "") or "").upper()
+    corporate_submit = _is_corporate(role)
+
     if not _user_can_access_plan(request.user_id, plan_id, getattr(request, "role", "")):
         return jsonify({"message": "Vous n'avez pas accès à ce plan"}), 403
 
@@ -479,7 +491,7 @@ def create_off_plan_realization():
     if not plan:
         return jsonify({"message": "Plan introuvable"}), 404
     # Off-plan activities: allow only when the plan is VALIDATED (even if the unlock period expired/locked).
-    if getattr(plan, "status", None) != "VALIDATED":
+    if getattr(plan, "status", None) != "VALIDATED" and not corporate_submit:
         return jsonify({"message": f"Les activités hors plan ne peuvent être soumises que pour un plan validé. Statut actuel: {getattr(plan, 'status', None)}"}), 403
 
     plan_year = plan.year
@@ -604,10 +616,10 @@ def create_off_plan_realization():
         action_impact_target=None,
         action_impact_unit=None,
         external_partner_id=external_partner_id,
-        status="SUBMITTED",
+        status="VALIDATED" if corporate_submit else "SUBMITTED",
         is_off_plan=True,
-        off_plan_validation_mode=vm,
-        off_plan_validation_step=1 if vm == "111" else 2,
+        off_plan_validation_mode=None if corporate_submit else vm,
+        off_plan_validation_step=None if corporate_submit else (1 if vm == "111" else 2),
     )
     db.session.add(a)
     db.session.flush()
@@ -635,10 +647,11 @@ def create_off_plan_realization():
     )
     db.session.add(r)
 
-    if vm == "111":
-        _get_or_create_activity_validation(a.id, plan.site_id, "level_1")
-    else:
-        _get_or_create_activity_validation(a.id, plan.site_id, "level_2")
+    if not corporate_submit:
+        if vm == "111":
+            _get_or_create_activity_validation(a.id, plan.site_id, "level_1")
+        else:
+            _get_or_create_activity_validation(a.id, plan.site_id, "level_2")
 
     audit_create(
         user_id=request.user_id,
@@ -651,7 +664,19 @@ def create_off_plan_realization():
     db.session.commit()
 
     site_name = plan.site.name if plan.site else "Site inconnu"
-    if vm == "111":
+    if corporate_submit:
+        notify_site_users(
+            plan.site_id,
+            title="Activité hors plan validée",
+            message=(
+                f"L'activité hors plan {a.activity_number}: {a.title} (plan {plan.year}, {site_name}) a été validée."
+            ),
+            type="success",
+            entity_type="ACTIVITY",
+            entity_id=a.id,
+            notification_category="activity_validation",
+        )
+    elif vm == "111":
         notify_site_users(
             site_id=plan.site_id,
             title="Activité hors plan — validation niveau 1",
@@ -696,7 +721,7 @@ def submit_activity_modification_review(activity_id: str):
         return jsonify({"message": "Plan introuvable"}), 404
     if plan.status != "VALIDATED":
         return jsonify({"message": "Le plan doit être validé"}), 400
-    if _plan_is_editable(plan):
+    if _plan_is_editable(plan, getattr(request, "role", "")):
         return jsonify({"message": "Utilisez la soumission du plan pour les modifications globales"}), 400
     if getattr(a, "is_off_plan", False):
         return jsonify({"message": "Réservé aux activités du plan annuel"}), 400
@@ -709,20 +734,27 @@ def submit_activity_modification_review(activity_id: str):
     if unlock_until is None or now > unlock_until:
         return jsonify({"message": "La fenêtre de modification de cette activité a expiré"}), 400
 
+    role = (getattr(request, "role", "") or "").upper()
     vm = (getattr(plan, "validation_mode", None) or "101").strip()
     if vm not in ("101", "111"):
         vm = "101"
-    a.off_plan_validation_mode = vm
-    a.off_plan_validation_step = 1 if vm == "111" else 2
-    a.status = "SUBMITTED"
+    if _is_corporate(role):
+        a.off_plan_validation_mode = None
+        a.off_plan_validation_step = None
+        a.status = "VALIDATED"
+    else:
+        a.off_plan_validation_mode = vm
+        a.off_plan_validation_step = 1 if vm == "111" else 2
+        a.status = "SUBMITTED"
     a.unlock_until = None
     a.unlock_since = None
 
-    Validation.query.filter_by(entity_type="ACTIVITY", entity_id=activity_id).delete(synchronize_session=False)
-    if vm == "111":
-        _get_or_create_activity_validation(a.id, plan.site_id, "level_1")
-    else:
-        _get_or_create_activity_validation(a.id, plan.site_id, "level_2")
+    if not _is_corporate(role):
+        Validation.query.filter_by(entity_type="ACTIVITY", entity_id=activity_id).delete(synchronize_session=False)
+        if vm == "111":
+            _get_or_create_activity_validation(a.id, plan.site_id, "level_1")
+        else:
+            _get_or_create_activity_validation(a.id, plan.site_id, "level_2")
 
     write_audit(
         request.user_id,
@@ -735,7 +767,20 @@ def submit_activity_modification_review(activity_id: str):
     db.session.commit()
 
     site_name = plan.site.name if plan.site else "Site inconnu"
-    if vm == "111":
+    if _is_corporate(role):
+        notify_site_users(
+            plan.site_id,
+            title="Modification d'activité validée",
+            message=(
+                f"La modification de l'activité {a.activity_number}: {a.title} (plan {plan.year}, {site_name}) "
+                f"a été validée."
+            ),
+            type="success",
+            entity_type="ACTIVITY",
+            entity_id=a.id,
+            notification_category="activity_validation",
+        )
+    elif vm == "111":
         notify_site_users(
             site_id=plan.site_id,
             title="Modification d'activité — validation niveau 1",
@@ -1000,7 +1045,7 @@ def resubmit_off_plan_activity(activity_id: str):
 
     is_off = getattr(a, "is_off_plan", False)
     in_plan_mod = not is_off
-    if in_plan_mod and _plan_is_editable(plan):
+    if in_plan_mod and _plan_is_editable(plan, getattr(request, "role", "")):
         return jsonify({"message": "Utilisez la soumission du plan pour les modifications globales"}), 400
 
     default_vm = (getattr(plan, "validation_mode", None) or "101") if in_plan_mod else "101"
@@ -1008,17 +1053,23 @@ def resubmit_off_plan_activity(activity_id: str):
     vm = str(raw_vm or "101").strip()
     if vm not in ("101", "111"):
         vm = "101"
-    a.off_plan_validation_mode = vm
-    a.off_plan_validation_step = 1 if vm == "111" else 2
-    a.status = "SUBMITTED"
-
-    Validation.query.filter_by(entity_type="ACTIVITY", entity_id=activity_id).delete(
-        synchronize_session=False
-    )
-    if vm == "111":
-        _get_or_create_activity_validation(a.id, plan.site_id, "level_1")
+    role = (getattr(request, "role", "") or "").upper()
+    if _is_corporate(role):
+        a.off_plan_validation_mode = None
+        a.off_plan_validation_step = None
+        a.status = "VALIDATED"
     else:
-        _get_or_create_activity_validation(a.id, plan.site_id, "level_2")
+        a.off_plan_validation_mode = vm
+        a.off_plan_validation_step = 1 if vm == "111" else 2
+        a.status = "SUBMITTED"
+
+        Validation.query.filter_by(entity_type="ACTIVITY", entity_id=activity_id).delete(
+            synchronize_session=False
+        )
+        if vm == "111":
+            _get_or_create_activity_validation(a.id, plan.site_id, "level_1")
+        else:
+            _get_or_create_activity_validation(a.id, plan.site_id, "level_2")
 
     audit_desc = (
         "Renvoi modification activité (plan validé) pour validation"
@@ -1036,7 +1087,25 @@ def resubmit_off_plan_activity(activity_id: str):
     db.session.commit()
 
     site_name = plan.site.name if plan.site else "Site inconnu"
-    if vm == "111":
+    if _is_corporate(role):
+        notify_site_users(
+            plan.site_id,
+            title=(
+                "Modification d'activité validée"
+                if in_plan_mod
+                else "Activité hors plan validée"
+            ),
+            message=(
+                f"La modification de l'activité {a.activity_number}: {a.title} (plan {plan.year}, {site_name}) a été validée."
+                if in_plan_mod
+                else f"L'activité hors plan {a.activity_number}: {a.title} (plan {plan.year}, {site_name}) a été validée."
+            ),
+            type="success",
+            entity_type="ACTIVITY",
+            entity_id=a.id,
+            notification_category="activity_validation",
+        )
+    elif vm == "111":
         notify_site_users(
             site_id=plan.site_id,
             title=(
@@ -1101,7 +1170,7 @@ def get_activity(activity_id: str):
         return jsonify({"message": "Activité introuvable"}), 404
     if not _user_can_access_plan(request.user_id, a.plan_id, getattr(request, "role", "")):
         return jsonify({"message": "Vous n'avez pas accès à cette activité"}), 403
-    return jsonify(_activity_to_json_with_plan(a)), 200
+    return jsonify(_activity_to_json_with_plan(a, getattr(request, "role", ""))), 200
 
 
 def _activity_site_id(a: CsrActivity):
@@ -1117,7 +1186,7 @@ def update_activity(activity_id: str):
         return jsonify({"message": "Activité introuvable"}), 404
     if not _user_can_access_plan(request.user_id, a.plan_id, getattr(request, "role", "")):
         return jsonify({"message": "Vous n'avez pas accès à cette activité"}), 403
-    if not _activity_is_editable(a):
+    if not _activity_is_editable(a, getattr(request, "role", "")):
         return jsonify({"message": "Plan validé (verrouillé) ou période d'ouverture expirée. Utilisez une demande de modification."}), 403
 
     data = request.get_json()
@@ -1212,7 +1281,7 @@ def delete_activity(activity_id: str):
         return jsonify({"message": "Activité introuvable"}), 404
     if not _user_can_access_plan(request.user_id, a.plan_id, getattr(request, "role", "")):
         return jsonify({"message": "Vous n'avez pas accès à cette activité"}), 403
-    if not _activity_is_editable(a):
+    if not _activity_is_editable(a, getattr(request, "role", "")):
         return jsonify({"message": "Plan validé (verrouillé) ou période d'ouverture expirée. Utilisez une demande de modification."}), 403
     old_snapshot = snapshot_activity(a)
     audit_delete(

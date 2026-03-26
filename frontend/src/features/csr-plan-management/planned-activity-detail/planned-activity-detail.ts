@@ -44,6 +44,12 @@ export class PlannedActivityDetailComponent implements OnInit, OnDestroy {
     return y != null && y < this.currentYear;
   }
 
+  /** Realized data can be submitted only when parent plan is validated. */
+  canSubmitRealizedData(): boolean {
+    const status = (this.activity()?.plan_status ?? '').toUpperCase();
+    return status === 'VALIDATED';
+  }
+
   activityTitle(): string {
     return this.activity()?.title || (this.isPlanRealized() ? this.translate.instant('PLANNED_ACTIVITY_DETAIL.TITLE_REALIZED') : this.translate.instant('PLANNED_ACTIVITY_DETAIL.TITLE_PLANNED'));
   }
@@ -157,6 +163,7 @@ export class PlannedActivityDetailComponent implements OnInit, OnDestroy {
   }
 
   showAddRealizationSidebar = signal(false);
+  showDeleteModal = signal(false);
 
   openAddRealizationSidebar(): void {
     this.showAddRealizationSidebar.set(true);
@@ -169,6 +176,36 @@ export class PlannedActivityDetailComponent implements OnInit, OnDestroy {
   onRealizationCreated(): void {
     this.closeAddRealizationSidebar();
     this.router.navigate(['/realized-csr']);
+  }
+
+  openDeleteModal(): void {
+    this.showDeleteModal.set(true);
+  }
+
+  closeDeleteModal(): void {
+    this.showDeleteModal.set(false);
+  }
+
+  confirmDeleteActivity(): void {
+    this.closeDeleteModal();
+    this.deleteActivity();
+  }
+
+  private deleteActivity(): void {
+    const act = this.activity();
+    if (!act?.id) return;
+    this.api.delete(act.id).subscribe({
+      next: () => {
+        if (act.plan_id) {
+          this.router.navigate(['/csr-plans', act.plan_id]);
+          return;
+        }
+        this.router.navigate(['/planned-activities']);
+      },
+      error: (err) => {
+        this.errorMsg.set(err.error?.message ?? this.translate.instant('PLANNED_ACTIVITY_DETAIL.DELETE_ERROR'));
+      },
+    });
   }
 
   ngOnDestroy(): void {

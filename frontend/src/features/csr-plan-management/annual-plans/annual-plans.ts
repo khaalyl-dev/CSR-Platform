@@ -95,6 +95,10 @@ export class AnnualPlansComponent implements OnInit {
   isAuthenticated = this.authStore.isAuthenticated;
   user = this.authStore.user;
 
+  isCorporateUser(): boolean {
+    return this.user()?.role === 'corporate';
+  }
+
   plans = signal<CsrPlan[]>([]);
   loading = signal(true);
   selectedYear = signal<number | null>(null);
@@ -180,10 +184,10 @@ export class AnnualPlansComponent implements OnInit {
     const ids = this.selectedPlanIds();
     return this.filteredPlans().filter(p => ids.has(p.id));
   });
-  canBulkSubmit = computed(() => this.selectedPlans().some(p => p.status === 'DRAFT'));
-  canBulkDelete = computed(() => this.selectedPlans().some(p => p.status === 'DRAFT' || p.status === 'REJECTED'));
-  selectedDraftIds = computed(() => this.selectedPlans().filter(p => p.status === 'DRAFT').map(p => p.id));
-  selectedDeletableIds = computed(() => this.selectedPlans().filter(p => p.status === 'DRAFT' || p.status === 'REJECTED').map(p => p.id));
+  canBulkSubmit = computed(() => this.selectedPlans().some(p => p.status === 'DRAFT' || p.status === 'REJECTED'));
+  canBulkDelete = computed(() => this.selectedPlans().some(p => this.isCorporateUser() || p.status === 'DRAFT' || p.status === 'REJECTED'));
+  selectedSubmittableIds = computed(() => this.selectedPlans().filter(p => this.isCorporateUser() || p.status === 'DRAFT' || p.status === 'REJECTED').map(p => p.id));
+  selectedDeletableIds = computed(() => this.selectedPlans().filter(p => this.isCorporateUser() || p.status === 'DRAFT' || p.status === 'REJECTED').map(p => p.id));
   isAllFilteredSelected = computed(() => {
     const list = this.filteredPlans();
     const ids = this.selectedPlanIds();
@@ -231,7 +235,7 @@ export class AnnualPlansComponent implements OnInit {
   }
 
   bulkSubmit(): void {
-    const ids = this.selectedDraftIds();
+    const ids = this.selectedSubmittableIds();
     if (!ids.length) return;
     this.openConfirm({
       title: this.i18n.t('COMMON.CONFIRM'),
@@ -298,10 +302,11 @@ export class AnnualPlansComponent implements OnInit {
     return s ?? '';
   }
 
-  /** True if plan can be submitted for validation (DRAFT or VALIDATED with unlock_until in future). */
+  /** True if plan can be submitted for validation (DRAFT/REJECTED or VALIDATED with unlock_until in future). */
   canSubmitFromList(plan: CsrPlan): boolean {
     if (!plan) return false;
     if (plan.status === 'DRAFT') return true;
+    if (plan.status === 'REJECTED') return true;
     if (plan.status === 'VALIDATED') {
       const u = plan?.unlock_until;
       return !!(u && new Date(u) > new Date());
@@ -312,6 +317,7 @@ export class AnnualPlansComponent implements OnInit {
   /** True if plan can be edited (DRAFT, REJECTED, or VALIDATED with unlock_until in future). */
   isPlanEditable(plan: CsrPlan): boolean {
     if (!plan) return false;
+    if (this.isCorporateUser()) return true;
     if (plan.status === 'DRAFT' || plan.status === 'REJECTED') return true;
     if (plan.status === 'VALIDATED') {
       const u = plan?.unlock_until;
@@ -392,7 +398,7 @@ export class AnnualPlansComponent implements OnInit {
   }
 
   deleteFromMenu(plan: CsrPlan): void {
-    if (plan.status !== 'DRAFT' && plan.status !== 'REJECTED') return;
+    if (!this.isCorporateUser() && plan.status !== 'DRAFT' && plan.status !== 'REJECTED') return;
     this.openConfirm({
       title: this.i18n.t('COMMON.CONFIRM'),
       message: this.i18n.t('ANNUAL_PLANS.CONFIRM.DELETE_ONE'),
@@ -425,7 +431,7 @@ export class AnnualPlansComponent implements OnInit {
   }
 
   submitForValidation(plan: CsrPlan): void {
-    if (plan.status !== 'DRAFT') return;
+    if (plan.status !== 'DRAFT' && plan.status !== 'REJECTED') return;
     this.openConfirm({
       title: this.i18n.t('COMMON.CONFIRM'),
       message: this.i18n.t('ANNUAL_PLANS.CONFIRM.SUBMIT_ONE'),

@@ -23,7 +23,7 @@
           </p>
         </div>
         <div class="flex items-center gap-3">
-          <button *ngIf="plan()!.status === 'VALIDATED' && !isUnlockUntilFuture()" type="button" (click)="goToChangeRequest(plan()!.id)"
+          <button *ngIf="canRequestChange()" type="button" (click)="goToChangeRequest(plan()!.id)"
             class="inline-flex items-center justify-center px-5 py-2.5 rounded-xl text-sm font-semibold bg-white text-brand-900 border-2 border-brand-900 hover:bg-gray-50 active:bg-gray-100 shadow-sm hover:shadow transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-brand-900 focus:ring-offset-2">
             {{ 'PLAN_DETAIL.CHANGE_REQUEST_TITLE' | translate }}
           </button>
@@ -47,7 +47,7 @@
             <span class="text-base leading-none font-medium" aria-hidden="true">+</span>
             {{ 'PLAN_DETAIL.ADD_ACTIVITY' | translate }}
           </button>
-          <button *ngIf="plan()!.status === 'VALIDATED' && (isPlanPlanned || !canEditPlan())"
+          <button *ngIf="canAddOffPlan()"
             type="button" (click)="openOffPlanSidebar()"
             class="inline-flex items-center justify-center gap-1.5 px-5 py-2.5 rounded-xl text-sm font-semibold text-white bg-brand-900 hover:opacity-90 active:opacity-95 shadow-sm hover:shadow transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-brand-900 focus:ring-offset-2">
             <span class="text-base leading-none font-medium" aria-hidden="true">+</span>
@@ -55,7 +55,7 @@
           </button>
         </div>
       </div>
-      <div *ngIf="plan()!.rejected_comment" class="mt-4 p-4 bg-red-50 rounded-xl text-red-700 text-sm space-y-1">
+      <div *ngIf="plan()!.status === 'REJECTED' && plan()!.rejected_comment" class="mt-4 p-4 bg-red-50 rounded-xl text-red-700 text-sm space-y-1">
         <p><strong>{{ 'PLAN_DETAIL.REJECT_REASON' | translate }}</strong> {{ plan()!.rejected_comment }}</p>
         <div *ngIf="rejectedActivitiesList().length" class="mt-2">
           <strong>{{ 'PLAN_DETAIL.ACTIVITIES_TO_MODIFY' | translate }}</strong>
@@ -133,12 +133,6 @@
       [style.top.px]="activityMenuPosition.top"
       [style.left.px]="activityMenuPosition.left"
       (click)="$event.stopPropagation()">
-
-      <button (click)="goToActivityDetail(activityMenuId()!)"
-        class="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors">
-        <i class="fas fa-eye w-4 text-center"></i>
-        {{ 'PLAN_VALIDATION.DETAILS' | translate }}
-      </button>
 
       <button *ngIf="canRequestChange() && !canEditActivity(activityMenuId()!)" (click)="goToChangeRequestForActivity(plan()!.id, activityMenuId()!)"
         class="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors">
@@ -226,7 +220,8 @@
           </thead>
           <tbody>
             <tr *ngFor="let a of plan()!.activities"
-              class="border-t border-gray-100"
+              class="border-t border-gray-100 cursor-pointer"
+              (click)="goToActivityDetail(a.id)"
               [ngClass]="{
                 'bg-yellow-100 border-l-4 border-l-amber-500 shadow-sm': offPlanAwaitingValidation(a),
                 'hover:bg-amber-50': offPlanAwaitingValidation(a),
@@ -261,7 +256,7 @@
               <td class="p-3 text-right tabular-nums whitespace-nowrap">{{ a.action_impact_target != null ? a.action_impact_target : '–' }}</td>
               <td class="p-3 min-w-[5rem] break-words">{{ a.action_impact_unit || '–' }}</td>
               <td class="p-3 min-w-[7rem] break-words">{{ a.external_partner_name || '–' }}</td>
-              <td class="p-3 text-center whitespace-nowrap">
+              <td class="p-3 text-center whitespace-nowrap" (click)="$event.stopPropagation()">
                 <div class="relative flex items-center justify-center">
                   <button type="button" (click)="toggleActivityMenu($event, a.id)"
                     class="inline-flex items-center justify-center p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
@@ -315,7 +310,8 @@
           </thead>
           <tbody>
             <tr *ngFor="let a of plan()!.activities"
-              class="border-t border-gray-100"
+              class="border-t border-gray-100 cursor-pointer"
+              (click)="goToActivityDetail(a.id)"
               [ngClass]="{
                 'bg-yellow-100 border-l-4 border-l-amber-500 shadow-sm': offPlanAwaitingValidation(a),
                 'hover:bg-amber-50': offPlanAwaitingValidation(a),
@@ -357,7 +353,7 @@
               <td class="p-3 text-right tabular-nums whitespace-nowrap">{{ a.number_external_partners != null ? a.number_external_partners : '–' }}</td>
               <td class="p-3 text-right tabular-nums whitespace-nowrap">{{ a.action_impact_actual != null ? a.action_impact_actual : '–' }}</td>
               <td class="p-3 min-w-[5rem] break-words">{{ a.action_impact_unit_realized || '–' }}</td>
-              <td class="p-3 text-center whitespace-nowrap">
+              <td class="p-3 text-center whitespace-nowrap" (click)="$event.stopPropagation()">
                 <div class="relative flex items-center justify-center">
                   <button type="button" (click)="toggleActivityMenu($event, a.id)"
                     class="inline-flex items-center justify-center p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"

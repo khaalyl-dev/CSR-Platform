@@ -39,6 +39,11 @@ export class PlanDetailComponent implements OnInit, OnDestroy {
   actionLoading = signal(false);
   currentYear = new Date().getFullYear();
 
+  private isCorporateUser(): boolean {
+    const role = (this.authStore.user()?.role ?? '').toLowerCase();
+    return role === 'corporate';
+  }
+
   /** Plan is "planifié" (current or future year) → show only planned-activity columns. */
   get isPlanPlanned(): boolean {
     const p = this.plan();
@@ -205,11 +210,12 @@ export class PlanDetailComponent implements OnInit, OnDestroy {
     return new Date(u) > new Date();
   }
 
-  /** True if user can submit the plan for validation (DRAFT or VALIDATED with unlock period). */
+  /** True if user can submit the plan for validation (DRAFT/REJECTED or VALIDATED with unlock period). */
   canSubmitForValidation(): boolean {
     const p = this.plan();
     if (!p) return false;
     if (p.status === 'DRAFT') return true;
+    if (p.status === 'REJECTED') return true;
     if (p.status === 'VALIDATED' && this.isUnlockUntilFuture()) return true;
     return false;
   }
@@ -223,6 +229,7 @@ export class PlanDetailComponent implements OnInit, OnDestroy {
 
   /** True if this specific activity can be edited (plan editable or activity individually unlocked). */
   canEditActivity(activityId: string): boolean {
+    if (this.isCorporateUser()) return true;
     const p = this.plan();
     if (!p?.activities) return false;
     const a = p.activities.find((x) => x.id === activityId);
@@ -231,6 +238,7 @@ export class PlanDetailComponent implements OnInit, OnDestroy {
 
   /** True if plan can be edited: DRAFT/REJECTED always, or VALIDATED with unlock_until in the future. */
   canEditPlan(): boolean {
+    if (this.isCorporateUser()) return true;
     const p = this.plan();
     if (!p) return false;
     const u = p.unlock_until;
@@ -544,9 +552,17 @@ export class PlanDetailComponent implements OnInit, OnDestroy {
 
   openOffPlanSidebar(): void {
     const p = this.plan();
-    // Hors plan autorisé dès que le plan est validé (backend idem), pas seulement pendant unlock_until.
-    if (!p || p.status !== 'VALIDATED') return;
+    // Corporate can add off-plan on any plan; other users only on VALIDATED plans.
+    if (!p) return;
+    if (!this.isCorporateUser() && p.status !== 'VALIDATED') return;
     this.showOffPlanSidebar.set(true);
+  }
+
+  canAddOffPlan(): boolean {
+    const p = this.plan();
+    if (!p) return false;
+    if (this.isCorporateUser()) return true;
+    return p.status === 'VALIDATED' && (this.isPlanPlanned || !this.canEditPlan());
   }
 
   closeOffPlanSidebar(): void {
@@ -609,6 +625,7 @@ export class PlanDetailComponent implements OnInit, OnDestroy {
   /** True if user can request a change for the plan or an activity (plan validated and locked). */
   canRequestChange(): boolean {
     const p = this.plan();
+    if (this.isCorporateUser()) return false;
     return !!(p && p.status === 'VALIDATED' && !this.isUnlockUntilFuture());
   }
 
@@ -636,7 +653,7 @@ export class PlanDetailComponent implements OnInit, OnDestroy {
 
   deletePlan(): void {
     const p = this.plan();
-    if (!p || (p.status !== 'DRAFT' && p.status !== 'REJECTED')) return;
+    if (!p || (!this.isCorporateUser() && p.status !== 'DRAFT' && p.status !== 'REJECTED')) return;
     this.openConfirm({
       title: this.translate.instant('COMMON.CONFIRM'),
       message: 'Supprimer définitivement ce plan et toutes ses activités ?',

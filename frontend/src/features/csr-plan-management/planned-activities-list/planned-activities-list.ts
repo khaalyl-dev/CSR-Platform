@@ -41,6 +41,27 @@ export class PlannedActivitiesListComponent implements OnInit {
     this.activeMenuActivity = null;
   }
 
+  goToDetail(activity: PlannedActivityListItem): void {
+    this.closeMenu();
+    this.router.navigate(['/planned-activity', activity.id]);
+  }
+
+  canRequestChange(activity: PlannedActivityListItem): boolean {
+    return !!(
+      activity.plan_id &&
+      activity.plan_status === 'VALIDATED' &&
+      activity.plan_editable === false
+    );
+  }
+
+  goToChangeRequest(activity: PlannedActivityListItem): void {
+    if (!activity.plan_id) return;
+    this.closeMenu();
+    this.router.navigate(['/changes/create'], {
+      queryParams: { planId: activity.plan_id, activityId: activity.id },
+    });
+  }
+
   showEditSidebar = signal(false);
   activityIdToEdit = signal<string | null>(null);
   planIdToEdit = signal<string | null>(null);

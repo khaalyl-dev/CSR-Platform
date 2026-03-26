@@ -472,37 +472,33 @@
         </tr>
       </thead>
       <tbody>
-        <tr *ngFor="let plan of filteredPlans()" class="border-t hover:bg-gray-50 transition duration-200"
+        <tr *ngFor="let plan of filteredPlans()" class="border-t hover:bg-gray-50 transition duration-200 cursor-pointer h-16"
+          (click)="goToDetail(plan)"
           [class.bg-brand-100/70]="isSelected(plan.id)">
-          <td class="p-4 w-12 text-center">
+          <td class="p-4 w-12 text-center align-middle" (click)="$event.stopPropagation()">
             <label class="cursor-pointer flex items-center justify-center" (click)="$event.stopPropagation()">
               <input type="checkbox" [checked]="isSelected(plan.id)" (change)="toggleSelection(plan.id)"
                 class="rounded border-gray-300 text-slate-700 focus:ring-brand-700 w-4 h-4" />
             </label>
           </td>
-          <td class="p-4">
+          <td class="p-4 align-middle">
             <span class="font-medium text-gray-800">{{ plan.site_name ?? plan.site_code ?? plan.site_id }}</span>
             <span class="text-gray-400 text-xs ml-1" *ngIf="plan.site_code">({{ plan.site_code }})</span>
           </td>
-          <td class="p-4 text-gray-700">{{ plan.site_country ?? '–' }}</td>
-          <td class="p-4 font-semibold text-gray-800">{{ plan.year }}</td>
-          <td class="p-4 text-right text-gray-700">
+          <td class="p-4 text-gray-700 align-middle">{{ plan.site_country ?? '–' }}</td>
+          <td class="p-4 font-semibold text-gray-800 align-middle">{{ plan.year }}</td>
+          <td class="p-4 text-right text-gray-700 align-middle">
             {{ plan.total_budget != null ? (plan.total_budget | number:'1.0-0') + ' €' : '–' }}
           </td>
-          <td class="p-4 text-center text-gray-600">{{ validationModeLabel(plan.validation_mode) }}</td>
-          <td class="p-4 text-center text-gray-700">{{ plan.activities_count ?? 0 }}</td>
-          <td class="p-4 text-gray-600 text-xs">{{ plan.created_at ? (plan.created_at | date:'dd/MM/yyyy') : '–' }}</td>
-          <td class="p-4 text-center">
+          <td class="p-4 text-center text-gray-600 align-middle">{{ validationModeLabel(plan.validation_mode) }}</td>
+          <td class="p-4 text-center text-gray-700 align-middle">{{ plan.activities_count ?? 0 }}</td>
+          <td class="p-4 text-gray-600 text-xs align-middle">{{ plan.created_at ? (plan.created_at | date:'dd/MM/yyyy') : '–' }}</td>
+          <td class="p-4 text-center align-middle">
             <span class="px-3 py-1 rounded-full text-xs font-semibold" [ngClass]="statusBadgeClass(plan)">{{ getStatusLabel(plan) }}</span>
           </td>
-          <td class="p-4 text-center">
+          <td class="p-4 text-center align-middle" (click)="$event.stopPropagation()">
             <div class="flex items-center justify-center gap-1">
-              <a [routerLink]="['/csr-plans', plan.id]"
-                class="p-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors"
-                [attr.title]="'ANNUAL_PLANS.ACTIONS.DETAILS' | translate">
-                <i class="fas fa-eye text-sm"></i>
-              </a>
-              <button *ngIf="plan.status === 'VALIDATED' && !isPlanEditable(plan)" type="button" (click)="goToChangeRequest(plan.id); $event.stopPropagation()"
+              <button *ngIf="plan.status === 'VALIDATED' && !isPlanEditable(plan) && !isCorporateUser()" type="button" (click)="goToChangeRequest(plan.id); $event.stopPropagation()"
                 class="inline-flex items-center justify-center p-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors cursor-pointer" [attr.title]="'ANNUAL_PLANS.ACTIONS.CHANGE_REQUEST' | translate">
                 <i class="fas fa-lock-open text-sm"></i>
               </button>
@@ -542,9 +538,9 @@
     {{ 'ANNUAL_PLANS.ACTIONS.SUBMIT' | translate }}
   </button>
 
-  <div *ngIf="(isPlanEditable(activeMenuPlan!) || canSubmitFromList(activeMenuPlan!)) && (activeMenuPlan!.status === 'DRAFT' || activeMenuPlan!.status === 'REJECTED')" class="border-t border-gray-100 my-1"></div>
+  <div *ngIf="(isPlanEditable(activeMenuPlan!) || canSubmitFromList(activeMenuPlan!)) && (isCorporateUser() || activeMenuPlan!.status === 'DRAFT' || activeMenuPlan!.status === 'REJECTED')" class="border-t border-gray-100 my-1"></div>
 
-  <button *ngIf="activeMenuPlan!.status === 'DRAFT' || activeMenuPlan!.status === 'REJECTED'" (click)="deleteFromMenu(activeMenuPlan!)"
+  <button *ngIf="isCorporateUser() || activeMenuPlan!.status === 'DRAFT' || activeMenuPlan!.status === 'REJECTED'" (click)="deleteFromMenu(activeMenuPlan!)"
     class="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 transition-colors">
     <i class="fas fa-trash w-4 text-center"></i>
     {{ 'ANNUAL_PLANS.ACTIONS.DELETE' | translate }}

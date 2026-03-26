@@ -58,7 +58,7 @@ export const navItems: NavSection[] = [
     items: [
       { labelKey: 'NAV.ITEMS.VALIDATE_PLANS', path: '/annual-plans/validation', roles: ['site', 'corporate'], icon: faCheckSquare },
       { labelKey: 'NAV.ITEMS.MY_REQUESTS', path: '/changes', roles: ['site'], icon: faEnvelopeOpenText },
-      { labelKey: 'NAV.ITEMS.PENDING_REQUESTS', path: '/changes/pending', roles: ['corporate'], icon: faHourglassHalf },
+      { labelKey: 'NAV.ITEMS.PENDING_REQUESTS', path: '/changes/pending', roles: ['site', 'corporate'], icon: faHourglassHalf },
       { labelKey: 'NAV.ITEMS.CHANGE_HISTORY', path: '/changes/history', roles: ['corporate'], icon: faHistory },
     ],
   },

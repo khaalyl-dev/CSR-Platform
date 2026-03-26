@@ -26,6 +26,10 @@ from features.audit_history_management.audit_helper import (
 bp = Blueprint("csr_plans", __name__, url_prefix="/api/csr-plans")
 
 
+def _is_corporate(role: str) -> bool:
+    return (role or "").upper() in ("CORPORATE_USER", "CORPORATE")
+
+
 def _plan_validation_grade(plan: CsrPlan) -> str:
     """Grade (level_1 / level_2) for the current validation step."""
     mode = plan.validation_mode or "101"
@@ -87,11 +91,18 @@ def _plan_total_realized_budget(plan: CsrPlan):
 
 
 def _plan_to_json(plan: CsrPlan):
-    """Budget total: past year = sum(realized), current/future year = sum(estimated/planned)."""
+    """Serialize plan with budget fields.
+
+    - `total_budget`: explicit plan value when set (manual override from plan edit).
+      Fallback keeps legacy behavior (past year: realized sum, current/future: planned sum).
+    - `total_estimated_budget` / `total_realized_budget`: always computed from activities/realizations.
+    """
     current_year = datetime.utcnow().year
     total_estimated = _plan_total_budget_from_activities(plan)
     total_realized_budget = _plan_total_realized_budget(plan)
-    if plan.year < current_year:
+    if getattr(plan, "total_budget", None) is not None:
+        total_budget = float(plan.total_budget)
+    elif plan.year < current_year:
         total_budget = total_realized_budget  # old year: budget total = sum of realized
     else:
         total_budget = total_estimated  # current or future: budget total = sum of estimated
@@ -283,11 +294,19 @@ def _bulk_submit_plan(plan_id: str, user_id: str, role: str) -> Tuple[bool, Opti
         return False, f"Plan non brouillon (statut: {plan.status})"
     if role in ("SITE_USER", "SITE") and not _user_can_access_site(user_id, plan.site_id):
         return False, "Accès refusé"
-    plan.status = "SUBMITTED"
-    plan.submitted_at = datetime.utcnow()
-    plan.validation_step = 1 if (plan.validation_mode or "101") == "111" else 2
-    grade = _plan_validation_grade(plan)
-    _get_or_create_plan_validation(plan_id, plan.site_id, grade)
+    now = datetime.utcnow()
+    if _is_corporate(role):
+        plan.status = "VALIDATED"
+        plan.submitted_at = now
+        plan.validated_at = now
+        plan.validation_step = None
+        plan.unlock_until = None
+    else:
+        plan.status = "SUBMITTED"
+        plan.submitted_at = now
+        plan.validation_step = 1 if (plan.validation_mode or "101") == "111" else 2
+        grade = _plan_validation_grade(plan)
+        _get_or_create_plan_validation(plan_id, plan.site_id, grade)
     return True, None
 
 
@@ -374,10 +393,10 @@ def update_plan(plan_id):
     plan = CsrPlan.query.get(plan_id)
     if not plan:
         return jsonify({"message": "Plan introuvable"}), 404
-    if not _plan_is_editable(plan):
+    role = (getattr(request, "role", "") or "").upper()
+    if not _plan_is_editable(plan, role):
         return jsonify({"message": "Plan non modifiable (verrouillé ou période d'ouverture expirée)"}), 400
 
-    role = (getattr(request, "role", "") or "").upper()
     if role in ("SITE_USER", "SITE"):
         if not _user_can_access_site(request.user_id, plan.site_id):
             return jsonify({"message": "Vous n'avez pas accès à ce plan"}), 403
@@ -434,8 +453,10 @@ def update_plan(plan_id):
     return jsonify(_plan_to_json(plan)), 200
 
 
-def _plan_is_editable(plan: CsrPlan) -> bool:
-    """True if plan can be edited: DRAFT/REJECTED always, or VALIDATED with unlock_until in the future."""
+def _plan_is_editable(plan: CsrPlan, role: str = "") -> bool:
+    """True if plan can be edited: corporate always; otherwise DRAFT/REJECTED, or VALIDATED with unlock_until in the future."""
+    if _is_corporate(role):
+        return True
     unlock_until = getattr(plan, "unlock_until", None)
     now = datetime.utcnow()
     if plan.status in ("DRAFT", "REJECTED"):
@@ -488,7 +509,7 @@ def get_plan(plan_id):
             return True
         if not getattr(a, "is_off_plan", False) and a.status == "REJECTED":
             return True
-        if _plan_is_editable(plan):
+        if _plan_is_editable(plan, role_str):
             return True
         unlock_until = getattr(a, "unlock_until", None)
         return unlock_until is not None and now <= unlock_until
@@ -578,7 +599,7 @@ def get_plan(plan_id):
             ),
             "can_submit_modification_review": bool(
                 plan.status == "VALIDATED"
-                and not _plan_is_editable(plan)
+                and not _plan_is_editable(plan, role_str)
                 and not getattr(a, "is_off_plan", False)
                 and a.status != "SUBMITTED"
                 and getattr(a, "unlock_until", None) is not None
@@ -586,7 +607,7 @@ def get_plan(plan_id):
             ),
             "can_resubmit_modification_review": bool(
                 plan.status == "VALIDATED"
-                and not _plan_is_editable(plan)
+                and not _plan_is_editable(plan, role_str)
                 and not getattr(a, "is_off_plan", False)
                 and a.status == "REJECTED"
             ),
@@ -597,31 +618,39 @@ def get_plan(plan_id):
 @bp.patch("/<string:plan_id>/submit")
 @token_required
 def submit_plan(plan_id):
-    """Passer un plan à SUBMITTED (envoi pour validation). Accepte DRAFT ou VALIDATED avec unlock_until (modifications à valider)."""
+    """Passer un plan à SUBMITTED (envoi pour validation). Accepte DRAFT, REJECTED, ou VALIDATED avec unlock_until (modifications à valider)."""
     plan = CsrPlan.query.get(plan_id)
     if not plan:
         return jsonify({"message": "Plan introuvable"}), 404
     unlock_until = getattr(plan, "unlock_until", None)
-    can_submit = plan.status == "DRAFT" or (
+    can_submit = plan.status in ("DRAFT", "REJECTED") or (
         plan.status == "VALIDATED" and unlock_until and datetime.utcnow() <= unlock_until
     )
     if not can_submit:
-        return jsonify({"message": "Seuls les plans en brouillon ou ouverts pour modification peuvent être envoyés pour validation"}), 400
+        return jsonify({"message": "Seuls les plans en brouillon, rejetés, ou ouverts pour modification peuvent être envoyés pour validation"}), 400
 
     role = (getattr(request, "role", "") or "").upper()
     if role in ("SITE_USER", "SITE"):
         if not _user_can_access_site(request.user_id, plan.site_id):
             return jsonify({"message": "Vous n'avez pas accès à ce plan"}), 403
 
-    plan.status = "SUBMITTED"
-    plan.submitted_at = datetime.utcnow()
-    # When re-submitting after change request, clear unlock_until so plan is not editable during validation
-    plan.unlock_until = None
-    # Mode 111: Level 1 valide d'abord (step 1), puis Level 2 valide (step 2)
-    # Mode 101: Level 2 valide directement (step 2)
-    plan.validation_step = 1 if (plan.validation_mode or "101") == "111" else 2
-    grade = _plan_validation_grade(plan)
-    _get_or_create_plan_validation(plan_id, plan.site_id, grade)
+    now = datetime.utcnow()
+    if _is_corporate(role):
+        plan.status = "VALIDATED"
+        plan.submitted_at = now
+        plan.validated_at = now
+        plan.unlock_until = None
+        plan.validation_step = None
+    else:
+        plan.status = "SUBMITTED"
+        plan.submitted_at = now
+        # When re-submitting after change request, clear unlock_until so plan is not editable during validation
+        plan.unlock_until = None
+        # Mode 111: Level 1 valide d'abord (step 1), puis Level 2 valide (step 2)
+        # Mode 101: Level 2 valide directement (step 2)
+        plan.validation_step = 1 if (plan.validation_mode or "101") == "111" else 2
+        grade = _plan_validation_grade(plan)
+        _get_or_create_plan_validation(plan_id, plan.site_id, grade)
     db.session.commit()
          # ── Notification corporate ────────────────────────────────────────────
     site_name = plan.site.name if plan.site else "Site inconnu"
@@ -791,10 +820,10 @@ def delete_plan(plan_id):
     plan = CsrPlan.query.get(plan_id)
     if not plan:
         return jsonify({"message": "Plan introuvable"}), 404
-    if not _plan_is_editable(plan):
+    role = (getattr(request, "role", "") or "").upper()
+    if not _plan_is_editable(plan, role):
         return jsonify({"message": "Plan non modifiable (verrouillé ou période d'ouverture expirée)"}), 400
 
-    role = (getattr(request, "role", "") or "").upper()
     if role in ("SITE_USER", "SITE"):
         if not _user_can_access_site(request.user_id, plan.site_id):
             return jsonify({"message": "Vous n'avez pas accès à ce plan"}), 403

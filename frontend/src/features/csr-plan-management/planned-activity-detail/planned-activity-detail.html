@@ -40,8 +40,12 @@
             class="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-gray-300 text-gray-700 hover:bg-gray-50 text-sm font-medium">
             {{ 'PLANNED_ACTIVITY_DETAIL.EDIT' | translate }}
           </button>
-          <button *ngIf="activity()!.plan_id && !isPlanRealized()" type="button" (click)="openAddRealizationSidebar()"
-            class="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-amber-600 text-white hover:bg-amber-700 text-sm font-medium">
+          <button *ngIf="activity()!.plan_editable !== false" type="button" (click)="openDeleteModal()"
+            class="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-red-300 text-red-700 hover:bg-red-50 text-sm font-medium">
+            {{ 'COMMON.DELETE' | translate }}
+          </button>
+          <button *ngIf="activity()!.plan_id && !isPlanRealized() && canSubmitRealizedData()" type="button" (click)="openAddRealizationSidebar()"
+            class="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-white text-brand-900 border border-brand-900 hover:bg-gray-50 text-sm font-medium">
             <i class="fas fa-clipboard-check text-sm"></i>
             {{ 'PLANNED_ACTIVITIES.ADD_REALIZATION' | translate }}
           </button>
@@ -135,6 +139,35 @@
       (created)="onRealizationCreated()">
     </app-realized-create-sidebar>
   </aside>
+</div>
+
+<!-- Delete confirmation modal -->
+<div *ngIf="showDeleteModal()"
+  class="fixed inset-0 z-[9998] flex items-center justify-center bg-black/50 !mt-0"
+  (click)="closeDeleteModal()"
+  role="dialog"
+  aria-modal="true">
+  <div class="relative z-[9999] bg-white rounded-2xl shadow-xl border border-gray-200 w-full max-w-md overflow-hidden"
+    (click)="$event.stopPropagation()">
+    <div class="p-6 border-b border-gray-100">
+      <h2 class="text-lg font-semibold text-gray-800">{{ 'COMMON.CONFIRM' | translate }}</h2>
+      <p class="text-gray-600 text-sm mt-2">
+        {{ 'PLANNED_ACTIVITY_DETAIL.DELETE_CONFIRM' | translate }}
+      </p>
+    </div>
+    <div class="p-4 flex items-center justify-end gap-3 bg-gray-50">
+      <button type="button"
+        class="px-4 py-2 rounded-xl border border-gray-300 text-gray-700 hover:bg-gray-100 transition"
+        (click)="closeDeleteModal()">
+        {{ 'COMMON.CANCEL' | translate }}
+      </button>
+      <button type="button"
+        class="px-4 py-2 rounded-xl bg-red-600 text-white hover:bg-red-700 transition"
+        (click)="confirmDeleteActivity()">
+        {{ 'COMMON.DELETE' | translate }}
+      </button>
+    </div>
+  </div>
 </div>
 
 <!-- Edit planned activity sidebar -->

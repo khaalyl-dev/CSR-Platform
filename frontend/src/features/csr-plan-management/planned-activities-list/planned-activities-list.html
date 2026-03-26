@@ -114,27 +114,22 @@
         </tr>
       </thead>
       <tbody>
-        <tr *ngFor="let a of filteredList()" class="border-t hover:bg-gray-50 transition duration-200">
-          <td class="p-4">
+        <tr *ngFor="let a of filteredList()" class="border-t hover:bg-gray-50 transition duration-200 cursor-pointer h-16" (click)="goToDetail(a)">
+          <td class="p-4 align-middle">
             <span class="font-medium text-gray-800">{{ a.title || '-' }}</span>
             <span class="text-gray-400 text-xs ml-1" *ngIf="a.activity_number">({{ a.activity_number }})</span>
           </td>
-          <td class="p-4 text-gray-700">{{ a.site_name ?? a.site_code ?? '-' }}</td>
-          <td class="p-4 font-semibold text-gray-800">{{ a.year ?? '–' }}</td>
-          <td class="p-4 text-gray-600">{{ a.category_name ?? '–' }}</td>
-          <td class="p-4 text-right text-gray-700">
+          <td class="p-4 align-middle text-gray-700">{{ a.site_name ?? a.site_code ?? '-' }}</td>
+          <td class="p-4 align-middle font-semibold text-gray-800">{{ a.year ?? '–' }}</td>
+          <td class="p-4 align-middle text-gray-600">{{ a.category_name ?? '–' }}</td>
+          <td class="p-4 align-middle text-right text-gray-700">
             {{ a.planned_budget != null ? (a.planned_budget | number:'1.0-0') + ' €' : '–' }}
           </td>
-          <td class="p-4 text-center">
+          <td class="p-4 align-middle text-center" (click)="$event.stopPropagation()">
             <a [routerLink]="['/csr-plans', a.plan_id]" class="text-brand-700 hover:text-brand-800 font-medium text-sm">{{ 'PLAN_DETAIL.VIEW_PLAN' | translate }}</a>
           </td>
-          <td class="p-4 text-center">
+          <td class="p-4 align-middle text-center" (click)="$event.stopPropagation()">
             <div class="flex items-center justify-center gap-1">
-              <a [routerLink]="['/planned-activity', a.id]"
-                class="p-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors"
-                [attr.title]="'COMMON.DETAILS' | translate">
-                <i class="fas fa-eye text-sm"></i>
-              </a>
               <button *ngIf="a.plan_id" type="button" (click)="toggleMenu(a, $event)"
                 class="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
                 [attr.title]="'COMMON.ACTIONS' | translate">
@@ -198,6 +193,12 @@
   [style.top.px]="menuPosition.top"
   [style.left.px]="menuPosition.left"
   (click)="$event.stopPropagation()">
+  <button *ngIf="canRequestChange(activeMenuActivity!)" (click)="goToChangeRequest(activeMenuActivity!)"
+    class="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors">
+    <i class="fas fa-lock-open text-brand-700 w-4 text-center"></i>
+    {{ 'CHANGE_REQUEST.REQUEST_ACTIVITY_CHANGE' | translate }}
+  </button>
+  <div *ngIf="canRequestChange(activeMenuActivity!) && (activeMenuActivity!.plan_editable !== false || (activeMenuActivity!.plan_id && !isPastPlanYear(activeMenuActivity!)))" class="border-t border-gray-100 my-1"></div>
   <button *ngIf="activeMenuActivity!.plan_editable !== false" (click)="goToEdit(activeMenuActivity!)"
     class="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors">
     <i class="fas fa-pen text-green-500 w-4 text-center"></i>

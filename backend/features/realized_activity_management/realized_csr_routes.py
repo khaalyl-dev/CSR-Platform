@@ -15,8 +15,14 @@ from features.notification_management.notification_helper import notify_corporat
 bp = Blueprint("realized_csr", __name__, url_prefix="/api/realized-csr")
 
 
-def _plan_is_editable(plan: CsrPlan) -> bool:
-    """True if plan can be edited: DRAFT/REJECTED always, or VALIDATED with unlock_until in the future."""
+def _is_corporate(role: str) -> bool:
+    return (role or "").upper() in ("CORPORATE", "CORPORATE_USER")
+
+
+def _plan_is_editable(plan: CsrPlan, role: str = "") -> bool:
+    """True if plan can be edited: corporate always; otherwise DRAFT/REJECTED, or VALIDATED with unlock_until in the future."""
+    if _is_corporate(role):
+        return True
     unlock_until = getattr(plan, "unlock_until", None)
     now = datetime.utcnow()
     if plan.status in ("DRAFT", "REJECTED"):
@@ -26,15 +32,20 @@ def _plan_is_editable(plan: CsrPlan) -> bool:
     return False
 
 
-def _activity_is_editable(activity: CsrActivity) -> bool:
-    """True if this activity can be edited: plan editable OR activity individually unlocked."""
+def _activity_is_editable(activity: CsrActivity, role: str = "") -> bool:
+    """True if this activity can be edited: plan editable OR activity individually unlocked.
+    Parity with csr_activities_routes (incl. in-plan modification review SUBMITTED/REJECTED)."""
     if not activity or not activity.plan:
         return False
     if getattr(activity, "is_off_plan", False) and activity.status == "SUBMITTED":
         return False
+    if not getattr(activity, "is_off_plan", False) and activity.status == "SUBMITTED":
+        return False
     if getattr(activity, "is_off_plan", False) and activity.status == "REJECTED":
         return True
-    if _plan_is_editable(activity.plan):
+    if not getattr(activity, "is_off_plan", False) and activity.status == "REJECTED":
+        return True
+    if _plan_is_editable(activity.plan, role):
         return True
     unlock_until = getattr(activity, "unlock_until", None)
     if unlock_until and datetime.utcnow() <= unlock_until:
@@ -42,10 +53,10 @@ def _activity_is_editable(activity: CsrActivity) -> bool:
     return False
 
 
-def _realized_to_json(r: RealizedCsr):
+def _realized_to_json(r: RealizedCsr, role: str = ""):
     act = r.activity
     plan = act.plan if act else None
-    plan_editable = _activity_is_editable(act) if act else (plan and _plan_is_editable(plan))
+    plan_editable = _activity_is_editable(act, role) if act else (plan and _plan_is_editable(plan, role))
     return {
         "id": r.id,
         "activity_id": r.activity_id,
@@ -121,7 +132,7 @@ def list_realized():
         q = q.filter(CsrPlan.status == "VALIDATED")
 
     records = q.order_by(RealizedCsr.year.desc(), RealizedCsr.month.desc(), RealizedCsr.created_at.desc()).all()
-    return jsonify([_realized_to_json(r) for r in records]), 200
+    return jsonify([_realized_to_json(r, role) for r in records]), 200
 
 
 @bp.get("/<realized_id>")
@@ -141,7 +152,7 @@ def get_realized(realized_id: str):
     allowed = _allowed_activity_ids(request.user_id, getattr(request, "role", ""))
     if allowed is not None and r.activity_id not in allowed:
         return jsonify({"message": "Vous n'avez pas accès à cette réalisation"}), 403
-    return jsonify(_realized_to_json(r)), 200
+    return jsonify(_realized_to_json(r, getattr(request, "role", ""))), 200
 
 
 @bp.post("")
@@ -251,7 +262,7 @@ def create_realized():
             site_id=plan.site_id,
             notification_category="activity_validation",
         )
-    return jsonify(_realized_to_json(r)), 201
+    return jsonify(_realized_to_json(r, getattr(request, "role", ""))), 201
 
 
 @bp.put("/<realized_id>")
@@ -266,7 +277,7 @@ def update_realized(realized_id: str):
     allowed = _allowed_activity_ids(request.user_id, getattr(request, "role", ""))
     if allowed is not None and r.activity_id not in allowed:
         return jsonify({"message": "Vous n'avez pas accès à cette réalisation"}), 403
-    if not _activity_is_editable(r.activity):
+    if not _activity_is_editable(r.activity, getattr(request, "role", "")):
         return jsonify({
             "message": "Le plan est verrouillé. Soumettez une demande de modification pour modifier cette réalisation."
         }), 403
@@ -348,7 +359,7 @@ def update_realized(realized_id: str):
     r.contact_email = _str_val("contact_email", r.contact_email)
 
     db.session.commit()
-    return jsonify(_realized_to_json(r)), 200
+    return jsonify(_realized_to_json(r, getattr(request, "role", ""))), 200
 
 
 @bp.delete("/<realized_id>")
@@ -363,7 +374,7 @@ def delete_realized(realized_id: str):
     allowed = _allowed_activity_ids(request.user_id, getattr(request, "role", ""))
     if allowed is not None and r.activity_id not in allowed:
         return jsonify({"message": "Vous n'avez pas accès à cette réalisation"}), 403
-    if not _activity_is_editable(r.activity):
+    if not _activity_is_editable(r.activity, getattr(request, "role", "")):
         return jsonify({
             "message": "Le plan est verrouillé. Soumettez une demande de modification pour supprimer cette réalisation."
         }), 403

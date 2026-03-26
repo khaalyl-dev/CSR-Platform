@@ -685,7 +685,7 @@
     "VIEW_ANNUAL_PLANS": "View all annual plans",
     "PLAN": "Plan",
     "ACTION": "Action",
-    "ADD_REALIZATION": "Submit realized data"
+    "ADD_REALIZATION": "Submit data"
   },
   "USERS": {
     "TITLE": "User management",
@@ -865,6 +865,8 @@
     "CONFIRM_APPROVE_IN_PLAN_MOD": "Approve these changes to the planned activity? It will be marked as validated in the plan.",
     "REJECT_PROMPT": "Rejection comment (optional for unlock requests, required for activity validation):",
     "REJECT_COMMENT_REQUIRED": "A rejection reason is required for this activity.",
+    "REJECT_REASON_LABEL": "Reason for rejection",
+    "REJECT_REASON_PLACEHOLDER": "Explain what should be revised…",
     "PENDING_EMPTY": "No pending requests — you're all clear!",
     "HISTORY_TITLE": "Request history",
     "HISTORY_SUBTITLE": "Past approved and rejected requests (corporate)",
@@ -880,6 +882,16 @@
     "JUSTIFICATION": "Justification",
     "DATE": "Date",
     "ACTIONS": "Actions",
+    "PENDING_HANDLE": "Handle",
+    "PENDING_MODAL_TITLE": "Handle this request",
+    "PENDING_MODAL_SUBTITLE": "Open the record for details, approve to unlock or validate, or reject with a reason.",
+    "PENDING_MODAL_OPEN_HINT": "Open the full record in the app",
+    "PENDING_MODAL_REJECT_TITLE": "Reject",
+    "PENDING_MODAL_REJECT_HINT": "Explain what needs to change. This will be visible to the requester.",
+    "PENDING_MODAL_REJECT_BACK": "Back to actions",
+    "PENDING_MODAL_REJECT_SUBMIT": "Submit rejection",
+    "PENDING_MODAL_APPROVE_HINT": "You will be asked to confirm.",
+    "PENDING_MODAL_REJECT_CARD_HINT": "Add an optional or required comment next.",
     "DETAILS": "Review",
     "APPROVE": "Approve",
     "REJECT": "Reject",
@@ -895,7 +907,7 @@
     "CREATE_TITLE": "Request a plan change",
     "CREATE_PLAN_LABEL": "Plan",
     "CREATE_ACTIVITY_LABEL": "Activity",
-    "REQUEST_ACTIVITY_CHANGE": "Request change for this activity",
+    "REQUEST_ACTIVITY_CHANGE": "Request change",
     "CREATE_ACCESS_HINT": "To request a change, open an approved plan and click the lock icon.",
     "CREATE_APPROVAL_HINT": "A corporate user must approve this request. Once approved, the plan will be temporarily unlocked for editing.",
     "JUSTIFICATION_LABEL": "Why are you requesting this change?",
@@ -1149,7 +1161,9 @@
     "STATUS": "Activity status",
     "PLAN_STATUS_LABEL": "Plan status",
     "OFF_PLAN_LABEL": "Off plan",
-    "VALIDATION_MODE": "Off-plan validation mode"
+    "VALIDATION_MODE": "Off-plan validation mode",
+    "DELETE_CONFIRM": "Permanently delete this planned activity? This action cannot be undone.",
+    "DELETE_ERROR": "Couldn't delete this activity. Please try again."
   },
   "PLANNED_ACTIVITY_LIST": {
     "DELETE_CONFIRM": "Permanently delete this planned activity? This cannot be undone."
