@@ -795,7 +795,8 @@ def get_plan(plan_id):
             "total_hc": first_real.total_hc if first_real else None,
             # Legacy fields retained in JSON for compatibility; underlying columns may have been removed.
             "percentage_employees": float(getattr(first_real, "percentage_employees", None)) if first_real and getattr(first_real, "percentage_employees", None) is not None else None,
-            "number_external_partners": getattr(first_real, "number_external_partners", None) if first_real else None,
+            # Number of external partners is now stored on the planned activity row.
+            "number_external_partners": a.number_external_partners,
             "action_impact_actual": float(first_real.action_impact_actual) if first_real and first_real.action_impact_actual is not None else None,
             "action_impact_unit_realized": first_real.action_impact_unit if first_real else "",
             "added_during_unlock": added_during_unlock,

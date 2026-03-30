@@ -88,6 +88,17 @@ def apply_schema_patches(db) -> None:
                 )
                 conn.commit()
                 logger.info("Applied schema patch: realized_activity.off_plan_validation_step")
+
+            if not _column_exists(conn, "realized_activity", "number_external_partners"):
+                conn.execute(
+                    text(
+                        "ALTER TABLE realized_activity "
+                        "ADD COLUMN number_external_partners INT NULL "
+                        "COMMENT 'Nombre de partenaires externes'"
+                    )
+                )
+                conn.commit()
+                logger.info("Applied schema patch: realized_activity.number_external_partners")
     except Exception as exc:
         logger.warning("Schema patches skipped or failed: %s", exc)
         try:

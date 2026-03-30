@@ -37,6 +37,7 @@ class RealizedCsr(db.Model):
     realized_budget = db.Column(db.Numeric(15, 2), nullable=True, comment="Budget réel dépensé (€)")
     action_impact_actual = db.Column(db.Numeric(15, 2), nullable=True, comment="Impact réalisé (en nombre)")
     action_impact_unit = db.Column(db.String(100), nullable=True, comment="Unité d'impact réalisée")
+    number_external_partners = db.Column(db.Integer, nullable=True, comment="Nombre de partenaires externes")
     # Indique si la réalisation vient d'une activité hors plan
     is_off_plan = db.Column(db.Boolean, nullable=False, default=False, comment="Réalisation d'une activité hors plan")
     off_plan_validation_mode = db.Column(

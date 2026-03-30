@@ -7,12 +7,22 @@ import os
 import re
 import shutil
 import tempfile
-from datetime import datetime
+from datetime import datetime, date
 
 from flask import Blueprint, request, jsonify
 
 from core import db, token_required
-from models import CsrPlan, CsrActivity, RealizedCsr, Site, Category, ExternalPartner, UserSite, Document, User
+from models import (
+    CsrPlan,
+    CsrActivity,
+    RealizedCsr,
+    Site,
+    Category,
+    ExternalPartner,
+    UserSite,
+    Document,
+    User,
+)
 from .excel_import import parse_excel_rows, validate_rows_values
 
 # Same media root as file_management so downloads work (project root/frontend/src/media)
@@ -571,6 +581,18 @@ def import_excel():
                 "errors": validation_errors[:50],
             }), 400
 
+        # Safety: clean up orphan realized_activity rows once before import.
+        # This avoids FK errors if legacy data has activity_id pointing to non-existent planned_activity.
+        try:
+            db.session.execute(
+                RealizedCsr.__table__.delete().where(
+                    ~RealizedCsr.activity_id.in_(db.session.query(CsrActivity.id))
+                )
+            )
+        except Exception:
+            # If cleanup fails, continue; import will still work for consistent data.
+            db.session.rollback()
+
         # Save uploaded file to media folder for later download
         original_filename = (f.filename or "import.xlsx").strip()
         safe_name = "".join(c for c in original_filename if c.isalnum() or c in "._- ").strip() or "import.xlsx"
@@ -608,6 +630,18 @@ def import_excel():
         created_partners = {}
         activity_numbers_cache = {}  # plan_id -> {activity_number -> activity}
         excel_seen_keys = set() if duplicate_strategy in ("delete", "ignore") else None
+
+        def _unique_activity_number(base: str, used: set[str]) -> str:
+            """Generate a unique activity number by suffixing -1, -2, ..."""
+            base_s = (base or "").strip()
+            if not base_s:
+                base_s = "Activity"
+            i = 1
+            while True:
+                candidate = f"{base_s}-{i}"
+                if candidate not in used:
+                    return candidate
+                i += 1
 
         for i, row in enumerate(rows):
             row_num = i + 2  # 1-based + header
@@ -698,7 +732,13 @@ def import_excel():
             if excel_seen_keys is not None:
                 excel_key = (plan.id, activity_number)
                 if excel_key in excel_seen_keys:
-                    continue
+                    if duplicate_strategy == "ignore":
+                        # Keep the row but rename it (CSR 1 -> CSR 1-1, CSR 1-2, ...)
+                        used = set(activity_numbers_cache.get(plan.id, {}).keys())
+                        used.update({k[1] for k in excel_seen_keys if k and k[0] == plan.id})
+                        activity_number = _unique_activity_number(activity_number, used)
+                    else:
+                        continue
                 excel_seen_keys.add(excel_key)
 
             if plan.id not in activity_numbers_cache:
@@ -707,12 +747,20 @@ def import_excel():
             existing_act = activity_numbers_cache[plan.id].get(activity_number)
             if existing_act:
                 if duplicate_strategy == "ignore":
-                    continue
+                    # Import anyway with a unique activity_number suffix.
+                    used = set(activity_numbers_cache[plan.id].keys())
+                    used.update({k[1] for k in excel_seen_keys} if excel_seen_keys else set())
+                    activity_number = _unique_activity_number(activity_number, used)
+                    existing_act = None
 
                 if duplicate_strategy == "delete":
                     # Remove existing activity so we can recreate it from the import row.
-                    db.session.delete(existing_act)
-                    db.session.flush()
+                    # First delete dependent realizations to avoid SQLAlchemy trying to NULL activity_id
+                    # (activity_id is NOT NULL in realized_activity).
+                    with db.session.no_autoflush:
+                        db.session.query(RealizedCsr).filter_by(activity_id=existing_act.id).delete(synchronize_session=False)
+                        db.session.delete(existing_act)
+                        db.session.flush()
                     activity_numbers_cache[plan.id].pop(activity_number, None)
                     existing_act = None
 
@@ -739,11 +787,14 @@ def import_excel():
                     description=_safe_str(row.get("description"), 2000),
                     planned_budget=_safe_float(row.get("planned_budget")),
                     collaboration_nature=collab,
+                    start_year=_safe_int(row.get("start_year")),
                     organizer=_safe_str(row.get("organizer"), 255),
                     edition=_safe_int(row.get("edition")),
                     action_impact_target=_safe_float(row.get("impact_target")),
                     action_impact_unit=_safe_str(row.get("impact_unit"), 100),
                     external_partner_id=ep.id if ep else None,
+                    number_external_partners=_safe_int(row.get("number_external_partners")),
+                    created_by=effective_user_id,
                     status="DRAFT",
                 )
                 db.session.add(activity)
@@ -751,12 +802,16 @@ def import_excel():
                 activities_created += 1
                 activity_numbers_cache[plan.id][activity_number] = activity
             else:
-                # overwrite mode: update impact target, impact unit, external partner.
+                # overwrite mode: update start_year, impact target, impact unit, external partner, count.
                 activity = existing_act
+                sy = _safe_int(row.get("start_year"))
                 it = _safe_float(row.get("impact_target"))
                 iu = _safe_str(row.get("impact_unit"), 100)
                 ep_name = _safe_str(row.get("external_partner"), 255)
-                if it is not None or iu is not None or ep_name is not None:
+                nep = _safe_int(row.get("number_external_partners"))
+                if sy is not None or it is not None or iu is not None or ep_name is not None or nep is not None:
+                    if sy is not None:
+                        activity.start_year = sy
                     if it is not None:
                         activity.action_impact_target = it
                     if iu is not None:
@@ -764,30 +819,33 @@ def import_excel():
                     if ep_name is not None:
                         ep = _resolve_external_partner_cached(ep_name, external_partner_cache, created_partners)
                         activity.external_partner_id = ep.id if ep else None
+                    if nep is not None:
+                        activity.number_external_partners = nep
 
             # Optional: realization row (Actual Budget in € or Nbr of internal Participants, etc.)
             real_budget = _safe_float(row.get("realized_budget"))
             participants = _safe_int(row.get("participants"))
+            # Realization year/month are not explicit in the current Excel template; we align with plan year
+            # and use month=1 when not provided, then build a realization_date for the new model.
             real_year = _safe_int(row.get("realization_year")) or year
             real_month = _safe_int(row.get("realization_month")) or 1
             impact_actual = _safe_float(row.get("impact_actual"))
+            # percentage_employees column exists in Excel but we do not persist it,
+            # because it can be recomputed from participants / total_hc in analytics.
             pe = _safe_float(row.get("percentage_employees"))
             if pe is not None and 0 < pe <= 1:
                 pe = pe * 100
             if real_budget is not None or participants is not None or impact_actual is not None:
+                safe_month = min(12, max(1, real_month))
+                realization_date = date(real_year, safe_month, 1)
                 rc = RealizedCsr(
                     activity_id=activity.id,
-                    year=real_year,
-                    month=min(12, max(1, real_month)),
+                    realization_date=realization_date,
                     realized_budget=real_budget,
                     participants=participants,
                     total_hc=_safe_int(row.get("total_hc")),
-                    percentage_employees=pe,
                     action_impact_actual=impact_actual,
                     action_impact_unit=_safe_str(row.get("impact_unit"), 100),
-                    volunteer_hours=_safe_float(row.get("volunteer_hours")),
-                    organizer=_safe_str(row.get("organizer"), 255),
-                    number_external_partners=_safe_int(row.get("number_external_partners")),
                     created_by=effective_user_id,
                 )
                 db.session.add(rc)

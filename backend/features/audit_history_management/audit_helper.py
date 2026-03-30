@@ -11,6 +11,7 @@ from typing import Any, Optional
 
 from core import db
 from models.audit_log import AuditLog
+from models.user import User
 
 
 def _serialize_value(v: Any) -> Any:
@@ -49,9 +50,17 @@ def write_audit(
     entity_history_id: Optional[str] = None,
 ) -> AuditLog:
     """Append one audit log entry. Actions: CREATE, UPDATE, DELETE, APPROVE, REJECT, REQUEST_MODIFICATION."""
+    # Safety: avoid FK errors if user_id is stale (JWT token for a user that no longer exists).
+    safe_user_id = user_id
+    if user_id:
+        try:
+            if not User.query.get(user_id):
+                safe_user_id = None
+        except Exception:
+            safe_user_id = None
     log = AuditLog(
         id=_uuid(),
-        user_id=user_id,
+        user_id=safe_user_id,
         site_id=site_id,
         action=action.upper(),
         entity_type=entity_type.upper(),

@@ -287,7 +287,6 @@
               <th class="p-3 text-left min-w-[7rem]">{{ 'PLAN_DETAIL.ORGANIZER' | translate }}</th>
               <th class="p-3 text-left whitespace-nowrap min-w-[4rem]">{{ 'PLAN_DETAIL.EDITION' | translate }}</th>
               <th class="p-3 text-left whitespace-nowrap min-w-[4rem]">{{ 'PLAN_DETAIL.START_YEAR' | translate }}</th>
-              <th class="p-3 text-right whitespace-nowrap min-w-[5rem] tabular-nums">{{ 'PLAN_DETAIL.VOLUNTEERS_PLANNED' | translate }}</th>
               <th class="p-3 text-right whitespace-nowrap min-w-[5rem] tabular-nums">{{ 'PLAN_DETAIL.BUDGET_PLANNED' | translate }}</th>
               <th class="p-3 text-right whitespace-nowrap min-w-[5rem] tabular-nums">{{ 'PLAN_DETAIL.TARGET_IMPACT' | translate }}</th>
               <th class="p-3 text-left min-w-[5rem]">{{ 'PLAN_DETAIL.IMPACT_UNIT' | translate }}</th>
@@ -343,7 +342,6 @@
               <td class="p-3 min-w-[7rem] break-words">{{ a.organizer || '–' }}</td>
               <td class="p-3 tabular-nums whitespace-nowrap">{{ a.edition != null ? a.edition : '–' }}</td>
               <td class="p-3 tabular-nums whitespace-nowrap">{{ a.start_year != null ? a.start_year : plan()!.year }}</td>
-              <td class="p-3 text-right tabular-nums whitespace-nowrap">{{ a.planned_volunteers != null ? a.planned_volunteers : '–' }}</td>
               <td class="p-3 text-right tabular-nums whitespace-nowrap">{{ a.planned_budget != null ? (a.planned_budget | number:'1.0-0') + ' €' : '–' }}</td>
               <td class="p-3 text-right tabular-nums whitespace-nowrap">{{ a.action_impact_target != null ? a.action_impact_target : '–' }}</td>
               <td class="p-3 min-w-[5rem] break-words">{{ a.action_impact_unit || '–' }}</td>
@@ -359,7 +357,7 @@
               </td>
             </tr>
             <tr *ngIf="!plan()!.activities?.length" class="border-t">
-              <td colspan="19" class="p-8 text-center text-gray-500">
+              <td colspan="18" class="p-8 text-center text-gray-500">
                 {{ 'PLAN_DETAIL.NO_ACTIVITIES_IN_PLAN' | translate }}
                 <ng-container *ngIf="canEditPlan()">
                   <button type="button" (click)="addActivity()" class="text-brand-700 hover:underline">{{ 'PLAN_DETAIL.ADD_ACTIVITY' | translate }}</button>
@@ -386,7 +384,6 @@
               <th class="p-3 text-left min-w-[7rem]">{{ 'PLAN_DETAIL.ORGANIZER' | translate }}</th>
               <th class="p-3 text-left whitespace-nowrap min-w-[4rem]">{{ 'PLAN_DETAIL.EDITION' | translate }}</th>
               <th class="p-3 text-left whitespace-nowrap min-w-[4rem]">{{ 'PLAN_DETAIL.START_YEAR' | translate }}</th>
-              <th class="p-3 text-right whitespace-nowrap min-w-[5rem] tabular-nums">{{ 'PLAN_DETAIL.VOLUNTEERS_PLANNED' | translate }}</th>
               <th class="p-3 text-right whitespace-nowrap min-w-[5rem] tabular-nums">{{ 'PLAN_DETAIL.BUDGET_PLANNED' | translate }}</th>
               <th class="p-3 text-right whitespace-nowrap min-w-[5rem] tabular-nums">{{ 'PLAN_DETAIL.TARGET_IMPACT' | translate }}</th>
               <th class="p-3 text-left min-w-[5rem]">{{ 'PLAN_DETAIL.IMPACT_UNIT' | translate }}</th>
@@ -449,7 +446,6 @@
               <td class="p-3 min-w-[7rem] break-words">{{ a.organizer || '–' }}</td>
               <td class="p-3 tabular-nums whitespace-nowrap">{{ a.edition != null ? a.edition : '–' }}</td>
               <td class="p-3 tabular-nums whitespace-nowrap">{{ a.start_year != null ? a.start_year : plan()!.year }}</td>
-              <td class="p-3 text-right tabular-nums whitespace-nowrap">{{ a.planned_volunteers != null ? a.planned_volunteers : '–' }}</td>
               <td class="p-3 text-right tabular-nums whitespace-nowrap">{{ a.planned_budget != null ? (a.planned_budget | number:'1.0-0') + ' €' : '–' }}</td>
               <td class="p-3 text-right tabular-nums whitespace-nowrap">{{ a.action_impact_target != null ? a.action_impact_target : '–' }}</td>
               <td class="p-3 min-w-[5rem] break-words">{{ a.action_impact_unit || '–' }}</td>
@@ -472,7 +468,7 @@
               </td>
             </tr>
             <tr *ngIf="!plan()!.activities?.length" class="border-t">
-              <td colspan="26" class="p-8 text-center text-gray-500">
+              <td colspan="25" class="p-8 text-center text-gray-500">
                 {{ 'PLAN_DETAIL.NO_ACTIVITIES_IN_PLAN' | translate }}
                 <ng-container *ngIf="canEditPlan()">
                   <button type="button" (click)="addActivity()" class="text-brand-700 hover:underline">{{ 'PLAN_DETAIL.ADD_ACTIVITY' | translate }}</button>
