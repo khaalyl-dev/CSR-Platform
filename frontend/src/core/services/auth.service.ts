@@ -1,29 +1,31 @@
 import { Injectable, inject } from '@angular/core';
+import { HttpClient } from '@angular/common/http';
 import { Router } from '@angular/router';
 import { tap, catchError } from 'rxjs/operators';
 import { throwError } from 'rxjs';
 import { AuthApi } from '@features/user-management/login/auth-api';
-import { AuthStore } from './auth-store';
+import { AuthStore, mapBackendRole } from './auth-store';
+import { applyAvatarUrlToStore } from './auth-avatar.util';
 
 @Injectable({ providedIn: 'root' })
 export class AuthService {
   private authStore = inject(AuthStore);
   private router = inject(Router);
   private authApi = inject(AuthApi);
-
-  private mapRole(role: string): 'site' | 'corporate' {
-    return role === 'CORPORATE_USER' || role === 'corporate' ? 'corporate' : 'site';
-  }
+  private http = inject(HttpClient);
 
   login(email: string, password: string, remember = false) {
     return this.authApi.login(email, password).pipe(
       tap(res => {
         const user = {
           email: res.email,
-          role: this.mapRole(res.role)
+          role: mapBackendRole(res.role),
+          first_name: res.first_name ?? undefined,
+          last_name: res.last_name ?? undefined,
         };
 
         this.authStore.setAuth(res.token, user, remember);
+        applyAvatarUrlToStore(this.authStore, this.http, res.avatar_url);
 
         const defaultRoute = user.role === 'site' ? '/dashboard/site' : '/dashboard/corporate';
         this.router.navigate([defaultRoute]);

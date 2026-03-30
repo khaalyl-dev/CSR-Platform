@@ -37,7 +37,7 @@ def generate_access_token(user_id, email: str, role: str = "SITE_USER") -> str:
     jti = uuid.uuid4().hex
     payload = {
         "jti": jti,
-        "user_id": user_id,
+        "user_id": str(user_id).strip(),
         "email": email,
         "role": role,
         "iat": datetime.utcnow(),
@@ -114,7 +114,8 @@ def token_required(f):
             return jsonify({"message": "Authorization token is required"}), 401
         try:
             payload = verify_access_token(token)
-            request.user_id = payload["user_id"]
+            # Normalize (MySQL CHAR columns can be space-padded; JWT must match DB lookups).
+            request.user_id = str(payload["user_id"]).strip()
             request.email = payload["email"]
             request.role = payload.get("role", "site")
             request.jti = payload.get("jti")

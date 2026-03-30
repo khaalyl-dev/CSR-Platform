@@ -10,10 +10,8 @@ import {
   ChangeDetectorRef
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { RouterLink } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { DashboardApi, type DashboardSummary, type DashboardFilterOptions, type DashboardFilters } from './dashboard-api';
-import { KpiWidgetComponent } from './kpi-widget/kpi-widget';
 import {
   faCalendarPlus,
   faChartLine,
@@ -41,11 +39,9 @@ const BRAND_COLORS = {
   standalone: true,
   imports: [
     CommonModule,
-    RouterLink,
     FormsModule,
     FontAwesomeModule,
-    TranslateModule,
-    KpiWidgetComponent
+    TranslateModule
   ],
   templateUrl: './dashboard.html'
 })
@@ -84,15 +80,9 @@ export class Dashboard implements AfterViewInit, OnDestroy {
   private chartInstances: (any | null)[] = [null, null, null, null];
 
   constructor() {
-    this.api.getFilterOptions().subscribe((opts) => {
-      this.filterOptions.set(opts);
-      const y = this.selectedYear();
-      if (opts.years.length && y != null && !opts.years.includes(y)) {
-        this.selectedYear.set(opts.years[0]);
-      }
-      this.cdr.detectChanges();
-    });
-    this.loadData();
+    // Dashboard intentionally kept empty for now.
+    // Do not trigger analytics endpoints.
+    this.loading.set(false);
   }
 
   getFilters(): DashboardFilters {

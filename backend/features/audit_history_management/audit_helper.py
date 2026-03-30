@@ -1,9 +1,8 @@
 """
-Audit helper - write audit_logs and entity_history rows when plans/activities change.
+Audit helper - write audit_logs when plans/activities change.
 
 Import these functions in route files and call them after create/update/delete.
-write_audit() adds a row to audit_logs (who did what). write_entity_history() stores
-before/after JSON for rollback or debugging.
+write_audit() adds a row to audit_logs (who did what).
 """
 import uuid
 from datetime import datetime
@@ -12,7 +11,6 @@ from typing import Any, Optional
 
 from core import db
 from models.audit_log import AuditLog
-from models.entity_history import EntityHistory
 
 
 def _serialize_value(v: Any) -> Any:
@@ -65,31 +63,6 @@ def write_audit(
     return log
 
 
-def write_entity_history(
-    site_id: Optional[str],
-    entity_type: str,
-    entity_id: Optional[str],
-    old_data: Optional[dict],
-    new_data: Optional[dict],
-    modified_by: Optional[str],
-) -> EntityHistory:
-    """
-    Append one entity_history row. For CREATE: old_data=None, new_data=snapshot.
-    For DELETE: old_data=snapshot, new_data=None. For UPDATE: both set.
-    """
-    hist = EntityHistory(
-        id=_uuid(),
-        site_id=site_id,
-        entity_type=entity_type.upper(),
-        entity_id=entity_id,
-        old_data=old_data,
-        new_data=new_data,
-        modified_by=modified_by,
-    )
-    db.session.add(hist)
-    return hist
-
-
 def audit_create(
     user_id: Optional[str],
     site_id: Optional[str],
@@ -98,16 +71,8 @@ def audit_create(
     description: str,
     new_snapshot: dict,
 ) -> None:
-    """Log a create and store snapshot for possible rollback (rollback = delete entity)."""
-    hist = write_entity_history(
-        site_id=site_id,
-        entity_type=entity_type,
-        entity_id=entity_id,
-        old_data=None,
-        new_data=new_snapshot,
-        modified_by=user_id,
-    )
-    db.session.flush()
+    """Log a create. (new_snapshot kept for call-site compatibility.)"""
+    del new_snapshot  # not persisted
     write_audit(
         user_id=user_id,
         site_id=site_id,
@@ -115,7 +80,7 @@ def audit_create(
         entity_type=entity_type,
         entity_id=entity_id,
         description=description,
-        entity_history_id=hist.id,
+        entity_history_id=None,
     )
 
 
@@ -128,16 +93,8 @@ def audit_update(
     old_snapshot: dict,
     new_snapshot: dict,
 ) -> None:
-    """Log an update and store old/new for rollback (rollback = apply old_snapshot)."""
-    hist = write_entity_history(
-        site_id=site_id,
-        entity_type=entity_type,
-        entity_id=entity_id,
-        old_data=old_snapshot,
-        new_data=new_snapshot,
-        modified_by=user_id,
-    )
-    db.session.flush()
+    """Log an update. (snapshots kept for call-site compatibility.)"""
+    del old_snapshot, new_snapshot  # not persisted
     write_audit(
         user_id=user_id,
         site_id=site_id,
@@ -145,7 +102,7 @@ def audit_update(
         entity_type=entity_type,
         entity_id=entity_id,
         description=description,
-        entity_history_id=hist.id,
+        entity_history_id=None,
     )
 
 
@@ -157,16 +114,8 @@ def audit_delete(
     description: str,
     old_snapshot: dict,
 ) -> None:
-    """Log a delete and store snapshot for rollback (rollback = re-insert)."""
-    hist = write_entity_history(
-        site_id=site_id,
-        entity_type=entity_type,
-        entity_id=entity_id,
-        old_data=old_snapshot,
-        new_data=None,
-        modified_by=user_id,
-    )
-    db.session.flush()
+    """Log a delete. (old_snapshot kept for call-site compatibility.)"""
+    del old_snapshot  # not persisted
     write_audit(
         user_id=user_id,
         site_id=site_id,
@@ -174,7 +123,7 @@ def audit_delete(
         entity_type=entity_type,
         entity_id=entity_id,
         description=description,
-        entity_history_id=hist.id,
+        entity_history_id=None,
     )
 
 

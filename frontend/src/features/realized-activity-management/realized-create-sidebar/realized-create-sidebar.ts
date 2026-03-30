@@ -11,11 +11,7 @@ import type { CreateRealizedCsrPayload } from '../models/realized-csr.model';
 import type { CsrPlan } from '@features/csr-plan-management/models/csr-plan.model';
 
 const LOAD_TIMEOUT_MS = 8000;
-const MONTHS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
-const MONTH_LABELS: Record<number, string> = {
-  1: 'Janvier', 2: 'Février', 3: 'Mars', 4: 'Avril', 5: 'Mai', 6: 'Juin',
-  7: 'Juillet', 8: 'Août', 9: 'Septembre', 10: 'Octobre', 11: 'Novembre', 12: 'Décembre',
-};
+// Month/year fields were removed from realized_activity; we now rely on realization_date.
 
 @Component({
   selector: 'app-realized-create-sidebar',
@@ -47,8 +43,6 @@ export class RealizedCreateSidebarComponent implements OnInit {
   currentYear = new Date().getFullYear();
   loading = false;
   loadingData = true;
-  months = MONTHS;
-  monthLabel = (m: number) => MONTH_LABELS[m] ?? String(m);
   selectedFiles: File[] = [];
 
   get selectedPlan(): CsrPlan | null {
@@ -71,15 +65,11 @@ export class RealizedCreateSidebarComponent implements OnInit {
     this.form = this.fb.group({
       plan_id: ['', Validators.required],
       activity_id: ['', Validators.required],
-      year: [this.currentYear, [Validators.required, Validators.min(2000), Validators.max(2100)]],
-      month: [new Date().getMonth() + 1, [Validators.required, Validators.min(1), Validators.max(12)]],
       realized_budget: [null as number | null],
       participants: [null as number | null],
       total_hc: [null as number | null],
-      volunteer_hours: [null as number | null],
-      impact_description: [''],
-      organizer: [''],
-      number_external_partners: [null as number | null],
+      action_impact_actual: [null as number | null],
+      action_impact_unit: [''],
       realization_date: [''],
       comment: [''],
       contact_name: [''],
@@ -193,26 +183,13 @@ export class RealizedCreateSidebarComponent implements OnInit {
     this.loading = true;
     this.cdr.markForCheck();
     const raw = this.form.getRawValue();
-    const planY = this.selectedPlan?.year ?? Number(raw.year);
-    let month = Number(raw.month);
-    const rd = raw.realization_date?.trim();
-    if (rd && rd.length >= 10) {
-      const d = new Date(`${rd.slice(0, 10)}T12:00:00`);
-      if (!Number.isNaN(d.getTime())) {
-        month = d.getMonth() + 1;
-      }
-    }
     const payload: CreateRealizedCsrPayload = {
       activity_id: raw.activity_id,
-      year: planY,
-      month,
       realized_budget: raw.realized_budget != null && raw.realized_budget !== '' ? Number(raw.realized_budget) : null,
       participants: raw.participants != null && raw.participants !== '' ? Number(raw.participants) : null,
       total_hc: raw.total_hc != null && raw.total_hc !== '' ? Number(raw.total_hc) : null,
-      volunteer_hours: raw.volunteer_hours != null && raw.volunteer_hours !== '' ? Number(raw.volunteer_hours) : null,
-      impact_description: raw.impact_description?.trim() || null,
-      organizer: raw.organizer?.trim() || null,
-      number_external_partners: raw.number_external_partners != null && raw.number_external_partners !== '' ? Number(raw.number_external_partners) : null,
+      action_impact_actual: raw.action_impact_actual != null && raw.action_impact_actual !== '' ? Number(raw.action_impact_actual) : null,
+      action_impact_unit: raw.action_impact_unit?.trim() || null,
       realization_date: raw.realization_date?.trim() ? raw.realization_date.substring(0, 10) : null,
       comment: raw.comment?.trim() || null,
       contact_name: raw.contact_name?.trim() || null,

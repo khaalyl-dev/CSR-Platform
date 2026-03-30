@@ -1,14 +1,23 @@
-import { Component, inject, OnInit, OnDestroy, signal, HostListener } from '@angular/core';
+import { ChangeDetectorRef, Component, inject, OnInit, OnDestroy, signal, HostListener } from '@angular/core';
 import { CommonModule, Location } from '@angular/common';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { TranslateModule, TranslateService } from '@ngx-translate/core';
 import { CsrPlansApi, CsrPlanDetail, type CsrPlanActivityDetail } from '../api/csr-plans-api';
-import { CsrActivitiesApi } from '@features/realized-activity-management/api/csr-activities-api';
+import { CsrActivitiesApi } from '@features/planned-activity-management/api/csr-activities-api';
 import { AuthStore } from '@core/services/auth-store';
 import { BreadcrumbService } from '@core/services/breadcrumb.service';
-import { PlannedActivityCreateSidebarComponent } from '../planned-activity-create-sidebar/planned-activity-create-sidebar';
-import { PlannedActivityEditComponent } from '../planned-activity-edit/planned-activity-edit';
-import { OffPlanActivitySidebarComponent } from '../off-plan-activity-sidebar/off-plan-activity-sidebar';
+import { PlannedActivityCreateSidebarComponent } from '@features/planned-activity-management/planned-activity-create-sidebar/planned-activity-create-sidebar';
+import { PlannedActivityEditComponent } from '@features/planned-activity-management/planned-activity-edit/planned-activity-edit';
+import { OffPlanActivitySidebarComponent } from '@features/planned-activity-management/off-plan-activity-sidebar/off-plan-activity-sidebar';
+import { RealizedCreateSidebarComponent } from '@features/realized-activity-management/realized-create-sidebar/realized-create-sidebar';
+import { RealizedEditComponent } from '@features/realized-activity-management/realized-edit/realized-edit';
+import { RealizedCsrApi } from '@features/realized-activity-management/api/realized-csr-api';
+import type { RealizedCsr } from '@features/realized-activity-management/models/realized-csr.model';
+import {
+  initialFixedContextMenuLeft,
+  initialFixedContextMenuTopBelow,
+  scheduleFixedContextMenuPosition,
+} from '@core/utils/fixed-context-menu';
 
 @Component({
   selector: 'app-plan-detail',
@@ -20,6 +29,8 @@ import { OffPlanActivitySidebarComponent } from '../off-plan-activity-sidebar/of
     PlannedActivityCreateSidebarComponent,
     PlannedActivityEditComponent,
     OffPlanActivitySidebarComponent,
+    RealizedCreateSidebarComponent,
+    RealizedEditComponent,
   ],
   templateUrl: './plan-detail.html'
 })
@@ -29,9 +40,11 @@ export class PlanDetailComponent implements OnInit, OnDestroy {
   private location = inject(Location);
   private plansApi = inject(CsrPlansApi);
   private activitiesApi = inject(CsrActivitiesApi);
+  private realizedApi = inject(RealizedCsrApi);
   private authStore = inject(AuthStore);
   private breadcrumb = inject(BreadcrumbService);
   private translate = inject(TranslateService);
+  private cdr = inject(ChangeDetectorRef);
 
   plan = signal<CsrPlanDetail | null>(null);
   loading = signal(true);
@@ -50,6 +63,33 @@ export class PlanDetailComponent implements OnInit, OnDestroy {
     return p ? p.year >= this.currentYear : true;
   }
 
+  /** True when this plan’s year is the current calendar year. */
+  isPlanCalendarYearCurrent(): boolean {
+    const p = this.plan();
+    return p != null && Number(p.year) === this.currentYear;
+  }
+
+  /** Submit realization data only for current-year plans that are approved (VALIDATED). */
+  canSubmitRealizationDataOnPlan(): boolean {
+    const p = this.plan();
+    return (
+      this.isPlanCalendarYearCurrent() &&
+      p?.status === 'VALIDATED'
+    );
+  }
+
+  /** True if this activity already has at least one realization row (hide “Submit data”). */
+  activityHasRealization(activityId: string | null | undefined): boolean {
+    if (!activityId) return false;
+    const a = this.plan()?.activities?.find((x) => x.id === activityId);
+    return a ? this.activityIsRealized(a) : false;
+  }
+
+  /** Show “Submit data” in the row menu for this activity. */
+  canShowSubmitDataForActivity(activityId: string | null | undefined): boolean {
+    return this.canSubmitRealizationDataOnPlan() && !this.activityHasRealization(activityId);
+  }
+
   // ── Menu 3 points (like document action) ─────────────────────────────────
   showActionMenu = signal(false);
   menuPosition = { top: 0, left: 0 };
@@ -57,6 +97,14 @@ export class PlanDetailComponent implements OnInit, OnDestroy {
   // ── Activity row 3-point menu ───────────────────────────────────────────
   activityMenuId = signal<string | null>(null);
   activityMenuPosition = { top: 0, left: 0 };
+
+  /** Log realization (submit data) — plan year must match current calendar year. */
+  showAddRealizationSidebar = signal(false);
+  addRealizationActivityId = signal<string | null>(null);
+
+  /** Edit existing realization (sidebar). */
+  showEditRealizationSidebar = signal(false);
+  realizedIdToEdit = signal<string | null>(null);
 
   // ── Add activity : année courante / future (formulaire simple) ──
   showAddActivitySidebar = signal(false);
@@ -69,6 +117,11 @@ export class PlanDetailComponent implements OnInit, OnDestroy {
   // ── Edit planned activity sidebar ────────────────────────────────────────
   showEditActivitySidebar = signal(false);
   activityIdToEdit = signal<string | null>(null);
+
+  // ── Approve confirmation (same pattern as change-request-detail) ────────
+  showPlanApproveConfirm = signal(false);
+  showOffPlanApproveConfirm = signal(false);
+  offPlanApproveActivityId = signal<string | null>(null);
 
   // ── Reject modal ────────────────────────────────────────────────────────
   showRejectModal = signal(false);
@@ -169,6 +222,43 @@ export class PlanDetailComponent implements OnInit, OnDestroy {
     return s ?? '';
   }
 
+  /** At least one realization row exists (API flag, or primary id for older payloads). */
+  activityIsRealized(a: CsrPlanActivityDetail): boolean {
+    if (a.has_realization === true) return true;
+    if (a.has_realization === false) return false;
+    return !!(a.primary_realization_id && String(a.primary_realization_id).trim());
+  }
+
+  /**
+   * Badge in the realization column:
+   * - Planned: future plan year, or plan draft/rejected, or submitted (not yet approved).
+   * - In progress: plan approved (VALIDATED), plan year ≤ current year, no realization row yet.
+   * - Completed: plan approved, realization on file, plan year ≤ current year (current or past).
+   */
+  activityRealizationUiStatus(a: CsrPlanActivityDetail): 'planned' | 'in_progress' | 'completed' {
+    const p = this.plan();
+    if (!p) return 'planned';
+    const planYear = Number(p.year);
+    if (!Number.isFinite(planYear)) return 'planned';
+    const cy = this.currentYear;
+
+    if (planYear > cy) {
+      return 'planned';
+    }
+    const st = p.status;
+    if (st === 'DRAFT' || st === 'REJECTED' || st === 'SUBMITTED') {
+      return 'planned';
+    }
+    if (st !== 'VALIDATED') {
+      return 'planned';
+    }
+
+    if (this.activityIsRealized(a)) {
+      return 'completed';
+    }
+    return 'in_progress';
+  }
+
   /** Activity submitted for validation (off-plan or in-plan modification on validated plan). */
   offPlanAwaitingValidation(a: CsrPlanActivityDetail): boolean {
     const p = this.plan();
@@ -264,6 +354,16 @@ export class PlanDetailComponent implements OnInit, OnDestroy {
         this.loading.set(false);
         const siteName = p.site_name ?? p.site_code ?? p.site_id ?? 'Plan';
         this.breadcrumb.setContext([siteName, String(p.year)]);
+        const editFromTask = this.route.snapshot.queryParamMap.get('editActivity')?.trim();
+        if (editFromTask && p.activities?.some((x) => x.id === editFromTask)) {
+          this.goToEditActivity(editFromTask);
+          this.router.navigate([], {
+            relativeTo: this.route,
+            queryParams: { editActivity: null },
+            queryParamsHandling: 'merge',
+            replaceUrl: true,
+          });
+        }
       },
       error: () => {
         this.loading.set(false);
@@ -302,14 +402,25 @@ export class PlanDetailComponent implements OnInit, OnDestroy {
     });
   }
 
-  approve(): void {
+  openPlanApproveConfirm(): void {
     const p = this.plan();
-    if (!p || p.status !== 'SUBMITTED') return;
+    if (!p || p.status !== 'SUBMITTED' || !this.canApprove) return;
+    this.showPlanApproveConfirm.set(true);
+  }
+
+  closePlanApproveConfirm(): void {
+    this.showPlanApproveConfirm.set(false);
+  }
+
+  confirmPlanApprove(): void {
+    const p = this.plan();
+    if (!p || p.status !== 'SUBMITTED' || !this.canApprove) return;
     this.actionLoading.set(true);
     this.plansApi.approve(p.id).subscribe({
       next: (updated) => {
         this.plan.set({ ...p, ...updated });
         this.actionLoading.set(false);
+        this.closePlanApproveConfirm();
       },
       error: (err) => {
         this.actionLoading.set(false);
@@ -346,10 +457,21 @@ export class PlanDetailComponent implements OnInit, OnDestroy {
     return this.rejectActivityIds().includes(activityId);
   }
 
-  approveOffPlanActivity(activityId: string): void {
+  openOffPlanApproveConfirm(activityId: string): void {
     this.closeActivityMenu();
+    this.offPlanApproveActivityId.set(activityId);
+    this.showOffPlanApproveConfirm.set(true);
+  }
+
+  closeOffPlanApproveConfirm(): void {
+    this.showOffPlanApproveConfirm.set(false);
+    this.offPlanApproveActivityId.set(null);
+  }
+
+  confirmOffPlanApprove(): void {
+    const activityId = this.offPlanApproveActivityId();
     const p = this.plan();
-    if (!p) return;
+    if (!activityId || !p) return;
     this.actionLoading.set(true);
     this.activitiesApi.approveOffPlan(activityId).subscribe({
       next: () => {
@@ -357,6 +479,7 @@ export class PlanDetailComponent implements OnInit, OnDestroy {
           next: (updated) => {
             this.plan.set(updated);
             this.actionLoading.set(false);
+            this.closeOffPlanApproveConfirm();
           },
           error: () => this.actionLoading.set(false),
         });
@@ -386,7 +509,7 @@ export class PlanDetailComponent implements OnInit, OnDestroy {
   submitOffPlanReject(): void {
     const comment = this.offPlanRejectComment().trim();
     if (!comment) {
-      this.offPlanRejectError.set('Le motif de rejet est obligatoire.');
+      this.offPlanRejectError.set(this.translate.instant('PLAN_DETAIL.REJECT_REASON_REQUIRED'));
       return;
     }
     const id = this.offPlanRejectActivityId();
@@ -474,7 +597,7 @@ export class PlanDetailComponent implements OnInit, OnDestroy {
   submitReject(): void {
     const comment = this.rejectComment().trim();
     if (!comment) {
-      this.rejectModalError.set('Le motif de rejet est obligatoire.');
+      this.rejectModalError.set(this.translate.instant('PLAN_DETAIL.REJECT_REASON_REQUIRED'));
       return;
     }
     const p = this.plan();
@@ -552,16 +675,21 @@ export class PlanDetailComponent implements OnInit, OnDestroy {
 
   openOffPlanSidebar(): void {
     const p = this.plan();
-    // Corporate can add off-plan on any plan; other users only on VALIDATED plans.
+    // Off-plan activities are allowed only for current year and past years.
     if (!p) return;
-    if (!this.isCorporateUser() && p.status !== 'VALIDATED') return;
+    if (p.year > this.currentYear) return;
+    const pastYearPlan = p.year < this.currentYear;
+    // Site users: VALIDATED required for current-year plans; past-year plans allow catch-up regardless of plan status.
+    if (!this.isCorporateUser() && p.status !== 'VALIDATED' && !pastYearPlan) return;
     this.showOffPlanSidebar.set(true);
   }
 
   canAddOffPlan(): boolean {
     const p = this.plan();
     if (!p) return false;
+    if (p.year > this.currentYear) return false;
     if (this.isCorporateUser()) return true;
+    if (p.year < this.currentYear) return true;
     return p.status === 'VALIDATED' && (this.isPlanPlanned || !this.canEditPlan());
   }
 
@@ -635,20 +763,56 @@ export class PlanDetailComponent implements OnInit, OnDestroy {
     this.closeActivityMenu();
   }
 
-  toggleActivityMenu(event: MouseEvent, activityId: string): void {
+  toggleActivityMenu(event: MouseEvent, activityId: string, openAbove: boolean): void {
     event.stopPropagation();
     if (this.activityMenuId() === activityId) {
       this.activityMenuId.set(null);
       return;
     }
     const btn = event.currentTarget as HTMLElement;
-    const rect = btn.getBoundingClientRect();
-    this.activityMenuPosition = { top: rect.bottom + 4, left: rect.right - 176 };
+    const btnRect = btn.getBoundingClientRect();
+    const menuWidth = 176;
+    const left = initialFixedContextMenuLeft(btnRect, menuWidth);
+    this.activityMenuPosition = { top: initialFixedContextMenuTopBelow(btnRect), left };
     this.activityMenuId.set(activityId);
+    this.cdr.markForCheck();
+    scheduleFixedContextMenuPosition({
+      menuSelector: '[data-plan-detail-activity-menu]',
+      btnRect,
+      menuWidth,
+      openAbove,
+      initialLeft: left,
+      isAlive: () => this.activityMenuId() === activityId,
+      onApply: (top, l) => {
+        this.activityMenuPosition = { top, left: l };
+        this.cdr.detectChanges();
+      },
+    });
   }
 
   closeActivityMenu(): void {
     this.activityMenuId.set(null);
+  }
+
+  openAddRealizationFromMenu(activityId: string): void {
+    this.closeActivityMenu();
+    const p = this.plan();
+    if (!p?.id || !this.canShowSubmitDataForActivity(activityId)) return;
+    this.addRealizationActivityId.set(activityId);
+    this.showAddRealizationSidebar.set(true);
+  }
+
+  closeAddRealizationSidebar(): void {
+    this.showAddRealizationSidebar.set(false);
+    this.addRealizationActivityId.set(null);
+  }
+
+  onRealizationCreatedFromMenu(): void {
+    this.closeAddRealizationSidebar();
+    const p = this.plan();
+    if (p) {
+      this.plansApi.get(p.id).subscribe({ next: (updated) => this.plan.set(updated) });
+    }
   }
 
   deletePlan(): void {
@@ -680,11 +844,66 @@ export class PlanDetailComponent implements OnInit, OnDestroy {
   goToActivityDetail(activityId: string): void {
     this.closeActivityMenu();
     const year = this.plan()?.year;
-    this.router.navigate(['/planned-activity', activityId], { queryParams: year != null ? { year } : {} });
+    const qp = year != null ? { year } : {};
+    const act = this.plan()?.activities?.find((x) => x.id === activityId);
+    const rid = act?.primary_realization_id?.trim();
+
+    if (rid) {
+      this.router.navigate(['/realized-csr', rid]);
+      return;
+    }
+
+    if (this.activityHasRealization(activityId)) {
+      this.realizedApi.list({ activity_id: activityId }).subscribe({
+        next: (rows: RealizedCsr[]) => {
+          const firstId = rows[0]?.id;
+          if (firstId) {
+            this.router.navigate(['/realized-csr', firstId]);
+          } else {
+            this.router.navigate(['/planned-activity', activityId], { queryParams: qp });
+          }
+        },
+        error: () => {
+          this.router.navigate(['/planned-activity', activityId], { queryParams: qp });
+        },
+      });
+      return;
+    }
+
+    this.router.navigate(['/planned-activity', activityId], { queryParams: qp });
   }
 
   goToEditActivity(activityId: string): void {
     this.closeActivityMenu();
+    if (!this.canEditActivity(activityId)) return;
+
+    if (this.activityHasRealization(activityId)) {
+      const act = this.plan()?.activities?.find((x) => x.id === activityId);
+      const rid = act?.primary_realization_id?.trim();
+      if (rid) {
+        this.realizedIdToEdit.set(rid);
+        this.showEditRealizationSidebar.set(true);
+        return;
+      }
+      this.realizedApi.list({ activity_id: activityId }).subscribe({
+        next: (rows: RealizedCsr[]) => {
+          const firstId = rows[0]?.id;
+          if (firstId) {
+            this.realizedIdToEdit.set(firstId);
+            this.showEditRealizationSidebar.set(true);
+          } else {
+            this.activityIdToEdit.set(activityId);
+            this.showEditActivitySidebar.set(true);
+          }
+        },
+        error: () => {
+          this.activityIdToEdit.set(activityId);
+          this.showEditActivitySidebar.set(true);
+        },
+      });
+      return;
+    }
+
     this.activityIdToEdit.set(activityId);
     this.showEditActivitySidebar.set(true);
   }
@@ -694,8 +913,21 @@ export class PlanDetailComponent implements OnInit, OnDestroy {
     this.activityIdToEdit.set(null);
   }
 
+  closeEditRealizationSidebar(): void {
+    this.showEditRealizationSidebar.set(false);
+    this.realizedIdToEdit.set(null);
+  }
+
   onActivityUpdated(): void {
     this.closeEditActivitySidebar();
+    const p = this.plan();
+    if (p) {
+      this.plansApi.get(p.id).subscribe({ next: (updated) => this.plan.set(updated) });
+    }
+  }
+
+  onRealizationUpdatedFromPlan(): void {
+    this.closeEditRealizationSidebar();
     const p = this.plan();
     if (p) {
       this.plansApi.get(p.id).subscribe({ next: (updated) => this.plan.set(updated) });

@@ -1,4 +1,4 @@
-import { Component, computed, signal, inject, OnInit, HostListener } from '@angular/core';
+import { ChangeDetectorRef, Component, computed, signal, inject, OnInit, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router, RouterModule, ActivatedRoute } from '@angular/router';
 import { TranslateModule } from '@ngx-translate/core';
@@ -7,6 +7,11 @@ import type { RealizedCsr } from '../models/realized-csr.model';
 import { RealizedCreateSidebarComponent } from '../realized-create-sidebar/realized-create-sidebar';
 import { RealizedEditComponent } from '../realized-edit/realized-edit';
 import { AuthStore } from '@core/services/auth-store';
+import {
+  initialFixedContextMenuLeft,
+  initialFixedContextMenuTopBelow,
+  scheduleFixedContextMenuPosition,
+} from '@core/utils/fixed-context-menu';
 
 @Component({
   selector: 'app-realized-list',
@@ -19,6 +24,7 @@ export class RealizedListComponent implements OnInit {
   private router = inject(Router);
   private route = inject(ActivatedRoute);
   private authStore = inject(AuthStore);
+  private cdr = inject(ChangeDetectorRef);
 
   activeMenuRealized: RealizedCsr | null = null;
   activeRequestChangeRealized: RealizedCsr | null = null;
@@ -45,16 +51,33 @@ export class RealizedListComponent implements OnInit {
     this.closeRequestChangeMenu();
   }
 
-  toggleRequestChangeMenu(r: RealizedCsr, event: MouseEvent): void {
+  toggleRequestChangeMenu(r: RealizedCsr, event: MouseEvent, openAbove: boolean): void {
     event.stopPropagation();
     if (this.activeRequestChangeRealized?.id === r.id) {
       this.closeRequestChangeMenu();
       return;
     }
-    const btn = event.target as HTMLElement;
-    const rect = btn.getBoundingClientRect();
-    this.menuPosition = { top: rect.bottom + 4, left: rect.right - 224 };
+    this.closeMenu();
+    const btn = event.currentTarget as HTMLElement;
+    const btnRect = btn.getBoundingClientRect();
+    const menuWidth = 224; // w-56
+    const left = initialFixedContextMenuLeft(btnRect, menuWidth);
+    this.menuPosition = { top: initialFixedContextMenuTopBelow(btnRect), left };
     this.activeRequestChangeRealized = r;
+    const rid = r.id;
+    this.cdr.markForCheck();
+    scheduleFixedContextMenuPosition({
+      menuSelector: '[data-realized-request-change-menu]',
+      btnRect,
+      menuWidth,
+      openAbove,
+      initialLeft: left,
+      isAlive: () => this.activeRequestChangeRealized?.id === rid,
+      onApply: (top, l) => {
+        this.menuPosition = { top, left: l };
+        this.cdr.detectChanges();
+      },
+    });
   }
 
   closeRequestChangeMenu(): void {
@@ -73,16 +96,33 @@ export class RealizedListComponent implements OnInit {
     this.router.navigate(['/realized-csr', r.id]);
   }
 
-  toggleMenu(r: RealizedCsr, event: MouseEvent): void {
+  toggleMenu(r: RealizedCsr, event: MouseEvent, openAbove: boolean): void {
     event.stopPropagation();
     if (this.activeMenuRealized?.id === r.id) {
       this.closeMenu();
       return;
     }
+    this.closeRequestChangeMenu();
     const btn = event.currentTarget as HTMLElement;
-    const rect = btn.getBoundingClientRect();
-    this.menuPosition = { top: rect.bottom + 4, left: rect.right - 176 };
+    const btnRect = btn.getBoundingClientRect();
+    const menuWidth = 176;
+    const left = initialFixedContextMenuLeft(btnRect, menuWidth);
+    this.menuPosition = { top: initialFixedContextMenuTopBelow(btnRect), left };
     this.activeMenuRealized = r;
+    const rid = r.id;
+    this.cdr.markForCheck();
+    scheduleFixedContextMenuPosition({
+      menuSelector: '[data-realized-row-menu]',
+      btnRect,
+      menuWidth,
+      openAbove,
+      initialLeft: left,
+      isAlive: () => this.activeMenuRealized?.id === rid,
+      onApply: (top, l) => {
+        this.menuPosition = { top, left: l };
+        this.cdr.detectChanges();
+      },
+    });
   }
 
   closeMenu(): void {
@@ -121,11 +161,10 @@ export class RealizedListComponent implements OnInit {
 
   list = signal<RealizedCsr[]>([]);
   loading = signal(true);
-  selectedYear = signal<number | null>(null);
   selectedPlanId = signal<string | null>(null);
   search = signal<string>('');
 
-  sortColumn = signal<string>('year');
+  sortColumn = signal<string>('realization_date');
   sortDirection = signal<'asc' | 'desc'>('desc');
 
   /** Unique plans from current list (for filter dropdown). */
@@ -139,31 +178,31 @@ export class RealizedListComponent implements OnInit {
         out.push({
           plan_id: r.plan_id,
           site_name: (r.site_name ?? '–') as string,
-          year: r.year ?? 0,
+          year: this._realizationYear(r) ?? 0,
         });
       }
     }
     return out.sort((a, b) => b.year - a.year || a.site_name.localeCompare(b.site_name));
   });
 
-  years = computed(() => {
-    const set = new Set(this.list().map(r => r.year));
-    return Array.from(set).sort((a, b) => b - a);
-  });
+  private _realizationYear(r: RealizedCsr): number | null {
+    const d = r.realization_date;
+    if (!d) return null;
+    const y = parseInt(String(d).slice(0, 4), 10);
+    return Number.isFinite(y) ? y : null;
+  }
 
   filteredList = computed(() => {
     const items = this.list();
-    const year = this.selectedYear();
     const planId = this.selectedPlanId();
     const q = this.search().toLowerCase().trim();
     const filtered = items.filter(item =>
-      (!year || item.year === year) &&
       (!planId || item.plan_id === planId) &&
       (!q ||
         (item.activity_title ?? '').toLowerCase().includes(q) ||
         (item.activity_number ?? '').toLowerCase().includes(q) ||
         (item.site_name ?? '').toLowerCase().includes(q) ||
-        String(item.year).includes(q))
+        (item.realization_date ?? '').toLowerCase().includes(q))
     );
     const col = this.sortColumn();
     const dir = this.sortDirection();
@@ -185,7 +224,7 @@ export class RealizedListComponent implements OnInit {
       }
       numA = typeof (a as any)[col] === 'number' ? (a as any)[col] : parseFloat(valA) || 0;
       numB = typeof (b as any)[col] === 'number' ? (b as any)[col] : parseFloat(valB) || 0;
-      if (col === 'year' || col === 'planned_budget' || col === 'realized_budget' || col === 'participants' || col === 'total_hc') {
+      if (col === 'planned_budget' || col === 'realized_budget' || col === 'participants' || col === 'total_hc') {
         if (numA < numB) return dir === 'asc' ? -1 : 1;
         if (numA > numB) return dir === 'asc' ? 1 : -1;
       } else {

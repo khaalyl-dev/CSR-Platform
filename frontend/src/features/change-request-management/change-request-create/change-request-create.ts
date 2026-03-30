@@ -35,6 +35,8 @@ export class ChangeRequestCreateComponent implements OnInit {
   files = signal<File[]>([]);
   dragOver = signal(false);
   submitting = signal(false);
+  /** Unlock path: 101 = corporate only, 111 = site L1 then corporate (ignored on submit when viewer is level 1). */
+  unlockValidationMode = signal<'101' | '111'>('101');
 
   ngOnInit(): void {
     const planId = this.route.snapshot.queryParamMap.get('planId') ?? this.route.snapshot.paramMap.get('planId');
@@ -122,9 +124,19 @@ export class ChangeRequestCreateComponent implements OnInit {
     this.durationError.set('');
     this.submitting.set(true);
     const aid = this.activityId();
-    const payload = aid
+    const isL1 = p.viewer_site_grade === 'level_1';
+    const payload: {
+      plan_id?: string;
+      activity_id?: string;
+      reason: string;
+      requested_duration: number;
+      validation_mode?: '101' | '111';
+    } = aid
       ? { activity_id: aid, reason, requested_duration: days }
       : { plan_id: p.id, reason, requested_duration: days };
+    if (!isL1) {
+      payload.validation_mode = this.unlockValidationMode();
+    }
     this.changeRequestsApi.create(payload).subscribe({
       next: (cr) => {
         const fileList = this.files();

@@ -1,4 +1,4 @@
-import { Component, computed, signal, inject, OnInit, HostListener } from '@angular/core';
+import { ChangeDetectorRef, Component, computed, signal, inject, OnInit, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterModule } from '@angular/router';
@@ -10,6 +10,11 @@ import type { CsrPlan } from '../models/csr-plan.model';
 import { I18nService } from '@core/services/i18n.service';
 import { PlanCreateSidebarComponent } from '../plan-create-sidebar/plan-create-sidebar';
 import { PlanEditSidebarComponent } from '../plan-edit-sidebar/plan-edit-sidebar';
+import {
+  initialFixedContextMenuLeft,
+  initialFixedContextMenuTopBelow,
+  scheduleFixedContextMenuPosition,
+} from '@core/utils/fixed-context-menu';
 
 export type PlanWithMode = ImportPreviewPlan & { validation_mode: '101' | '111' };
 
@@ -49,11 +54,11 @@ export class AnnualPlansComponent implements OnInit {
   private csrPlansApi = inject(CsrPlansApi);
   private router = inject(Router);
   private i18n = inject(I18nService);
+  private cdr = inject(ChangeDetectorRef);
 
   // ── Menu 3 points (like document action) ─────────────────────────────────
   activeMenuPlan: CsrPlan | null = null;
   menuPosition = { top: 0, left: 0 };
-
   // ── Bulk selection ─────────────────────────────────────────────────────
   selectedPlanIds = signal<Set<string>>(new Set());
   bulkActionLoading = signal(false);
@@ -138,12 +143,29 @@ export class AnnualPlansComponent implements OnInit {
     });
     const col = this.sortColumn();
     const dir = this.sortDirection();
+    const realizationProgressScore = (p: CsrPlan): number => {
+      const y = Number(p.year);
+      if (Number.isFinite(y) && y > currentYear) return -1;
+      const total = Number(p.activities_count ?? 0);
+      if (!Number.isFinite(total) || total <= 0) return -1;
+      const r = Number(p.activities_realized_count ?? 0);
+      const realized = Number.isFinite(r) ? Math.max(0, r) : 0;
+      return (realized / total) * 100;
+    };
+
     return [...filtered].sort((a, b) => {
+      if (col === 'realization_progress') {
+        const numA = realizationProgressScore(a);
+        const numB = realizationProgressScore(b);
+        if (numA < numB) return dir === 'asc' ? -1 : 1;
+        if (numA > numB) return dir === 'asc' ? 1 : -1;
+        return 0;
+      }
       const valA = (a as any)[col]?.toString().toLowerCase() ?? '';
       const valB = (b as any)[col]?.toString().toLowerCase() ?? '';
       const numA = typeof (a as any)[col] === 'number' ? (a as any)[col] : parseFloat(valA) || 0;
       const numB = typeof (b as any)[col] === 'number' ? (b as any)[col] : parseFloat(valB) || 0;
-      if (col === 'year' || col === 'total_budget' || col === 'activities_count') {
+      if (col === 'year' || col === 'total_budget' || col === 'total_realized_budget' || col === 'activities_count') {
         if (numA < numB) return dir === 'asc' ? -1 : 1;
         if (numA > numB) return dir === 'asc' ? 1 : -1;
       } else {
@@ -159,8 +181,36 @@ export class AnnualPlansComponent implements OnInit {
       this.sortDirection.update(d => d === 'asc' ? 'desc' : 'asc');
     } else {
       this.sortColumn.set(column);
-      this.sortDirection.set(column === 'year' ? 'desc' : 'asc');
+      this.sortDirection.set(column === 'year' || column === 'realization_progress' ? 'desc' : 'asc');
     }
+  }
+
+  /** Plan year is strictly after the current calendar year (show "Planned" instead of a bar). */
+  isPlanYearInFuture(plan: CsrPlan): boolean {
+    const y = Number(plan.year);
+    if (!Number.isFinite(y)) return false;
+    return y > new Date().getFullYear();
+  }
+
+  /** Plan year is strictly before the current calendar year (show "Realized" instead of a bar). */
+  isPlanYearInPast(plan: CsrPlan): boolean {
+    const y = Number(plan.year);
+    if (!Number.isFinite(y)) return false;
+    return y < new Date().getFullYear();
+  }
+
+  /** Share of planned activities with at least one realization; null when N/A (current year only). */
+  realizationProgressInfo(plan: CsrPlan): { pct: number; barWidth: number } | null {
+    if (this.isPlanYearInFuture(plan) || this.isPlanYearInPast(plan)) return null;
+    const total = Number(plan.activities_count ?? 0);
+    if (!Number.isFinite(total) || total <= 0) return null;
+    const raw = Number(plan.activities_realized_count ?? 0);
+    const realized = Number.isFinite(raw) ? Math.max(0, raw) : 0;
+    const pct = (realized / total) * 100;
+    return {
+      pct,
+      barWidth: Math.min(100, Math.max(0, pct)),
+    };
   }
 
   /** Unique years from plans + current year and next year (for filter). */
@@ -170,13 +220,6 @@ export class AnnualPlansComponent implements OnInit {
     years.add(currentYear);
     years.add(currentYear + 1);
     return Array.from(years).sort((a, b) => b - a);
-  });
-
-  /** Import year choices: full backend-valid range. */
-  importYearOptions = computed(() => {
-    const years: number[] = [];
-    for (let y = 2100; y >= 2000; y--) years.push(y);
-    return years;
   });
 
   totalPlans = computed(() => this.plans().length);
@@ -360,9 +403,27 @@ export class AnnualPlansComponent implements OnInit {
       return;
     }
     const btn = event.currentTarget as HTMLElement;
-    const rect = btn.getBoundingClientRect();
-    this.menuPosition = { top: rect.bottom + 4, left: rect.right - 176 };
+    const btnRect = btn.getBoundingClientRect();
+    const menuWidth = 176; // w-44
+    const list = this.filteredPlans();
+    const openAbove = list.length > 0 && list[list.length - 1]?.id === plan.id;
+    const left = initialFixedContextMenuLeft(btnRect, menuWidth);
+    this.menuPosition = { top: initialFixedContextMenuTopBelow(btnRect), left };
     this.activeMenuPlan = plan;
+    const planId = plan.id;
+    this.cdr.markForCheck();
+    scheduleFixedContextMenuPosition({
+      menuSelector: '[data-annual-plans-row-menu]',
+      btnRect,
+      menuWidth,
+      openAbove,
+      initialLeft: left,
+      isAlive: () => this.activeMenuPlan?.id === planId,
+      onApply: (top, l) => {
+        this.menuPosition = { top, left: l };
+        this.cdr.detectChanges();
+      },
+    });
   }
 
   closeMenu(): void {
@@ -991,7 +1052,8 @@ export class AnnualPlansComponent implements OnInit {
     );
   }
 
-  setImportSelectedYear(year: number): void {
+  setImportSelectedYear(year: number | null): void {
+    if (year == null || !Number.isFinite(year)) return;
     this.importSelectedYear.set(year);
     this.importPlansWithModes.update((list) => list.map((p) => ({ ...p, year })));
     this.scheduleAutoConflictsCheck();

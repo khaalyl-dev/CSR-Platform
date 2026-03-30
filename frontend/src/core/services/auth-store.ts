@@ -6,6 +6,13 @@ const USER_KEY = 'auth.user';
 export interface User {
   email: string;
   role: 'site' | 'corporate';
+  first_name?: string | null;
+  last_name?: string | null;
+}
+
+/** Normalize SITE_USER / CORPORATE_USER (or legacy strings) to sidebar guards. */
+export function mapBackendRole(role: string): 'site' | 'corporate' {
+  return role === 'CORPORATE_USER' || role === 'corporate' ? 'corporate' : 'site';
 }
 
 type StorageLike = Storage | null;
@@ -74,6 +81,24 @@ export class AuthStore {
         storage.setItem(USER_KEY, JSON.stringify(user));
       } catch {}
     }
+  }
+
+  /** Merge into the current user and persist wherever `auth.user` is already stored. */
+  patchUser(updates: Partial<Pick<User, 'email' | 'role' | 'first_name' | 'last_name'>>): void {
+    const current = this.user();
+    if (!current) return;
+    const next: User = { ...current, ...updates };
+    this.user.set(next);
+    try {
+      if (typeof window === 'undefined') return;
+      const json = JSON.stringify(next);
+      if (window.sessionStorage.getItem(USER_KEY)) {
+        window.sessionStorage.setItem(USER_KEY, json);
+      }
+      if (window.localStorage.getItem(USER_KEY)) {
+        window.localStorage.setItem(USER_KEY, json);
+      }
+    } catch {}
   }
 
   clearAuth(): void {

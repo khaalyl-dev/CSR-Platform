@@ -34,11 +34,21 @@
               <ng-container *ngIf="(r.entity_type === 'ACTIVITY' || isOffPlanRow(r)) && (r.activity_number || r.activity_title)"> ({{ r.activity_number }} – {{ r.activity_title }})</ng-container>
             </a>
           </td>
-          <td class="p-4 text-gray-600">{{ r.requested_by_name ?? '–' }}</td>
+          <td class="p-4">
+            <app-user-avatar-name
+              [displayName]="r.requested_by_name"
+              [avatarUrl]="r.requested_by_avatar_url"
+              [muted]="true" />
+          </td>
           <td class="p-4">
             <span [class]="r.status === 'APPROVED' ? 'text-green-600' : 'text-red-600'">{{ statusLabel(r.status) }}</span>
           </td>
-          <td class="p-4 text-gray-600">{{ r.reviewed_by_name ?? '–' }}</td>
+          <td class="p-4">
+            <app-user-avatar-name
+              [displayName]="r.reviewed_by_name"
+              [avatarUrl]="r.reviewed_by_avatar_url"
+              [muted]="true" />
+          </td>
           <td class="p-4 text-gray-500 whitespace-nowrap">{{ r.reviewed_at | date:'short' }}</td>
           <td class="p-4 text-right">
             <a *ngIf="planDetailId(r)" [routerLink]="['/csr-plans', planDetailId(r)]" class="text-brand-700 hover:underline">{{ 'CHANGE_REQUEST.VIEW_PLAN' | translate }}</a>

@@ -4,8 +4,7 @@
  */
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable, throwError } from 'rxjs';
-import { catchError, tap } from 'rxjs/operators';
+import { Observable } from 'rxjs';
 
 /** Response from POST /api/auth/login */
 export interface LoginResponse {
@@ -13,6 +12,9 @@ export interface LoginResponse {
   email: string;
   role: string; // SITE_USER | CORPORATE_USER from backend
   user_id?: string | number;
+  first_name?: string | null;
+  last_name?: string | null;
+  avatar_url?: string | null;
   expires_at?: string;
 }
 
@@ -21,6 +23,9 @@ export interface MeResponse {
   user_id: string | number;
   email: string;
   role: string;
+  first_name?: string | null;
+  last_name?: string | null;
+  avatar_url?: string | null;
 }
 
 /** Site assignment in profile (SITE_USER only) */
@@ -62,19 +67,11 @@ export class AuthApi {
   constructor(private http: HttpClient) {}
 
   login(email: string, password: string): Observable<LoginResponse> {
-    console.log('[AuthApi] login() called with email:', email);
     return this.http.post<LoginResponse>(`${this.apiUrl}/auth/login`, {
       email,
       password,
-    }).pipe(
-      tap((res) => {
-        console.log('[AuthApi] login() response:', res);
-      }),
-      catchError((err) => {
-        console.error('[AuthApi] login() error:', err);
-        return throwError(() => err);
-      }),
-    );
+    });
+ 
   }
 
   logout(): Observable<{ message: string }> {

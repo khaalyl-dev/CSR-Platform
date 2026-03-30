@@ -3,11 +3,12 @@ import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
 import { TranslateModule, TranslateService } from '@ngx-translate/core';
 import { ChangeRequestsApi, type ChangeRequestWithDocs } from '../api/change-requests-api';
+import { UserAvatarNameComponent } from '@shared/components/user-avatar-name/user-avatar-name';
 
 @Component({
   selector: 'app-change-requests-history',
   standalone: true,
-  imports: [CommonModule, RouterModule, TranslateModule],
+  imports: [CommonModule, RouterModule, TranslateModule, UserAvatarNameComponent],
   templateUrl: './change-requests-history.html',
 })
 export class ChangeRequestsHistoryComponent implements OnInit {

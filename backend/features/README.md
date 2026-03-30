@@ -13,7 +13,8 @@ Business modules (Flask blueprints). Each feature is a subpackage with:
 |---------|-------|-----------------|---------|
 | **user_management** | auth_routes, users_routes | /api/auth, /api/users | Login, profile, user CRUD |
 | **site_management** | sites_routes, categories_routes, external_partners_routes | /api/sites, /api/categories | Sites, CSR categories |
-| **csr_plan_management** | csr_plans_routes, csr_activities_routes, excel_import_routes | /api/csr-plans, /api/csr-activities | Annual plans, activities, Excel import |
+| **csr_plan_management** | csr_plans_routes, excel_import_routes | /api/csr-plans | Annual plans, Excel import |
+| **planned_activity_management** | planned_csr_routes | /api/csr-activities | Planned activities (plan lines) |
 | **realized_activity_management** | realized_csr_routes | /api/realized-csr | Realized activities |
 | **validation_workflow_management** | validations_routes | /api/validations | Plan/activity validation |
 | **change_request_management** | change_requests_routes | /api/change-requests | Change requests |

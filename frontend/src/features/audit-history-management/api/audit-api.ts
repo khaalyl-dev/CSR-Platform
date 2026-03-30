@@ -1,5 +1,5 @@
 /**
- * Audit API – list audit logs (corporate only), rollback to previous version.
+ * Audit API – list audit logs (corporate only).
  */
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
@@ -32,12 +32,5 @@ export class AuditApi {
     if (params?.date_to) httpParams = httpParams.set('date_to', params.date_to);
     if (params?.limit != null) httpParams = httpParams.set('limit', String(params.limit));
     return this.http.get<AuditLog[]>(`${this.apiUrl}/logs`, { params: httpParams });
-  }
-
-  rollback(entityHistoryId: string): Observable<{ message: string; entity_type?: string; entity_id?: string }> {
-    return this.http.post<{ message: string; entity_type?: string; entity_id?: string }>(
-      `${this.apiUrl}/rollback`,
-      { entity_history_id: entityHistoryId }
-    );
   }
 }

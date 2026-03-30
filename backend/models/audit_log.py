@@ -39,7 +39,7 @@ class AuditLog(db.Model):
         CHAR(36, collation="utf8mb4_unicode_ci"), db.ForeignKey("users.id", ondelete="SET NULL"), nullable=True
     )
     action = db.Column(db.String(64), nullable=False)  # CREATE, UPDATE, DELETE, APPROVE, REJECT, REQUEST_MODIFICATION
-    entity_type = db.Column(db.String(20), nullable=False)  # PLAN, ACTIVITY
+    entity_type = db.Column(db.String(20), nullable=False)  # PLAN, ACTIVITY, REALIZATION, ...
     entity_id = db.Column(CHAR(36, collation="utf8mb4_unicode_ci"), nullable=True)
     description = db.Column(db.Text, nullable=True)
     entity_history_id = db.Column(

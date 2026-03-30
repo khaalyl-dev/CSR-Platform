@@ -1,19 +1,21 @@
 import { Component, inject, OnInit, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { RouterModule } from '@angular/router';
+import { Router, RouterModule } from '@angular/router';
 import { TranslateModule, TranslateService } from '@ngx-translate/core';
 import { CsrPlansApi, CsrPlanDetail } from '../api/csr-plans-api';
 import type { CsrPlan } from '../models/csr-plan.model';
+import { UserAvatarNameComponent } from '@shared/components/user-avatar-name/user-avatar-name';
 
 @Component({
   selector: 'app-plan-validation',
   standalone: true,
-  imports: [CommonModule, RouterModule, TranslateModule],
+  imports: [CommonModule, RouterModule, TranslateModule, UserAvatarNameComponent],
   templateUrl: './plan-validation.html',
 })
 export class PlanValidationComponent implements OnInit {
   private plansApi = inject(CsrPlansApi);
   private translate = inject(TranslateService);
+  private router = inject(Router);
 
   plans = signal<CsrPlan[]>([]);
   loading = signal(true);
@@ -28,6 +30,10 @@ export class PlanValidationComponent implements OnInit {
   rejectActivityIds = signal<string[]>([]);
   rejectModalError = signal('');
   rejectModalLoading = signal(false);
+
+  // Approve confirmation (same UX as change-request-detail)
+  approveConfirmOpen = signal(false);
+  planToApprove = signal<CsrPlan | null>(null);
 
   validationStepLabel(plan: CsrPlan): string {
     if (plan.status !== 'SUBMITTED') return '';
@@ -47,6 +53,13 @@ export class PlanValidationComponent implements OnInit {
     this.loadPlans();
   }
 
+  /** Navigate to plan detail; ignores clicks on action buttons. */
+  onPlanRowNavigate(planId: string, event: MouseEvent): void {
+    const t = event.target as HTMLElement | null;
+    if (t?.closest('button')) return;
+    void this.router.navigate(['/csr-plans', planId]);
+  }
+
   loadPlans(): void {
     this.loading.set(true);
     this.errorMsg.set('');
@@ -62,12 +75,25 @@ export class PlanValidationComponent implements OnInit {
     });
   }
 
-  approve(plan: CsrPlan): void {
+  openApproveConfirm(plan: CsrPlan): void {
     if (plan.status !== 'SUBMITTED' || !plan.can_approve) return;
+    this.planToApprove.set(plan);
+    this.approveConfirmOpen.set(true);
+  }
+
+  closeApproveConfirm(): void {
+    this.approveConfirmOpen.set(false);
+    this.planToApprove.set(null);
+  }
+
+  confirmApprove(): void {
+    const plan = this.planToApprove();
+    if (!plan || plan.status !== 'SUBMITTED' || !plan.can_approve) return;
     this.actionLoading.set(plan.id);
     this.plansApi.approve(plan.id).subscribe({
       next: () => {
         this.actionLoading.set(null);
+        this.closeApproveConfirm();
         this.loadPlans();
       },
       error: () => {
@@ -122,7 +148,7 @@ export class PlanValidationComponent implements OnInit {
   submitReject(): void {
     const comment = this.rejectComment().trim();
     if (!comment) {
-      this.rejectModalError.set('Le motif de rejet est obligatoire.');
+      this.rejectModalError.set(this.translate.instant('PLAN_VALIDATION.REJECT_REASON_REQUIRED'));
       return;
     }
     const plan = this.planToReject();

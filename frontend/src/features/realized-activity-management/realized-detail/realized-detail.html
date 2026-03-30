@@ -12,100 +12,227 @@
   <div *ngIf="loading()" class="text-center py-12 text-gray-500">{{ 'COMMON.LOADING' | translate }}</div>
   <div *ngIf="errorMsg()" class="text-center py-12 text-red-600">{{ errorMsg() }}</div>
 
-  <div *ngIf="realized() && !loading()" class="space-y-6">
+  <div *ngIf="realized() && !loading()" class="max-w-7xl mx-auto space-y-6">
+    <!-- Header -->
     <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-      <div class="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h1 class="text-2xl font-bold tracking-tight text-gray-800">{{ realized()!.activity_title ?? realized()!.activity_number ?? ('REALIZED_DETAIL.REALIZATION_FALLBACK' | translate) }}</h1>
+      <div class="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
+        <div class="min-w-0">
+          <h1 class="text-2xl font-bold tracking-tight text-gray-900 truncate">
+            {{ realized()!.activity_title ?? realized()!.activity_number ?? ('REALIZED_DETAIL.REALIZATION_FALLBACK' | translate) }}
+          </h1>
+          <div class="mt-3 flex flex-wrap items-center gap-2 text-sm">
+            <span class="inline-flex items-center rounded-full bg-gray-100 px-3 py-1 text-gray-700">
+              {{ 'REALIZED_DETAIL.REALIZATION_DATE' | translate }}:
+              <span class="ml-1 font-semibold">{{ realized()!.realization_date ? (realized()!.realization_date | date:'dd/MM/yyyy') : '–' }}</span>
+            </span>
+            <span class="inline-flex items-center rounded-full bg-gray-100 px-3 py-1 text-gray-700">
+              {{ 'PLANNED_ACTIVITY_DETAIL.CATEGORY' | translate }}:
+              <span class="ml-1 font-semibold">{{ realized()!.category_name ?? '–' }}</span>
+            </span>
+            <span class="inline-flex items-center rounded-full bg-gray-100 px-3 py-1 text-gray-700">
+              {{ 'PLAN_DETAIL.START_YEAR' | translate }}:
+              <span class="ml-1 font-semibold">{{ realized()!.start_year != null ? realized()!.start_year : '–' }}</span>
+            </span>
+          </div>
         </div>
-        <div class="flex items-center gap-2">
-        <a *ngIf="realized()!.plan_id" [routerLink]="['/csr-plans', realized()!.plan_id]"
-          class="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-brand-900 text-white hover:opacity-90 text-sm font-medium">
-          {{ 'REALIZED_DETAIL.VIEW_PLAN' | translate }}
-        </a>
-        <button *ngIf="realized()!.plan_editable" type="button" (click)="openEditSidebar()"
-          class="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-gray-300 text-gray-700 hover:bg-gray-50 text-sm font-medium">
-          {{ 'REALIZED_DETAIL.EDIT' | translate }}
-        </button>
-        <span *ngIf="realized()!.plan_editable === false" class="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-gray-100 text-gray-500 text-sm" [attr.title]="'PLAN_LOCKED_TITLE' | translate">
-          <i class="fas fa-lock"></i> {{ 'REALIZED_DETAIL.MODIFICATION_UNAVAILABLE' | translate }}
-        </span>
-      </div>
+
+        <div class="flex flex-wrap items-center gap-2 shrink-0">
+          <a *ngIf="realized()!.plan_id" [routerLink]="['/csr-plans', realized()!.plan_id]"
+            class="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-brand-900 text-white hover:opacity-90 text-sm font-medium">
+            {{ 'REALIZED_DETAIL.VIEW_PLAN' | translate }}
+          </a>
+          <button *ngIf="realized()!.plan_editable !== false" type="button" (click)="openEditSidebar()"
+            class="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-gray-300 text-gray-700 hover:bg-gray-50 text-sm font-medium">
+            {{ 'REALIZED_DETAIL.EDIT' | translate }}
+          </button>
+          <button *ngIf="realized()!.plan_editable !== false" type="button" (click)="openDeleteModal()"
+            class="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-red-300 text-red-700 hover:bg-red-50 text-sm font-medium">
+            {{ 'COMMON.DELETE' | translate }}
+          </button>
+          <span *ngIf="realized()!.plan_editable === false"
+            class="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-gray-100 text-gray-500 text-sm"
+            [attr.title]="'PLAN_LOCKED_TITLE' | translate">
+            <i class="fas fa-lock"></i> {{ 'REALIZED_DETAIL.MODIFICATION_UNAVAILABLE' | translate }}
+          </span>
+        </div>
       </div>
     </div>
 
-    <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-      <h2 class="p-4 font-semibold text-gray-800 border-b border-gray-100">{{ 'REALIZED_DETAIL.REALIZATION_INFO' | translate }}</h2>
-      <div class="p-6 grid grid-cols-1 md:grid-cols-2 gap-6 text-sm">
-        <div class="space-y-4">
-          <div>
-            <p class="text-gray-500 text-xs uppercase tracking-wider">{{ 'REALIZED_DETAIL.BUDGET_REALIZED' | translate }}</p>
-            <p class="font-semibold text-gray-800 mt-0.5">{{ realized()!.realized_budget != null ? (realized()!.realized_budget | number:'1.0-0') + ' €' : '–' }}</p>
-          </div>
-          <div>
-            <p class="text-gray-500 text-xs uppercase tracking-wider">{{ 'REALIZED_DETAIL.PARTICIPANTS' | translate }}</p>
-            <p class="text-gray-800 mt-0.5">{{ realized()!.participants ?? '–' }}</p>
-          </div>
-          <div>
-            <p class="text-gray-500 text-xs uppercase tracking-wider">{{ 'REALIZED_DETAIL.HEADCOUNT' | translate }}</p>
-            <p class="text-gray-800 mt-0.5">{{ realized()!.total_hc ?? '–' }}</p>
-          </div>
-          <div>
-            <p class="text-gray-500 text-xs uppercase tracking-wider">{{ 'REALIZED_DETAIL.PERCENT_EMPLOYEES' | translate }}</p>
-            <p class="text-gray-800 mt-0.5">{{ realized()!.percentage_employees != null ? (realized()!.percentage_employees | number:'1.1-1') + ' %' : '–' }}</p>
-          </div>
-          <div>
-            <p class="text-gray-500 text-xs uppercase tracking-wider">{{ 'REALIZED_DETAIL.VOLUNTEER_HOURS' | translate }}</p>
-            <p class="text-gray-800 mt-0.5">{{ realized()!.volunteer_hours ?? '–' }}</p>
-          </div>
-          <div>
-            <p class="text-gray-500 text-xs uppercase tracking-wider">{{ 'REALIZED_DETAIL.IMPACT_REALIZED' | translate }}</p>
-            <p class="text-gray-800 mt-0.5">
-              <span *ngIf="realized()!.action_impact_actual != null">{{ realized()!.action_impact_actual | number:'1.0-0' }}</span>
-              <span *ngIf="realized()!.action_impact_unit"> {{ realized()!.action_impact_unit }}</span>
-              <span *ngIf="realized()!.action_impact_actual == null && !realized()!.action_impact_unit">–</span>
-            </p>
-          </div>
-          <div>
-            <p class="text-gray-500 text-xs uppercase tracking-wider">{{ 'REALIZED_DETAIL.REALIZATION_DATE' | translate }}</p>
-            <p class="text-gray-800 mt-0.5">{{ realized()!.realization_date ? (realized()!.realization_date | date:'dd/MM/yyyy') : '–' }}</p>
-          </div>
-          <div>
-            <p class="text-gray-500 text-xs uppercase tracking-wider">{{ 'REALIZED_DETAIL.ORGANIZER' | translate }}</p>
-            <p class="text-gray-800 mt-0.5">{{ realized()!.organizer ?? '–' }}</p>
-          </div>
-          <div>
-            <p class="text-gray-500 text-xs uppercase tracking-wider">{{ 'REALIZED_DETAIL.EXTERNAL_PARTNERS' | translate }}</p>
-            <p class="text-gray-800 mt-0.5">{{ realized()!.number_external_partners ?? '–' }}</p>
+    <div class="grid grid-cols-1 xl:grid-cols-3 gap-6">
+      <!-- Comparison -->
+      <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden xl:col-span-2">
+        <div class="p-4 border-b border-gray-100 flex items-center justify-between">
+          <h2 class="font-semibold text-gray-900">{{ 'REALIZED_DETAIL.REALIZATION_INFO' | translate }}</h2>
+          <div class="hidden md:flex items-center gap-2 text-xs">
+            <span class="inline-flex items-center rounded-full bg-blue-50 text-blue-700 px-3 py-1 font-semibold">
+              {{ 'PLANNED_ACTIVITY_DETAIL.SECTION_INFO_PLANNED' | translate }}
+            </span>
+            <span class="inline-flex items-center rounded-full bg-emerald-50 text-emerald-700 px-3 py-1 font-semibold">
+              {{ 'REALIZED_DETAIL.REALIZATION_INFO' | translate }}
+            </span>
           </div>
         </div>
-        <div class="space-y-4">
-          <div *ngIf="realized()!.impact_description" class="md:col-span-2">
-            <p class="text-gray-500 text-xs uppercase tracking-wider">{{ 'REALIZED_DETAIL.IMPACT_DESCRIPTION' | translate }}</p>
-            <p class="text-gray-800 mt-0.5 whitespace-pre-wrap">{{ realized()!.impact_description }}</p>
+
+        <div class="p-6">
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-4 items-start">
+            <div class="hidden md:block text-xs font-semibold text-gray-500 uppercase tracking-wider">Field</div>
+            <div class="hidden md:block text-xs font-semibold text-blue-700 uppercase tracking-wider">
+              {{ 'PLANNED_ACTIVITY_DETAIL.SECTION_INFO_PLANNED' | translate }}
+            </div>
+            <div class="hidden md:block text-xs font-semibold text-emerald-700 uppercase tracking-wider">
+              {{ 'REALIZED_DETAIL.REALIZATION_INFO' | translate }}
+            </div>
+
+            <!-- Budget -->
+            <div class="text-xs font-semibold text-gray-600 uppercase tracking-wider">{{ 'PLAN_DETAIL.BUDGET_PLANNED' | translate }}</div>
+            <div class="rounded-xl border border-gray-200 p-3 bg-blue-50/30">
+              <div class="text-sm font-semibold text-gray-900">
+                {{ realized()!.planned_budget != null ? (realized()!.planned_budget | number:'1.0-0') + ' €' : '–' }}
+              </div>
+            </div>
+            <div class="rounded-xl border border-gray-200 p-3 bg-emerald-50/30">
+              <div class="text-sm font-semibold text-gray-900">
+                {{ realized()!.realized_budget != null ? (realized()!.realized_budget | number:'1.0-0') + ' €' : '–' }}
+              </div>
+            </div>
+
+            <!-- Impact -->
+            <div class="text-xs font-semibold text-gray-600 uppercase tracking-wider">{{ 'PLAN_DETAIL.TARGET_IMPACT' | translate }}</div>
+            <div class="rounded-xl border border-gray-200 p-3 bg-blue-50/30">
+              <div class="text-sm text-gray-900">
+                <span *ngIf="realized()!.action_impact_target != null" class="font-semibold">{{ realized()!.action_impact_target | number:'1.0-0' }}</span>
+                <span *ngIf="realized()!.action_impact_unit_target"> {{ realized()!.action_impact_unit_target }}</span>
+                <span *ngIf="realized()!.action_impact_target == null && !realized()!.action_impact_unit_target">–</span>
+              </div>
+            </div>
+            <div class="rounded-xl border border-gray-200 p-3 bg-emerald-50/30">
+              <div class="text-sm text-gray-900">
+                <span *ngIf="realized()!.action_impact_actual != null" class="font-semibold">{{ realized()!.action_impact_actual | number:'1.0-0' }}</span>
+                <span *ngIf="realized()!.action_impact_unit"> {{ realized()!.action_impact_unit }}</span>
+                <span *ngIf="realized()!.action_impact_actual == null && !realized()!.action_impact_unit">–</span>
+              </div>
+            </div>
+
+            <!-- Realized-only: participants/headcount -->
+            <div class="text-xs font-semibold text-gray-600 uppercase tracking-wider">{{ 'REALIZED_DETAIL.PARTICIPANTS' | translate }}</div>
+            <div class="rounded-xl border border-gray-200 p-3 bg-blue-50/30"><div class="text-sm text-gray-500">–</div></div>
+            <div class="rounded-xl border border-gray-200 p-3 bg-emerald-50/30">
+              <div class="text-sm font-semibold text-gray-900">
+                {{ participationDisplay(realized()!.participants, realized()!.total_hc) }}
+              </div>
+            </div>
+
           </div>
-          <div *ngIf="realized()!.comment" class="md:col-span-2">
-            <p class="text-gray-500 text-xs uppercase tracking-wider">{{ 'REALIZED_DETAIL.COMMENT' | translate }}</p>
-            <p class="text-gray-800 mt-0.5 whitespace-pre-wrap">{{ realized()!.comment }}</p>
+
+          <div *ngIf="realized()!.activity_description || realized()!.comment" class="mt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div *ngIf="realized()!.activity_description" class="rounded-2xl border border-gray-200 p-4">
+              <div class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">{{ 'PLANNED_ACTIVITY_DETAIL.DESCRIPTION' | translate }}</div>
+              <div class="text-sm text-gray-800 whitespace-pre-wrap">{{ realized()!.activity_description }}</div>
+            </div>
+            <div *ngIf="realized()!.comment" class="rounded-2xl border border-gray-200 p-4">
+              <div class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">{{ 'REALIZED_DETAIL.COMMENT' | translate }}</div>
+              <div class="text-sm text-gray-800 whitespace-pre-wrap">{{ realized()!.comment }}</div>
+            </div>
           </div>
-          <div>
-            <p class="text-gray-500 text-xs uppercase tracking-wider">{{ 'REALIZED_DETAIL.CONTACT_DEPARTMENT' | translate }}</p>
-            <p class="text-gray-800 mt-0.5">{{ realized()!.contact_department ?? '–' }}</p>
-          </div>
-          <div>
-            <p class="text-gray-500 text-xs uppercase tracking-wider">{{ 'REALIZED_DETAIL.CONTACT_NAME' | translate }}</p>
-            <p class="text-gray-800 mt-0.5">{{ realized()!.contact_name ?? '–' }}</p>
-          </div>
-          <div>
-            <p class="text-gray-500 text-xs uppercase tracking-wider">{{ 'REALIZED_DETAIL.CONTACT_EMAIL' | translate }}</p>
-            <p class="text-gray-800 mt-0.5">{{ realized()!.contact_email ?? '–' }}</p>
-          </div>
-          <div>
-            <p class="text-gray-500 text-xs uppercase tracking-wider">{{ 'REALIZED_DETAIL.ENTERED_ON' | translate }}</p>
-            <p class="text-gray-800 mt-0.5">{{ realized()!.created_at ? (realized()!.created_at | date:'dd/MM/yyyy HH:mm') : '–' }}</p>
+
+          <!-- Each field in its own card -->
+          <div class="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div class="rounded-2xl border border-gray-200 p-4">
+              <div class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">{{ 'PLAN_DETAIL.ORGANIZER' | translate }}</div>
+              <div class="text-sm font-semibold text-gray-900">{{ realized()!.organizer ?? '–' }}</div>
+            </div>
+            <div class="rounded-2xl border border-gray-200 p-4">
+              <div class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">{{ 'PLAN_DETAIL.COLLAB_NATURE' | translate }}</div>
+              <div class="text-sm font-semibold text-gray-900">{{ realized()!.collaboration_nature ?? '–' }}</div>
+              <div class="text-xs text-gray-500 mt-1">{{ 'PLANNED_ACTIVITY_EDIT.PERIODICITY' | translate }}: {{ realized()!.periodicity ?? '–' }}</div>
+            </div>
+            <div class="rounded-2xl border border-gray-200 p-4">
+              <div class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">{{ 'PLAN_DETAIL.EXTERNAL_PARTNER' | translate }}</div>
+              <div class="text-sm font-semibold text-gray-900">{{ realized()!.external_partner_name ?? '–' }}</div>
+            </div>
+            <div class="rounded-2xl border border-gray-200 p-4">
+              <div class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">{{ 'PLAN_DETAIL.NUMBER_EXTERNAL_PARTNERS' | translate }}</div>
+              <div class="text-sm font-semibold text-gray-900">{{ realized()!.number_external_partners != null ? realized()!.number_external_partners : '–' }}</div>
+            </div>
           </div>
         </div>
       </div>
+
+      <!-- Right column: contact + meta + documents -->
+      <div class="space-y-6">
+        <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+          <h2 class="p-4 font-semibold text-gray-900 border-b border-gray-100">{{ 'REALIZED_DETAIL.CONTACT_SECTION' | translate }}</h2>
+          <div class="p-6 space-y-4 text-sm">
+            <div>
+              <p class="text-gray-500 text-xs uppercase tracking-wider">{{ 'REALIZED_DETAIL.CONTACT_NAME' | translate }}</p>
+              <p class="text-gray-900 mt-0.5 font-semibold">{{ realized()!.contact_name ?? '–' }}</p>
+            </div>
+            <div>
+              <p class="text-gray-500 text-xs uppercase tracking-wider">{{ 'REALIZED_DETAIL.CONTACT_EMAIL' | translate }}</p>
+              <p class="text-gray-900 mt-0.5 font-semibold">{{ realized()!.contact_email ?? '–' }}</p>
+            </div>
+            <div>
+              <p class="text-gray-500 text-xs uppercase tracking-wider">{{ 'REALIZED_DETAIL.ENTERED_ON' | translate }}</p>
+              <p class="text-gray-900 mt-0.5 font-semibold">{{ realized()!.created_at ? (realized()!.created_at | date:'dd/MM/yyyy HH:mm') : '–' }}</p>
+            </div>
+          </div>
+        </div>
+
+    <!-- Documents uploaded for this activity -->
+        <div *ngIf="documents().length" class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+          <h2 class="p-4 font-semibold text-gray-900 border-b border-gray-100">{{ 'PLANNED_ACTIVITY_DETAIL.PHOTOS' | translate }}</h2>
+          <div class="p-6 grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-2 gap-3">
+            <ng-container *ngFor="let doc of documents()">
+              <a *ngIf="isImageType(doc)" [href]="getDocUrl(doc)" target="_blank"
+                class="group relative block overflow-hidden rounded-xl border border-gray-200 bg-gray-50">
+                <img [src]="getDocUrl(doc)" [alt]="doc.file_name" class="w-full aspect-square object-cover"/>
+                <div class="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/60 to-transparent p-2">
+                  <div class="text-xs text-white truncate">{{ doc.file_name }}</div>
+                </div>
+              </a>
+              <a *ngIf="!isImageType(doc)" href="#" (click)="previewDoc(doc, $event)"
+                class="group flex aspect-square items-center justify-center rounded-xl border border-gray-200 bg-gray-50 hover:bg-gray-100 p-3 text-center">
+                <div class="space-y-2">
+                  <div class="mx-auto h-10 w-10 rounded-xl bg-white border border-gray-200 flex items-center justify-center text-gray-700">
+                    PDF
+                  </div>
+                  <div class="text-xs text-gray-700 font-semibold break-words">{{ doc.file_name }}</div>
+                  <div class="text-[11px] text-gray-500">{{ 'COMMON.DETAILS' | translate }}</div>
+                </div>
+              </a>
+            </ng-container>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Delete confirmation modal -->
+<div *ngIf="showDeleteModal()"
+  class="fixed inset-0 z-[9998] flex items-center justify-center bg-black/50 !mt-0"
+  (click)="closeDeleteModal()"
+  role="dialog"
+  aria-modal="true">
+  <div class="relative z-[9999] bg-white rounded-2xl shadow-xl border border-gray-200 w-full max-w-md overflow-hidden"
+    (click)="$event.stopPropagation()">
+    <div class="p-6 border-b border-gray-100">
+      <h2 class="text-lg font-semibold text-gray-800">{{ 'COMMON.CONFIRM' | translate }}</h2>
+      <p class="text-gray-600 text-sm mt-2">
+        {{ 'REALIZED_DETAIL.DELETE_CONFIRM' | translate }}
+      </p>
+    </div>
+    <div class="p-4 flex items-center justify-end gap-3 bg-gray-50">
+      <button type="button"
+        class="px-4 py-2 rounded-xl border border-gray-300 text-gray-700 hover:bg-gray-100 transition"
+        (click)="closeDeleteModal()">
+        {{ 'COMMON.CANCEL' | translate }}
+      </button>
+      <button type="button"
+        class="px-4 py-2 rounded-xl bg-red-600 text-white hover:bg-red-700 transition"
+        (click)="confirmDeleteRealization()">
+        {{ 'COMMON.DELETE' | translate }}
+      </button>
     </div>
   </div>
 </div>
@@ -115,7 +242,7 @@
   class="fixed inset-0 z-50 flex"
   (click)="closeEditSidebar()">
   <div class="flex-1 bg-black/40 transition-opacity" aria-hidden="true"></div>
-  <aside class="w-full max-w-2xl bg-white shadow-2xl flex flex-col h-full min-h-0 overflow-hidden animate-slide-in-right"
+  <aside class="w-full max-w-md bg-white shadow-2xl flex flex-col h-full min-h-0 overflow-hidden animate-slide-in-right"
     (click)="$event.stopPropagation()">
     <div class="flex-1 min-h-0 overflow-y-auto">
     <app-realized-edit

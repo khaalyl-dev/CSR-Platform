@@ -3,8 +3,8 @@ import { Component, DestroyRef, ElementRef, HostListener, inject, signal } from 
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Router } from '@angular/router';
 import { TranslateService } from '@ngx-translate/core';
-import { interval } from 'rxjs';
 import { AuthStore } from '@core/services/auth-store';
+import { NotificationSocketService } from '@core/services/notification-socket.service';
 import { NotificationsApi } from '../api/notifications-api';
 import type { Notification } from '../models/notification.model';
 
@@ -84,6 +84,7 @@ import type { Notification } from '../models/notification.model';
 })
 export class NotificationBellComponent {
   private readonly notificationsApi = inject(NotificationsApi);
+  private readonly notificationSocket = inject(NotificationSocketService);
   private readonly authStore = inject(AuthStore);
   private readonly translate = inject(TranslateService);
   private readonly destroyRef = inject(DestroyRef);
@@ -105,15 +106,25 @@ export class NotificationBellComponent {
   protected readonly notifications = signal<Notification[]>([]);
 
   constructor() {
-    if (this.authStore.token()) this.refreshUnreadCount();
-    interval(30000)
-      .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe(() => {
-        if (this.authStore.token()) {
-          this.refreshUnreadCount();
-          if (this.isOpen()) this.loadNotifications();
-        }
-      });
+    if (this.authStore.token()) {
+      this.refreshUnreadCount();
+    }
+    this.notificationSocket.incoming.pipe(takeUntilDestroyed(this.destroyRef)).subscribe((n) => {
+      if (!n?.id) return;
+      const list = this.notifications();
+      const exists = list.some((x) => x.id === n.id);
+      if (!exists) {
+        this.notifications.update((items) => [n, ...items]);
+      }
+      if (!n.is_read && !exists) {
+        this.unreadCount.update((c) => Math.min(999, c + 1));
+      }
+    });
+    this.notificationSocket.connected.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(() => {
+      if (this.authStore.token()) {
+        this.refreshUnreadCount();
+      }
+    });
   }
 
   protected toggleOpen(): void {

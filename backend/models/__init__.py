@@ -11,8 +11,8 @@ from .user_site import UserSite
 from .category import Category
 from .external_partner import ExternalPartner
 from .csr_plan import CsrPlan
-from .csr_activity import CsrActivity
-from .realized_csr import RealizedCsr
+from .planned_activity import CsrActivity
+from .realized_activity import RealizedCsr
 from .validation import Validation
 from .change_request import ChangeRequest
 from .document import Document

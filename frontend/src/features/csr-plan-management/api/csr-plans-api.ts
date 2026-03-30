@@ -50,12 +50,18 @@ export interface CsrPlanActivityDetail {
   can_submit_modification_review?: boolean;
   /** After rejection of an in-plan modification review — user may resubmit. */
   can_resubmit_modification_review?: boolean;
+  /** At least one realization row exists for this activity (including draft). */
+  has_realization?: boolean;
+  /** Newest realization row id (same ordering as aggregated realized fields). */
+  primary_realization_id?: string | null;
 }
 
 export interface CsrPlanDetail extends CsrPlan {
   activities?: CsrPlanActivityDetail[];
   can_approve?: boolean;
   can_reject?: boolean;
+  /** Current user's grade on this plan's site (e.g. level_0, level_1); corporate users get null. */
+  viewer_site_grade?: string | null;
 }
 
 @Injectable({ providedIn: 'root' })

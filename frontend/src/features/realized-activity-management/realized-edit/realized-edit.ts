@@ -5,12 +5,8 @@ import { Router, ActivatedRoute } from '@angular/router';
 import { TranslateModule } from '@ngx-translate/core';
 import { RealizedCsrApi } from '../api/realized-csr-api';
 import type { RealizedCsr } from '../models/realized-csr.model';
-
-const MONTHS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
-const MONTH_LABELS: Record<number, string> = {
-  1: 'Janvier', 2: 'Février', 3: 'Mars', 4: 'Avril', 5: 'Mai', 6: 'Juin',
-  7: 'Juillet', 8: 'Août', 9: 'Septembre', 10: 'Octobre', 11: 'Novembre', 12: 'Décembre'
-};
+import { CsrActivitiesApi } from '../api/csr-activities-api';
+import { switchMap } from 'rxjs/operators';
 
 @Component({
   selector: 'app-realized-edit',
@@ -29,6 +25,7 @@ export class RealizedEditComponent implements OnInit {
   private route = inject(ActivatedRoute);
   private cdr = inject(ChangeDetectorRef);
   private api = inject(RealizedCsrApi);
+  private activitiesApi = inject(CsrActivitiesApi);
   private location = inject(Location);
 
   form!: FormGroup;
@@ -36,26 +33,33 @@ export class RealizedEditComponent implements OnInit {
   loading = false;
   loadingData = true;
   errorMsg = '';
-  months = MONTHS;
-  monthLabel = (m: number) => MONTH_LABELS[m] ?? String(m);
 
   ngOnInit(): void {
     this.form = this.fb.group({
-      year: [new Date().getFullYear(), [Validators.required, Validators.min(2000), Validators.max(2100)]],
-      month: [1, [Validators.required, Validators.min(1), Validators.max(12)]],
+      // Planned activity (editable here too)
+      activity_number: ['', Validators.required],
+      title: ['', Validators.required],
+      description: [''],
+      planned_budget: [null as number | null],
+      collaboration_nature: [''],
+      periodicity: [''],
+      start_year: [null as number | null],
+      edition: [null as number | null],
+      organizer: [''],
+      external_partner: [''],
+      number_external_partners: [null as number | null],
+      action_impact_target: [null as number | null],
+      action_impact_unit_target: [''],
+      action_impact_duration: [''],
+
+      // Realized (editable)
       realized_budget: [null as number | null],
       participants: [null as number | null],
       total_hc: [null as number | null],
-      percentage_employees: [null as number | null],
-      volunteer_hours: [null as number | null],
       action_impact_actual: [null as number | null],
       action_impact_unit: [''],
-      impact_description: [''],
-      organizer: [''],
-      number_external_partners: [null as number | null],
       realization_date: [''],
       comment: [''],
-      contact_department: [''],
       contact_name: [''],
       contact_email: [''],
     });
@@ -77,21 +81,28 @@ export class RealizedEditComponent implements OnInit {
         }
         const rd = r.realization_date ? (r.realization_date as string).substring(0, 10) : '';
         this.form.patchValue({
-          year: r.year,
-          month: r.month,
+          activity_number: r.activity_number ?? '',
+          title: r.activity_title ?? '',
+          description: r.activity_description ?? '',
+          planned_budget: r.planned_budget ?? null,
+          collaboration_nature: r.collaboration_nature ?? '',
+          periodicity: r.periodicity ?? '',
+          start_year: r.start_year ?? null,
+          edition: r.edition ?? null,
+          organizer: r.organizer ?? '',
+          external_partner: r.external_partner_name ?? '',
+          number_external_partners: r.number_external_partners ?? null,
+          action_impact_target: r.action_impact_target ?? null,
+          action_impact_unit_target: r.action_impact_unit_target ?? '',
+          action_impact_duration: r.action_impact_duration ?? '',
+
           realized_budget: r.realized_budget ?? null,
           participants: r.participants ?? null,
           total_hc: r.total_hc ?? null,
-          percentage_employees: r.percentage_employees ?? null,
-          volunteer_hours: r.volunteer_hours ?? null,
           action_impact_actual: r.action_impact_actual ?? null,
           action_impact_unit: r.action_impact_unit ?? '',
-          impact_description: r.impact_description ?? '',
-          organizer: r.organizer ?? '',
-          number_external_partners: r.number_external_partners ?? null,
           realization_date: rd,
           comment: r.comment ?? '',
-          contact_department: r.contact_department ?? '',
           contact_name: r.contact_name ?? '',
           contact_email: r.contact_email ?? '',
         });
@@ -114,25 +125,44 @@ export class RealizedEditComponent implements OnInit {
     const raw = this.form.getRawValue();
     this.loading = true;
     this.errorMsg = '';
-    this.api.update(this.realized.id, {
-      year: Number(raw.year),
-      month: Number(raw.month),
+
+    const plannedPayload = {
+      category_id: this.realized.category_id ?? '',
+      activity_number: raw.activity_number?.trim() || '',
+      title: raw.title?.trim() || '',
+      description: raw.description?.trim() || null,
+      collaboration_nature: raw.collaboration_nature?.trim() || null,
+      periodicity: raw.periodicity?.trim() || null,
+      planned_budget: raw.planned_budget != null && raw.planned_budget !== '' ? Number(raw.planned_budget) : null,
+      action_impact_target: raw.action_impact_target != null && raw.action_impact_target !== '' ? Number(raw.action_impact_target) : null,
+      action_impact_unit: raw.action_impact_unit_target?.trim() || null,
+      action_impact_duration: raw.action_impact_duration?.trim() || null,
+      organizer: raw.organizer?.trim() || null,
+      edition: raw.edition != null && raw.edition !== '' ? Number(raw.edition) : null,
+      start_year: raw.start_year != null && raw.start_year !== '' ? Number(raw.start_year) : null,
+      external_partner: raw.external_partner?.trim() || null,
+      number_external_partners:
+        raw.number_external_partners != null && raw.number_external_partners !== ''
+          ? Number(raw.number_external_partners)
+          : null,
+    };
+
+    const realizedPayload = {
       realized_budget: raw.realized_budget != null && raw.realized_budget !== '' ? Number(raw.realized_budget) : null,
       participants: raw.participants != null && raw.participants !== '' ? Number(raw.participants) : null,
       total_hc: raw.total_hc != null && raw.total_hc !== '' ? Number(raw.total_hc) : null,
-      percentage_employees: raw.percentage_employees != null && raw.percentage_employees !== '' ? Number(raw.percentage_employees) : null,
-      volunteer_hours: raw.volunteer_hours != null && raw.volunteer_hours !== '' ? Number(raw.volunteer_hours) : null,
       action_impact_actual: raw.action_impact_actual != null && raw.action_impact_actual !== '' ? Number(raw.action_impact_actual) : null,
       action_impact_unit: raw.action_impact_unit?.trim() || null,
-      impact_description: raw.impact_description?.trim() || null,
-      organizer: raw.organizer?.trim() || null,
-      number_external_partners: raw.number_external_partners != null && raw.number_external_partners !== '' ? Number(raw.number_external_partners) : null,
       realization_date: raw.realization_date?.trim() ? raw.realization_date.substring(0, 10) : null,
       comment: raw.comment?.trim() || null,
-      contact_department: raw.contact_department?.trim() || null,
       contact_name: raw.contact_name?.trim() || null,
       contact_email: raw.contact_email?.trim() || null,
-    }).subscribe({
+    };
+
+    this.activitiesApi
+      .update(this.realized.activity_id, plannedPayload)
+      .pipe(switchMap(() => this.api.update(this.realized!.id, realizedPayload)))
+      .subscribe({
       next: () => {
         this.loading = false;
         if (this.sidebarMode) {

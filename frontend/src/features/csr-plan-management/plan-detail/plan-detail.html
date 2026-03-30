@@ -32,7 +32,7 @@
             {{ submitButtonLabel() }}
           </button>
           <div *ngIf="plan()!.status === 'SUBMITTED' && (canApprove || canReject)" class="flex items-center gap-2">
-            <button *ngIf="canApprove" type="button" (click)="approve()" [disabled]="actionLoading()"
+            <button *ngIf="canApprove" type="button" (click)="openPlanApproveConfirm()" [disabled]="actionLoading()"
               class="inline-flex items-center justify-center min-w-[130px] px-5 py-2.5 rounded-xl text-sm font-semibold text-white bg-brand-900 hover:opacity-90 active:opacity-95 shadow-sm hover:shadow transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-brand-900 focus:ring-offset-2">
               {{ 'PLAN_DETAIL.APPROVE' | translate }}
             </button>
@@ -68,18 +68,80 @@
       </div>
     </div>
 
+    <!-- Approve plan confirmation -->
+    <div *ngIf="showPlanApproveConfirm()" class="fixed inset-0 z-[9998] flex items-center justify-center p-4 bg-black/50 backdrop-blur-[2px] !mt-0"
+      (click)="closePlanApproveConfirm()" role="dialog" aria-modal="true" aria-labelledby="pd-approve-plan-title">
+      <div class="relative w-full max-w-md bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden" (click)="$event.stopPropagation()">
+        <div class="px-6 pt-6 pb-4 border-b border-gray-100 bg-gradient-to-br from-gray-50 to-white">
+          <div class="flex items-start justify-between gap-3">
+            <div>
+              <p class="text-[10px] font-bold uppercase tracking-wider text-emerald-700/90">{{ 'PLAN_DETAIL.APPROVE' | translate }}</p>
+              <h2 id="pd-approve-plan-title" class="text-lg font-bold text-gray-900 mt-1 leading-snug">{{ 'PLAN_DETAIL.APPROVE_CONFIRM_MODAL_TITLE' | translate }}</h2>
+            </div>
+            <button type="button" (click)="closePlanApproveConfirm()"
+              class="shrink-0 w-9 h-9 flex items-center justify-center rounded-xl text-gray-500 hover:bg-gray-100 hover:text-gray-800 transition-colors"
+              [attr.aria-label]="'COMMON.CLOSE' | translate"><i class="fas fa-times text-lg" aria-hidden="true"></i></button>
+          </div>
+        </div>
+        <div class="p-6">
+          <p class="text-sm text-gray-600 leading-relaxed">{{ 'PLAN_DETAIL.APPROVE_PLAN_CONFIRM_BODY' | translate }}</p>
+          <div class="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 pt-6">
+            <button type="button" (click)="closePlanApproveConfirm()" [disabled]="actionLoading()"
+              class="px-4 py-2.5 rounded-xl text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 transition-colors disabled:opacity-50">{{ 'COMMON.CANCEL' | translate }}</button>
+            <button type="button" (click)="confirmPlanApprove()" [disabled]="actionLoading()"
+              class="px-4 py-2.5 rounded-xl text-sm font-semibold text-white bg-emerald-600 hover:bg-emerald-700 shadow-sm disabled:opacity-50 transition-colors">{{ 'PLAN_DETAIL.APPROVE' | translate }}</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Approve off-plan activity confirmation -->
+    <div *ngIf="showOffPlanApproveConfirm()" class="fixed inset-0 z-[9998] flex items-center justify-center p-4 bg-black/50 backdrop-blur-[2px] !mt-0"
+      (click)="closeOffPlanApproveConfirm()" role="dialog" aria-modal="true" aria-labelledby="pd-approve-off-title">
+      <div class="relative w-full max-w-md bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden" (click)="$event.stopPropagation()">
+        <div class="px-6 pt-6 pb-4 border-b border-gray-100 bg-gradient-to-br from-gray-50 to-white">
+          <div class="flex items-start justify-between gap-3">
+            <div>
+              <p class="text-[10px] font-bold uppercase tracking-wider text-emerald-700/90">{{ 'PLAN_DETAIL.APPROVE' | translate }}</p>
+              <h2 id="pd-approve-off-title" class="text-lg font-bold text-gray-900 mt-1 leading-snug">{{ 'PLAN_DETAIL.APPROVE_CONFIRM_MODAL_TITLE' | translate }}</h2>
+            </div>
+            <button type="button" (click)="closeOffPlanApproveConfirm()"
+              class="shrink-0 w-9 h-9 flex items-center justify-center rounded-xl text-gray-500 hover:bg-gray-100 hover:text-gray-800 transition-colors"
+              [attr.aria-label]="'COMMON.CLOSE' | translate"><i class="fas fa-times text-lg" aria-hidden="true"></i></button>
+          </div>
+        </div>
+        <div class="p-6">
+          <p class="text-sm text-gray-600 leading-relaxed">{{ 'PLAN_DETAIL.OFF_PLAN_APPROVE_CONFIRM_BODY' | translate }}</p>
+          <div class="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 pt-6">
+            <button type="button" (click)="closeOffPlanApproveConfirm()" [disabled]="actionLoading()"
+              class="px-4 py-2.5 rounded-xl text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 transition-colors disabled:opacity-50">{{ 'COMMON.CANCEL' | translate }}</button>
+            <button type="button" (click)="confirmOffPlanApprove()" [disabled]="actionLoading()"
+              class="px-4 py-2.5 rounded-xl text-sm font-semibold text-white bg-emerald-600 hover:bg-emerald-700 shadow-sm disabled:opacity-50 transition-colors">{{ 'PLAN_DETAIL.OFF_PLAN_APPROVE' | translate }}</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- Reject modal -->
-    <div *ngIf="showRejectModal()" class="fixed inset-0 z-[9998] flex items-center justify-center bg-black/50 !mt-0" (click)="closeRejectModal()" role="dialog" aria-modal="true" aria-labelledby="reject-modal-title">
-      <div class="relative z-[9999] bg-white rounded-2xl shadow-xl border border-gray-200 w-full max-w-md overflow-hidden" (click)="$event.stopPropagation()">
-        <div class="p-6 border-b border-gray-100">
-          <h2 id="reject-modal-title" class="text-lg font-semibold text-gray-800">{{ 'PLAN_DETAIL.REJECT_PLAN' | translate }}</h2>
-          <p class="text-gray-500 text-sm mt-1">{{ 'PLAN_DETAIL.REJECT_INSTRUCTIONS' | translate }}</p>
+    <div *ngIf="showRejectModal()" class="fixed inset-0 z-[9998] flex items-center justify-center p-4 bg-black/50 backdrop-blur-[2px] !mt-0" (click)="closeRejectModal()" role="dialog" aria-modal="true" aria-labelledby="reject-modal-title">
+      <div class="relative w-full max-w-md bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden" (click)="$event.stopPropagation()">
+        <div class="px-6 pt-6 pb-4 border-b border-gray-100 bg-gradient-to-br from-gray-50 to-white">
+          <div class="flex items-start justify-between gap-3">
+            <div>
+              <p class="text-[10px] font-bold uppercase tracking-wider text-rose-600/90">{{ 'CHANGE_REQUEST.PENDING_MODAL_REJECT_TITLE' | translate }}</p>
+              <h2 id="reject-modal-title" class="text-lg font-bold text-gray-900 mt-1 leading-snug">{{ 'PLAN_DETAIL.REJECT_PLAN' | translate }}</h2>
+              <p class="text-gray-600 text-sm mt-2">{{ 'PLAN_DETAIL.REJECT_INSTRUCTIONS' | translate }}</p>
+            </div>
+            <button type="button" (click)="closeRejectModal()"
+              class="shrink-0 w-9 h-9 flex items-center justify-center rounded-xl text-gray-500 hover:bg-gray-100 hover:text-gray-800 transition-colors"
+              [attr.aria-label]="'COMMON.CLOSE' | translate"><i class="fas fa-times text-lg" aria-hidden="true"></i></button>
+          </div>
         </div>
         <div class="p-6 space-y-4">
           <div>
-            <label for="reject-comment" class="block text-sm font-medium text-gray-700 mb-1">{{ 'PLAN_DETAIL.REJECT_REASON_LABEL' | translate }} <span class="text-red-500">*</span></label>
+            <label for="reject-comment" class="block text-sm font-medium text-gray-700 mb-1.5">{{ 'PLAN_DETAIL.REJECT_REASON_LABEL' | translate }} <span class="text-red-500">*</span></label>
             <textarea id="reject-comment" rows="3" [value]="rejectComment()" (input)="rejectComment.set($any($event.target).value)"
-              class="w-full px-3 py-2 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-rose-500 focus:border-rose-500"
+              class="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-rose-500 focus:border-rose-500"
               [placeholder]="'PLAN_DETAIL.REJECT_REASON_PLACEHOLDER' | translate"></textarea>
           </div>
           <div>
@@ -94,42 +156,50 @@
             </div>
           </div>
           <p *ngIf="rejectModalError()" class="text-sm text-red-600">{{ rejectModalError() }}</p>
-        </div>
-        <div class="p-6 pt-0 flex justify-end gap-3">
-          <button type="button" (click)="closeRejectModal()"
-            class="px-4 py-2 rounded-xl text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 transition-colors">
-            {{ 'COMMON.CANCEL' | translate }}
-          </button>
-          <button type="button" (click)="submitReject()" [disabled]="actionLoading()"
-            class="px-4 py-2 rounded-xl text-sm font-semibold bg-white text-brand-900 border-2 border-brand-900 hover:bg-gray-50 disabled:opacity-50 transition-colors">
-            {{ 'PLAN_DETAIL.REJECT_PLAN_BUTTON' | translate }}
-          </button>
+          <div class="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 pt-2">
+            <button type="button" (click)="closeRejectModal()"
+              class="px-4 py-2.5 rounded-xl text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 transition-colors">{{ 'COMMON.CANCEL' | translate }}</button>
+            <button type="button" (click)="submitReject()" [disabled]="actionLoading()"
+              class="px-4 py-2.5 rounded-xl text-sm font-semibold text-white bg-rose-600 hover:bg-rose-700 shadow-sm disabled:opacity-50 transition-colors">{{ 'PLAN_DETAIL.REJECT_PLAN_BUTTON' | translate }}</button>
+          </div>
         </div>
       </div>
     </div>
 
     <!-- Reject off-plan activity modal -->
-    <div *ngIf="showOffPlanRejectModal()" class="fixed inset-0 z-[9998] flex items-center justify-center bg-black/50 !mt-0" (click)="closeOffPlanRejectModal()" role="dialog" aria-modal="true">
-      <div class="bg-white rounded-2xl shadow-xl max-w-md w-full mx-4 overflow-hidden" (click)="$event.stopPropagation()">
-        <div class="p-6 border-b border-gray-100">
-          <h2 class="text-lg font-semibold text-gray-800">{{ 'PLAN_DETAIL.OFF_PLAN_REJECT_TITLE' | translate }}</h2>
+    <div *ngIf="showOffPlanRejectModal()" class="fixed inset-0 z-[9998] flex items-center justify-center p-4 bg-black/50 backdrop-blur-[2px] !mt-0" (click)="closeOffPlanRejectModal()" role="dialog" aria-modal="true" aria-labelledby="off-plan-reject-title">
+      <div class="relative w-full max-w-md bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden" (click)="$event.stopPropagation()">
+        <div class="px-6 pt-6 pb-4 border-b border-gray-100 bg-gradient-to-br from-gray-50 to-white">
+          <div class="flex items-start justify-between gap-3">
+            <div>
+              <p class="text-[10px] font-bold uppercase tracking-wider text-rose-600/90">{{ 'CHANGE_REQUEST.PENDING_MODAL_REJECT_TITLE' | translate }}</p>
+              <h2 id="off-plan-reject-title" class="text-lg font-bold text-gray-900 mt-1 leading-snug">{{ 'PLAN_DETAIL.OFF_PLAN_REJECT_TITLE' | translate }}</h2>
+            </div>
+            <button type="button" (click)="closeOffPlanRejectModal()"
+              class="shrink-0 w-9 h-9 flex items-center justify-center rounded-xl text-gray-500 hover:bg-gray-100 hover:text-gray-800 transition-colors"
+              [attr.aria-label]="'COMMON.CLOSE' | translate"><i class="fas fa-times text-lg" aria-hidden="true"></i></button>
+          </div>
         </div>
-        <div class="p-6">
-          <label for="off-plan-reject-comment" class="block text-sm font-medium text-gray-700 mb-1">{{ 'PLAN_DETAIL.REJECT_REASON_LABEL' | translate }} <span class="text-red-500">*</span></label>
-          <textarea id="off-plan-reject-comment" rows="3" class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm"
-            [value]="offPlanRejectComment()" (input)="offPlanRejectComment.set($any($event.target).value)"></textarea>
-          <p *ngIf="offPlanRejectError()" class="text-sm text-red-600 mt-2">{{ offPlanRejectError() }}</p>
-        </div>
-        <div class="p-6 pt-0 flex justify-end gap-3">
-          <button type="button" (click)="closeOffPlanRejectModal()" class="px-4 py-2 rounded-xl text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200">{{ 'COMMON.CANCEL' | translate }}</button>
-          <button type="button" (click)="submitOffPlanReject()" [disabled]="actionLoading()" class="px-4 py-2 rounded-xl text-sm font-semibold bg-white text-brand-900 border-2 border-brand-900 hover:bg-gray-50 disabled:opacity-50">{{ 'PLAN_DETAIL.OFF_PLAN_REJECT_BUTTON' | translate }}</button>
+        <div class="p-6 space-y-4">
+          <div>
+            <label for="off-plan-reject-comment" class="block text-sm font-medium text-gray-700 mb-1.5">{{ 'PLAN_DETAIL.REJECT_REASON_LABEL' | translate }} <span class="text-red-500">*</span></label>
+            <textarea id="off-plan-reject-comment" rows="3" class="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-rose-500 focus:border-rose-500"
+              [value]="offPlanRejectComment()" (input)="offPlanRejectComment.set($any($event.target).value)"
+              [placeholder]="'PLAN_DETAIL.REJECT_REASON_PLACEHOLDER' | translate"></textarea>
+          </div>
+          <p *ngIf="offPlanRejectError()" class="text-sm text-red-600">{{ offPlanRejectError() }}</p>
+          <div class="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 pt-2">
+            <button type="button" (click)="closeOffPlanRejectModal()" class="px-4 py-2.5 rounded-xl text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200">{{ 'COMMON.CANCEL' | translate }}</button>
+            <button type="button" (click)="submitOffPlanReject()" [disabled]="actionLoading()" class="px-4 py-2.5 rounded-xl text-sm font-semibold text-white bg-rose-600 hover:bg-rose-700 shadow-sm disabled:opacity-50">{{ 'PLAN_DETAIL.OFF_PLAN_REJECT_BUTTON' | translate }}</button>
+          </div>
         </div>
       </div>
     </div>
 
     <!-- Activity row 3-point dropdown (same style as plan list dropdown) -->
     <div *ngIf="activityMenuId()"
-      class="fixed bg-white border border-gray-200 rounded-xl shadow-xl z-[9999] w-44 py-1 overflow-hidden"
+      data-plan-detail-activity-menu
+      class="fixed bg-white border border-gray-200 rounded-xl shadow-xl z-[9999] w-44 py-1 overflow-x-hidden overflow-y-auto max-h-[min(24rem,70vh)]"
       [style.top.px]="activityMenuPosition.top"
       [style.left.px]="activityMenuPosition.left"
       (click)="$event.stopPropagation()">
@@ -143,10 +213,16 @@
       <button *ngIf="canEditActivity(activityMenuId()!)" (click)="goToEditActivity(activityMenuId()!)"
         class="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors">
         <i class="fas fa-pen w-4 text-center"></i>
-        Modifier
+        {{ 'COMMON.EDIT' | translate }}
       </button>
 
-      <div *ngIf="canEditActivity(activityMenuId()!)" class="border-t border-gray-100 my-1"></div>
+      <button *ngIf="canShowSubmitDataForActivity(activityMenuId())" type="button" (click)="openAddRealizationFromMenu(activityMenuId()!)"
+        class="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors">
+        <i class="fas fa-clipboard-check text-amber-600 w-4 text-center"></i>
+        {{ 'PLANNED_ACTIVITIES.ADD_REALIZATION' | translate }}
+      </button>
+
+      <div *ngIf="canEditActivity(activityMenuId()!) || canShowSubmitDataForActivity(activityMenuId())" class="border-t border-gray-100 my-1"></div>
 
       <button *ngIf="canEditActivity(activityMenuId()!)" (click)="deleteActivity(activityMenuId()!)"
         class="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 transition-colors">
@@ -162,7 +238,7 @@
         {{ 'PLAN_DETAIL.SUBMIT_ACTIVITY_FOR_REVIEW' | translate }}
       </button>
 
-      <button *ngIf="canApproveOffPlan(activityMenuId()!)" (click)="approveOffPlanActivity(activityMenuId()!)"
+      <button *ngIf="canApproveOffPlan(activityMenuId()!)" (click)="openOffPlanApproveConfirm(activityMenuId()!)"
         class="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-emerald-700 hover:bg-emerald-50 transition-colors">
         <i class="fas fa-check w-4 text-center"></i>
         {{ 'PLAN_DETAIL.OFF_PLAN_APPROVE' | translate }}
@@ -182,7 +258,7 @@
     <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
       <div class="p-4 border-b border-gray-100 flex flex-wrap items-center gap-4">
         <h2 class="font-semibold text-gray-800">{{ 'PLAN_DETAIL.ACTIVITIES_COUNT' | translate }} ({{ plan()!.activities?.length ?? 0 }})</h2>
-        <div *ngIf="hasOffPlanPendingReview() || hasOffPlanRejected()" class="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-gray-500">
+        <div *ngIf="plan()!.activities?.length" class="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-gray-500">
           <span *ngIf="hasOffPlanPendingReview()" class="inline-flex items-center gap-2">
             <span class="inline-block w-4 h-4 rounded bg-yellow-200 border border-amber-400 shrink-0"></span>
             <span>{{ 'PLAN_DETAIL.OFF_PLAN_ROW_LEGEND' | translate }}</span>
@@ -195,10 +271,11 @@
       </div>
       <div class="overflow-x-auto">
         <!-- Plan planifié (année en cours ou future) : toutes les colonnes -->
-        <table *ngIf="isPlanPlanned" class="w-full text-sm min-w-[1520px] border-collapse [&_th]:align-top [&_td]:align-top">
+        <table *ngIf="isPlanPlanned" class="w-full text-sm min-w-[1590px] border-collapse [&_th]:align-top [&_td]:align-top">
           <thead class="bg-gray-50 text-gray-600 uppercase text-xs">
             <tr>
-              <th class="p-3 text-left min-w-[7rem] w-28 whitespace-nowrap">N°</th>
+              <th class="p-2 pl-3 text-left min-w-[3.25rem] max-w-[4.75rem] w-16 whitespace-nowrap">N°</th>
+              <th class="p-3 text-center whitespace-nowrap min-w-[9rem]">{{ 'PLAN_DETAIL.REALIZATION_COL' | translate }}</th>
               <th class="p-3 text-left whitespace-nowrap min-w-[5rem]">{{ 'PLAN_DETAIL.REGION' | translate }}</th>
               <th class="p-3 text-left whitespace-nowrap min-w-[5rem]">{{ 'PLAN_DETAIL.COUNTRY' | translate }}</th>
               <th class="p-3 text-left min-w-[10rem] max-w-[14rem]">{{ 'PLAN_DETAIL.TITLE' | translate }}</th>
@@ -219,7 +296,7 @@
             </tr>
           </thead>
           <tbody>
-            <tr *ngFor="let a of plan()!.activities"
+            <tr *ngFor="let a of plan()!.activities; let isLast = last"
               class="border-t border-gray-100 cursor-pointer"
               (click)="goToActivityDetail(a.id)"
               [ngClass]="{
@@ -230,8 +307,23 @@
                 'hover:bg-gray-100': !offPlanAwaitingValidation(a) && !offPlanRejected(a)
               }"
               [attr.title]="activityRowTooltip(a) || null">
-              <td class="p-3 font-medium min-w-[7rem] w-28 whitespace-nowrap">
+              <td class="p-2 pl-3 font-medium min-w-[3.25rem] max-w-[4.75rem] w-16 whitespace-nowrap text-[13px] tabular-nums">
                 {{ a.activity_number }}
+              </td>
+              <td class="p-3 text-center align-middle min-w-[9rem]" (click)="$event.stopPropagation()">
+                <div class="flex flex-col items-center gap-1">
+                  <ng-container [ngSwitch]="activityRealizationUiStatus(a)">
+                    <span *ngSwitchCase="'planned'" class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-slate-100 text-slate-800 border border-slate-200">
+                      {{ 'PLAN_DETAIL.REALIZATION_STATUS_PLANNED' | translate }}
+                    </span>
+                    <span *ngSwitchCase="'in_progress'" class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-amber-100 text-amber-900 border border-amber-200">
+                      {{ 'PLAN_DETAIL.REALIZATION_STATUS_IN_PROGRESS' | translate }}
+                    </span>
+                    <span *ngSwitchCase="'completed'" class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-100 text-emerald-900 border border-emerald-200">
+                      {{ 'PLAN_DETAIL.REALIZATION_STATUS_COMPLETED' | translate }}
+                    </span>
+                  </ng-container>
+                </div>
               </td>
               <td class="p-3 whitespace-nowrap">{{ plan()!.site_region || '–' }}</td>
               <td class="p-3 whitespace-nowrap">{{ plan()!.site_country || '–' }}</td>
@@ -250,7 +342,7 @@
               <td class="p-3 whitespace-nowrap">{{ a.organization || '–' }}</td>
               <td class="p-3 min-w-[7rem] break-words">{{ a.organizer || '–' }}</td>
               <td class="p-3 tabular-nums whitespace-nowrap">{{ a.edition != null ? a.edition : '–' }}</td>
-              <td class="p-3 tabular-nums whitespace-nowrap">{{ a.start_year != null ? a.start_year : '–' }}</td>
+              <td class="p-3 tabular-nums whitespace-nowrap">{{ a.start_year != null ? a.start_year : plan()!.year }}</td>
               <td class="p-3 text-right tabular-nums whitespace-nowrap">{{ a.planned_volunteers != null ? a.planned_volunteers : '–' }}</td>
               <td class="p-3 text-right tabular-nums whitespace-nowrap">{{ a.planned_budget != null ? (a.planned_budget | number:'1.0-0') + ' €' : '–' }}</td>
               <td class="p-3 text-right tabular-nums whitespace-nowrap">{{ a.action_impact_target != null ? a.action_impact_target : '–' }}</td>
@@ -258,7 +350,7 @@
               <td class="p-3 min-w-[7rem] break-words">{{ a.external_partner_name || '–' }}</td>
               <td class="p-3 text-center whitespace-nowrap" (click)="$event.stopPropagation()">
                 <div class="relative flex items-center justify-center">
-                  <button type="button" (click)="toggleActivityMenu($event, a.id)"
+                  <button type="button" (click)="toggleActivityMenu($event, a.id, isLast)"
                     class="inline-flex items-center justify-center p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
                     [attr.title]="'PLAN_DETAIL.ACTIONS_TITLE' | translate">
                     <i class="fas fa-ellipsis-vertical text-lg"></i>
@@ -267,7 +359,7 @@
               </td>
             </tr>
             <tr *ngIf="!plan()!.activities?.length" class="border-t">
-              <td colspan="18" class="p-8 text-center text-gray-500">
+              <td colspan="19" class="p-8 text-center text-gray-500">
                 {{ 'PLAN_DETAIL.NO_ACTIVITIES_IN_PLAN' | translate }}
                 <ng-container *ngIf="canEditPlan()">
                   <button type="button" (click)="addActivity()" class="text-brand-700 hover:underline">{{ 'PLAN_DETAIL.ADD_ACTIVITY' | translate }}</button>
@@ -278,10 +370,11 @@
           </tbody>
         </table>
         <!-- Plan réalisé (année passée) : toutes les colonnes Excel -->
-        <table *ngIf="!isPlanPlanned" class="w-full text-sm min-w-[2480px] border-collapse [&_th]:align-top [&_td]:align-top">
+        <table *ngIf="!isPlanPlanned" class="w-full text-sm min-w-[2550px] border-collapse [&_th]:align-top [&_td]:align-top">
           <thead class="bg-gray-50 text-gray-600 uppercase text-xs">
             <tr>
-              <th class="p-3 text-left min-w-[7rem] w-28 whitespace-nowrap">N°</th>
+              <th class="p-2 pl-3 text-left min-w-[3.25rem] max-w-[4.75rem] w-16 whitespace-nowrap">N°</th>
+              <th class="p-3 text-center whitespace-nowrap min-w-[9rem]">{{ 'PLAN_DETAIL.REALIZATION_COL' | translate }}</th>
               <th class="p-3 text-left whitespace-nowrap min-w-[5rem]">{{ 'PLAN_DETAIL.REGION' | translate }}</th>
               <th class="p-3 text-left whitespace-nowrap min-w-[5rem]">{{ 'PLAN_DETAIL.COUNTRY' | translate }}</th>
               <th class="p-3 text-left min-w-[10rem] max-w-[14rem]">{{ 'PLAN_DETAIL.TITLE' | translate }}</th>
@@ -309,7 +402,7 @@
             </tr>
           </thead>
           <tbody>
-            <tr *ngFor="let a of plan()!.activities"
+            <tr *ngFor="let a of plan()!.activities; let isLast = last"
               class="border-t border-gray-100 cursor-pointer"
               (click)="goToActivityDetail(a.id)"
               [ngClass]="{
@@ -320,8 +413,23 @@
                 'hover:bg-gray-100': !offPlanAwaitingValidation(a) && !offPlanRejected(a)
               }"
               [attr.title]="activityRowTooltip(a) || null">
-              <td class="p-3 font-medium min-w-[7rem] w-28 whitespace-nowrap">
+              <td class="p-2 pl-3 font-medium min-w-[3.25rem] max-w-[4.75rem] w-16 whitespace-nowrap text-[13px] tabular-nums">
                 {{ a.activity_number }}
+              </td>
+              <td class="p-3 text-center align-middle min-w-[9rem]" (click)="$event.stopPropagation()">
+                <div class="flex flex-col items-center gap-1">
+                  <ng-container [ngSwitch]="activityRealizationUiStatus(a)">
+                    <span *ngSwitchCase="'planned'" class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-slate-100 text-slate-800 border border-slate-200">
+                      {{ 'PLAN_DETAIL.REALIZATION_STATUS_PLANNED' | translate }}
+                    </span>
+                    <span *ngSwitchCase="'in_progress'" class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-amber-100 text-amber-900 border border-amber-200">
+                      {{ 'PLAN_DETAIL.REALIZATION_STATUS_IN_PROGRESS' | translate }}
+                    </span>
+                    <span *ngSwitchCase="'completed'" class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-100 text-emerald-900 border border-emerald-200">
+                      {{ 'PLAN_DETAIL.REALIZATION_STATUS_COMPLETED' | translate }}
+                    </span>
+                  </ng-container>
+                </div>
               </td>
               <td class="p-3 whitespace-nowrap">{{ plan()!.site_region || '–' }}</td>
               <td class="p-3 whitespace-nowrap">{{ plan()!.site_country || '–' }}</td>
@@ -340,7 +448,7 @@
               <td class="p-3 whitespace-nowrap">{{ a.organization || '–' }}</td>
               <td class="p-3 min-w-[7rem] break-words">{{ a.organizer || '–' }}</td>
               <td class="p-3 tabular-nums whitespace-nowrap">{{ a.edition != null ? a.edition : '–' }}</td>
-              <td class="p-3 tabular-nums whitespace-nowrap">{{ a.start_year != null ? a.start_year : '–' }}</td>
+              <td class="p-3 tabular-nums whitespace-nowrap">{{ a.start_year != null ? a.start_year : plan()!.year }}</td>
               <td class="p-3 text-right tabular-nums whitespace-nowrap">{{ a.planned_volunteers != null ? a.planned_volunteers : '–' }}</td>
               <td class="p-3 text-right tabular-nums whitespace-nowrap">{{ a.planned_budget != null ? (a.planned_budget | number:'1.0-0') + ' €' : '–' }}</td>
               <td class="p-3 text-right tabular-nums whitespace-nowrap">{{ a.action_impact_target != null ? a.action_impact_target : '–' }}</td>
@@ -355,7 +463,7 @@
               <td class="p-3 min-w-[5rem] break-words">{{ a.action_impact_unit_realized || '–' }}</td>
               <td class="p-3 text-center whitespace-nowrap" (click)="$event.stopPropagation()">
                 <div class="relative flex items-center justify-center">
-                  <button type="button" (click)="toggleActivityMenu($event, a.id)"
+                  <button type="button" (click)="toggleActivityMenu($event, a.id, isLast)"
                     class="inline-flex items-center justify-center p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
                     [attr.title]="'PLAN_DETAIL.ACTIONS_TITLE' | translate">
                     <i class="fas fa-ellipsis-vertical text-lg"></i>
@@ -364,7 +472,7 @@
               </td>
             </tr>
             <tr *ngIf="!plan()!.activities?.length" class="border-t">
-              <td colspan="25" class="p-8 text-center text-gray-500">
+              <td colspan="26" class="p-8 text-center text-gray-500">
                 {{ 'PLAN_DETAIL.NO_ACTIVITIES_IN_PLAN' | translate }}
                 <ng-container *ngIf="canEditPlan()">
                   <button type="button" (click)="addActivity()" class="text-brand-700 hover:underline">{{ 'PLAN_DETAIL.ADD_ACTIVITY' | translate }}</button>
@@ -408,13 +516,15 @@
   <div class="flex-1 bg-black/40 transition-opacity" aria-hidden="true"></div>
   <aside class="w-full max-w-md bg-white shadow-2xl flex flex-col h-full min-h-0 overflow-hidden animate-slide-in-right"
     (click)="$event.stopPropagation()">
-    <app-planned-activity-create-sidebar
-      [initialPlanId]="plan()?.id ?? null"
-      [contextPlanYear]="plan()?.year ?? null"
-      [planAmendmentMode]="plan()?.status === 'VALIDATED' && isUnlockUntilFuture()"
-      (closed)="closeAddActivitySidebar()"
-      (created)="onActivityAdded()">
-    </app-planned-activity-create-sidebar>
+    <div class="flex-1 min-h-0 overflow-y-auto">
+      <app-planned-activity-create-sidebar
+        [initialPlanId]="plan()?.id ?? null"
+        [contextPlanYear]="plan()?.year ?? null"
+        [planAmendmentMode]="plan()?.status === 'VALIDATED' && isUnlockUntilFuture()"
+        (closed)="closeAddActivitySidebar()"
+        (created)="onActivityAdded()">
+      </app-planned-activity-create-sidebar>
+    </div>
   </aside>
 </div>
 
@@ -445,13 +555,15 @@
   <div class="flex-1 bg-black/40 transition-opacity" aria-hidden="true"></div>
   <aside class="w-full max-w-md bg-white shadow-2xl flex flex-col h-full min-h-0 overflow-hidden animate-slide-in-right"
     (click)="$event.stopPropagation()">
-    <app-off-plan-activity-sidebar
-      [planId]="plan()!.id"
-      [siteLabel]="plan()!.site_name || plan()!.site_code || plan()!.site_id || ''"
-      [planYear]="plan()!.year"
-      (closed)="closeOffPlanSidebar()"
-      (created)="onOffPlanCreated()">
-    </app-off-plan-activity-sidebar>
+    <div class="flex-1 min-h-0 overflow-y-auto">
+      <app-off-plan-activity-sidebar
+        [planId]="plan()!.id"
+        [siteLabel]="plan()!.site_name || plan()!.site_code || plan()!.site_id || ''"
+        [planYear]="plan()!.year"
+        (closed)="closeOffPlanSidebar()"
+        (created)="onOffPlanCreated()">
+      </app-off-plan-activity-sidebar>
+    </div>
   </aside>
 </div>
 
@@ -462,13 +574,51 @@
   <div class="flex-1 bg-black/40 transition-opacity" aria-hidden="true"></div>
   <aside class="w-full max-w-md bg-white shadow-2xl flex flex-col h-full min-h-0 overflow-hidden animate-slide-in-right"
     (click)="$event.stopPropagation()">
-    <app-planned-activity-edit
-      [activityId]="activityIdToEdit()"
-      [planId]="plan()?.id ?? null"
-      [planYearParam]="plan()?.year ?? null"
-      [sidebarMode]="true"
-      (closed)="closeEditActivitySidebar()"
-      (updated)="onActivityUpdated()">
-    </app-planned-activity-edit>
+    <div class="flex-1 min-h-0 overflow-y-auto">
+      <app-planned-activity-edit
+        [activityId]="activityIdToEdit()"
+        [planId]="plan()?.id ?? null"
+        [planYearParam]="plan()?.year ?? null"
+        [sidebarMode]="true"
+        (closed)="closeEditActivitySidebar()"
+        (updated)="onActivityUpdated()">
+      </app-planned-activity-edit>
+    </div>
+  </aside>
+</div>
+
+<!-- Submit realization data (current calendar year plan only) -->
+<div *ngIf="showAddRealizationSidebar() && plan()"
+  class="fixed inset-0 z-50 flex"
+  (click)="closeAddRealizationSidebar()">
+  <div class="flex-1 bg-black/40 transition-opacity" aria-hidden="true"></div>
+  <aside class="w-full max-w-md bg-white shadow-2xl flex flex-col h-full min-h-0 overflow-hidden animate-slide-in-right"
+    (click)="$event.stopPropagation()">
+    <div class="flex-1 min-h-0 overflow-y-auto">
+      <app-realized-create-sidebar
+        [initialPlanId]="plan()!.id"
+        [initialActivityId]="addRealizationActivityId()"
+        (closed)="closeAddRealizationSidebar()"
+        (created)="onRealizationCreatedFromMenu()">
+      </app-realized-create-sidebar>
+    </div>
+  </aside>
+</div>
+
+<!-- Edit realization (activities that already have a realization row) -->
+<div *ngIf="showEditRealizationSidebar() && realizedIdToEdit()"
+  class="fixed inset-0 z-50 flex"
+  (click)="closeEditRealizationSidebar()">
+  <div class="flex-1 bg-black/40 transition-opacity" aria-hidden="true"></div>
+  <aside class="w-full max-w-md bg-white shadow-2xl flex flex-col h-full min-h-0 overflow-hidden animate-slide-in-right"
+    (click)="$event.stopPropagation()">
+    <div class="flex-1 min-h-0 overflow-y-auto">
+      <app-realized-edit
+        [realizedId]="realizedIdToEdit()!"
+        [sidebarMode]="true"
+        (closed)="closeEditRealizationSidebar()"
+        (updated)="onRealizationUpdatedFromPlan()">
+      </app-realized-edit>
+    </div>
   </aside>
 </div>

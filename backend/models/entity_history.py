@@ -1,5 +1,5 @@
 """
-EntityHistory model - stores before/after data for each change (for rollback or audit).
+EntityHistory model - stores before/after data for each change (legacy / optional tooling).
 
 For CREATE: old_data=null, new_data=json. For DELETE: old_data=json, new_data=null.
 For UPDATE: both have the JSON. audit_logs can link to this via entity_history_id.
@@ -24,7 +24,7 @@ class EntityHistory(db.Model):
         db.Index("ix_entity_history_entity", "entity_type", "entity_id"),
         db.Index("ix_entity_history_modified", "modified_at"),
         {
-            "comment": "Historique des modifications (old/new) pour rollback",
+            "comment": "Historique des modifications (old/new)",
             "mysql_charset": "utf8mb4",
             "mysql_collate": "utf8mb4_unicode_ci",
         },

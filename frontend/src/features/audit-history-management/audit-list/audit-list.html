@@ -46,6 +46,7 @@
         <option value="">{{ 'AUDIT_LOG.FILTER_ALL' | translate }}</option>
         <option value="PLAN">{{ 'AUDIT_LOG.ENTITY_PLAN' | translate }}</option>
         <option value="ACTIVITY">{{ 'AUDIT_LOG.ENTITY_ACTIVITY' | translate }}</option>
+        <option value="REALIZATION">{{ 'AUDIT_LOG.ENTITY_REALIZATION' | translate }}</option>
       </select>
       <div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none text-gray-500">
         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-3.5 h-3.5">
@@ -101,7 +102,7 @@
           <th class="p-4 text-left">{{ 'AUDIT_LOG.SITE' | translate }}</th>
           <th class="p-4 text-left">{{ 'AUDIT_LOG.USER' | translate }}</th>
           <th class="p-4 text-left">{{ 'AUDIT_LOG.DESCRIPTION' | translate }}</th>
-          <th class="p-4 text-right">{{ 'AUDIT_LOG.ACTIONS' | translate }}</th>
+          <th class="p-4 text-right">{{ 'AUDIT_LOG.LINK' | translate }}</th>
         </tr>
       </thead>
       <tbody>
@@ -114,17 +115,9 @@
           <td class="p-4 text-gray-600 max-w-xs truncate" [title]="descriptionLabel(log)">{{ descriptionLabel(log) }}</td>
           <td class="p-4 text-right">
             <ng-container *ngIf="entityLink(log); let link">
-              <a [routerLink]="link" class="text-brand-700 hover:underline mr-2">{{ 'AUDIT_LOG.VIEW' | translate }}</a>
+              <a [routerLink]="link" class="text-brand-700 hover:underline">{{ 'AUDIT_LOG.VIEW' | translate }}</a>
             </ng-container>
-            <button
-              *ngIf="canRollback(log)"
-              type="button"
-              class="text-amber-700 hover:underline disabled:opacity-50"
-              [disabled]="rollbackLoading() !== null"
-              (click)="rollback(log)"
-            >
-              {{ rollbackLoading() === log.entity_history_id ? '…' : ('AUDIT_LOG.RESTORE' | translate) }}
-            </button>
+            <span *ngIf="!entityLink(log)" class="text-gray-400">–</span>
           </td>
         </tr>
       </tbody>

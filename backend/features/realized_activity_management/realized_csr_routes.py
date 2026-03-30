@@ -10,7 +10,9 @@ from flask import Blueprint, request, jsonify
 
 from core import db, token_required
 from models import RealizedCsr, CsrActivity, CsrPlan, UserSite
+from features.audit_history_management.audit_helper import audit_delete
 from features.notification_management.notification_helper import notify_corporate
+from features.notification_management.socketio_emit import emit_tasks_refresh_for_request_actor
 
 bp = Blueprint("realized_csr", __name__, url_prefix="/api/realized-csr")
 
@@ -34,7 +36,7 @@ def _plan_is_editable(plan: CsrPlan, role: str = "") -> bool:
 
 def _activity_is_editable(activity: CsrActivity, role: str = "") -> bool:
     """True if this activity can be edited: plan editable OR activity individually unlocked.
-    Parity with csr_activities_routes (incl. in-plan modification review SUBMITTED/REJECTED)."""
+    Parity with planned_csr_routes (incl. in-plan modification review SUBMITTED/REJECTED)."""
     if not activity or not activity.plan:
         return False
     if getattr(activity, "is_off_plan", False) and activity.status == "SUBMITTED":
@@ -62,30 +64,42 @@ def _realized_to_json(r: RealizedCsr, role: str = ""):
         "activity_id": r.activity_id,
         "activity_title": act.title if act else None,
         "activity_number": act.activity_number if act else None,
+        "activity_description": act.description if act else None,
+        "category_id": act.category_id if act else None,
+        "category_name": act.category.name if act and getattr(act, "category", None) else None,
+        "collaboration_nature": act.collaboration_nature if act else None,
+        "periodicity": getattr(act, "periodicity", None) if act else None,
+        "start_year": act.start_year if act else None,
+        "edition": getattr(act, "edition", None) if act else None,
         "planned_budget": float(act.planned_budget) if act and act.planned_budget is not None else None,
+        "action_impact_target": float(act.action_impact_target) if act and act.action_impact_target is not None else None,
+        "action_impact_unit_target": getattr(act, "action_impact_unit", None) if act else None,
+        "action_impact_duration": getattr(act, "action_impact_duration", None) if act else None,
+        "organizer": getattr(act, "organizer", None) if act else None,
+        "external_partner_name": act.external_partner.name if act and getattr(act, "external_partner", None) else None,
+        "number_external_partners": getattr(act, "number_external_partners", None) if act else None,
         "plan_id": act.plan_id if act else None,
         "site_name": plan.site.name if plan and plan.site else None,
         "plan_status": plan.status if plan else None,
         "plan_editable": plan_editable,
-        "year": r.year,
-        "month": r.month,
         "realized_budget": float(r.realized_budget) if r.realized_budget is not None else None,
         "participants": r.participants,
         "total_hc": r.total_hc,
-        "percentage_employees": float(r.percentage_employees) if r.percentage_employees is not None else None,
-        "volunteer_hours": float(r.volunteer_hours) if r.volunteer_hours is not None else None,
         "action_impact_actual": float(r.action_impact_actual) if r.action_impact_actual is not None else None,
         "action_impact_unit": r.action_impact_unit or None,
-        "impact_description": r.impact_description or None,
-        "organizer": r.organizer or None,
-        "number_external_partners": r.number_external_partners,
+        "is_off_plan": bool(getattr(r, "is_off_plan", False)),
+        "off_plan_validation_mode": getattr(r, "off_plan_validation_mode", None),
+        "off_plan_validation_step": getattr(r, "off_plan_validation_step", None),
         "realization_date": r.realization_date.isoformat() if r.realization_date else None,
         "comment": r.comment or None,
-        "contact_department": r.contact_department or None,
         "contact_name": r.contact_name or None,
         "contact_email": r.contact_email or None,
+        "status": getattr(r, "status", None),
         "created_by": r.created_by,
         "created_at": r.created_at.isoformat() if r.created_at else None,
+        "updated_at": r.updated_at.isoformat() if getattr(r, "updated_at", None) else None,
+        "unlock_until": r.unlock_until.isoformat() if getattr(r, "unlock_until", None) else None,
+        "unlock_since": r.unlock_since.isoformat() if getattr(r, "unlock_since", None) else None,
     }
 
 
@@ -105,10 +119,8 @@ def _allowed_activity_ids(user_id: str, role: str) -> Optional[list]:
 @bp.get("")
 @token_required
 def list_realized():
-    """List realized CSR. Optional: activity_id, year, month. SITE_USER only sees their sites' activities."""
+    """List realized CSR. Optional: activity_id. SITE_USER only sees their sites' activities."""
     activity_id = request.args.get("activity_id")
-    year = request.args.get("year", type=int)
-    month = request.args.get("month", type=int)
 
     q = RealizedCsr.query
     role = getattr(request, "role", "") or ""
@@ -120,10 +132,6 @@ def list_realized():
 
     if activity_id:
         q = q.filter_by(activity_id=activity_id)
-    if year is not None:
-        q = q.filter_by(year=year)
-    if month is not None:
-        q = q.filter_by(month=month)
 
     # Keep dashboard/list behavior (validated plans only), but when querying
     # a specific activity (edit screen), return its realizations regardless of plan status.
@@ -131,7 +139,17 @@ def list_realized():
     if not activity_id:
         q = q.filter(CsrPlan.status == "VALIDATED")
 
-    records = q.order_by(RealizedCsr.year.desc(), RealizedCsr.month.desc(), RealizedCsr.created_at.desc()).all()
+    # RealizedCsr no longer has year/month columns; order by realization_date (newest first),
+    # then by created_at as a fallback. MySQL/MariaDB do not support "NULLS LAST",
+    # so emulate nulls-last via an IS NULL sort key.
+    records = (
+        q.order_by(
+            RealizedCsr.realization_date.is_(None),
+            RealizedCsr.realization_date.desc(),
+            RealizedCsr.created_at.desc(),
+        )
+        .all()
+    )
     return jsonify([_realized_to_json(r, role) for r in records]), 200
 
 
@@ -164,19 +182,8 @@ def create_realized():
         return jsonify({"message": "Données manquantes"}), 400
 
     activity_id = data.get("activity_id")
-    year = data.get("year")
-    month = data.get("month")
-    if not activity_id or year is None or month is None:
-        return jsonify({"message": "activity_id, year et month sont obligatoires"}), 400
-
-    try:
-        year = int(year)
-        month = int(month)
-    except (TypeError, ValueError):
-        return jsonify({"message": "year et month doivent être des entiers"}), 400
-
-    if month < 1 or month > 12:
-        return jsonify({"message": "month doit être entre 1 et 12"}), 400
+    if not activity_id:
+        return jsonify({"message": "activity_id est obligatoire"}), 400
 
     activity = CsrActivity.query.options(db.joinedload(CsrActivity.plan)).get(activity_id)
     if not activity:
@@ -186,8 +193,6 @@ def create_realized():
     if not plan_obj:
         return jsonify({"message": "Plan introuvable pour cette activité"}), 404
     plan_year = plan_obj.year
-    if year != plan_year:
-        return jsonify({"message": f"L'année de réalisation doit être l'année du plan ({plan_year})."}), 400
 
     allowed = _allowed_activity_ids(request.user_id, getattr(request, "role", ""))
     if allowed is not None and activity_id not in allowed:
@@ -226,24 +231,23 @@ def create_realized():
             realization_date = datetime.strptime(rd[:10], "%Y-%m-%d").date()
         except (ValueError, TypeError):
             pass
+    if realization_date is not None and realization_date.year != plan_year:
+        return jsonify(
+            {"message": f"La date de réalisation doit être comprise dans l'année du plan ({plan_year})."},
+        ), 400
 
     r = RealizedCsr(
         activity_id=activity_id,
-        year=year,
-        month=month,
         realized_budget=_num("realized_budget"),
         participants=_int_val("participants"),
         total_hc=_int_val("total_hc"),
-        percentage_employees=_num("percentage_employees"),
-        volunteer_hours=_num("volunteer_hours"),
         action_impact_actual=_num("action_impact_actual"),
         action_impact_unit=_str_val("action_impact_unit"),
-        impact_description=_str_val("impact_description"),
-        organizer=_str_val("organizer"),
-        number_external_partners=_int_val("number_external_partners"),
+        is_off_plan=bool(data.get("is_off_plan")) if data.get("is_off_plan") is not None else bool(getattr(activity, "is_off_plan", False)),
+        off_plan_validation_mode=_str_val("off_plan_validation_mode", getattr(activity, "off_plan_validation_mode", None)),
+        off_plan_validation_step=_int_val("off_plan_validation_step", getattr(activity, "off_plan_validation_step", None)),
         realization_date=realization_date,
         comment=_str_val("comment"),
-        contact_department=_str_val("contact_department"),
         contact_name=_str_val("contact_name"),
         contact_email=_str_val("contact_email"),
         created_by=request.user_id,
@@ -255,13 +259,15 @@ def create_realized():
     if plan and getattr(plan, "status", None) != "DRAFT":
         site_name = plan.site.name if plan.site else "Site inconnu"
         activity_title = r.activity.title if r.activity else "Activité inconnue"
+        when = r.realization_date.isoformat() if r.realization_date else "—"
         notify_corporate(
             title="Activité réalisée soumise",
-            message=f"Le site {site_name} a soumis une réalisation pour l'activité '{activity_title}' ({month}/{year}).",
+            message=f"Le site {site_name} a soumis une réalisation pour l'activité '{activity_title}' (date: {when}).",
             type="success",
             site_id=plan.site_id,
             notification_category="activity_validation",
         )
+    emit_tasks_refresh_for_request_actor()
     return jsonify(_realized_to_json(r, getattr(request, "role", ""))), 201
 
 
@@ -308,21 +314,6 @@ def update_realized(realized_id: str):
         v = data.get(key)
         return str(v).strip() if v is not None and str(v).strip() else default
 
-    year = data.get("year")
-    month = data.get("month")
-    if year is not None:
-        try:
-            r.year = int(year)
-        except (TypeError, ValueError):
-            pass
-    if month is not None:
-        try:
-            m = int(month)
-            if 1 <= m <= 12:
-                r.month = m
-        except (TypeError, ValueError):
-            pass
-
     realization_date = None
     rd = data.get("realization_date")
     if rd:
@@ -336,8 +327,6 @@ def update_realized(realized_id: str):
 
     plan_year = r.activity.plan.year if r.activity and r.activity.plan else None
     if plan_year is not None:
-        if r.year != plan_year:
-            return jsonify({"message": f"L'année de réalisation doit être l'année du plan ({plan_year})."}), 400
         if r.realization_date is not None and r.realization_date.year != plan_year:
             return jsonify(
                 {"message": f"La date de réalisation doit être comprise dans l'année du plan ({plan_year})."},
@@ -346,19 +335,20 @@ def update_realized(realized_id: str):
     r.realized_budget = _num("realized_budget", r.realized_budget)
     r.participants = _int_val("participants", r.participants)
     r.total_hc = _int_val("total_hc", r.total_hc)
-    r.percentage_employees = _num("percentage_employees", r.percentage_employees)
-    r.volunteer_hours = _num("volunteer_hours", r.volunteer_hours)
     r.action_impact_actual = _num("action_impact_actual", r.action_impact_actual)
     r.action_impact_unit = _str_val("action_impact_unit", r.action_impact_unit)
-    r.impact_description = _str_val("impact_description", r.impact_description)
-    r.organizer = _str_val("organizer", r.organizer)
-    r.number_external_partners = _int_val("number_external_partners", r.number_external_partners)
+    if "is_off_plan" in data:
+        r.is_off_plan = bool(data.get("is_off_plan"))
+    if "off_plan_validation_mode" in data:
+        r.off_plan_validation_mode = _str_val("off_plan_validation_mode", r.off_plan_validation_mode)
+    if "off_plan_validation_step" in data:
+        r.off_plan_validation_step = _int_val("off_plan_validation_step", r.off_plan_validation_step)
     r.comment = _str_val("comment", r.comment)
-    r.contact_department = _str_val("contact_department", r.contact_department)
     r.contact_name = _str_val("contact_name", r.contact_name)
     r.contact_email = _str_val("contact_email", r.contact_email)
 
     db.session.commit()
+    emit_tasks_refresh_for_request_actor()
     return jsonify(_realized_to_json(r, getattr(request, "role", ""))), 200
 
 
@@ -378,7 +368,22 @@ def delete_realized(realized_id: str):
         return jsonify({
             "message": "Le plan est verrouillé. Soumettez une demande de modification pour supprimer cette réalisation."
         }), 403
+    activity = r.activity
+    plan = activity.plan if activity else None
+    site_id = plan.site_id if plan else None
+    act_label = ""
+    if activity:
+        act_label = (activity.title or activity.activity_number or "").strip() or activity.id
+    audit_delete(
+        user_id=request.user_id,
+        site_id=site_id,
+        entity_type="REALIZATION",
+        entity_id=activity.id if activity else realized_id,
+        description=f"Suppression réalisation pour activité {act_label or '—'}",
+        old_snapshot={},
+    )
     db.session.delete(r)
     db.session.commit()
+    emit_tasks_refresh_for_request_actor()
     return jsonify({"message": "Réalisation supprimée"}), 200
 

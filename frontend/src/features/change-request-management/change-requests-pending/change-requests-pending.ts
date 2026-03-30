@@ -4,12 +4,13 @@ import { Router, RouterModule } from '@angular/router';
 import { TranslateModule, TranslateService } from '@ngx-translate/core';
 import { ChangeRequestsApi } from '../api/change-requests-api';
 import type { ChangeRequestWithDocs } from '../api/change-requests-api';
-import { CsrActivitiesApi } from '@features/realized-activity-management/api/csr-activities-api';
+import { CsrActivitiesApi } from '@features/planned-activity-management/api/csr-activities-api';
+import { UserAvatarNameComponent } from '@shared/components/user-avatar-name/user-avatar-name';
 
 @Component({
   selector: 'app-change-requests-pending',
   standalone: true,
-  imports: [CommonModule, RouterModule, TranslateModule],
+  imports: [CommonModule, RouterModule, TranslateModule, UserAvatarNameComponent],
   templateUrl: './change-requests-pending.html',
 })
 export class ChangeRequestsPendingComponent implements OnInit {
@@ -22,16 +23,12 @@ export class ChangeRequestsPendingComponent implements OnInit {
   loading = signal(true);
   actionLoading = signal<string | null>(null);
 
-  showActionsModal = signal(false);
-  modalRejectStep = signal(false);
-  modalRejectComment = signal('');
-  modalRejectError = signal('');
-  selectedRequest = signal<ChangeRequestWithDocs | null>(null);
-
-  /** Safe template context when the actions modal is open. */
-  modalRow(): ChangeRequestWithDocs | null {
-    return this.showActionsModal() ? this.selectedRequest() : null;
-  }
+  /** Row targeted by approve / reject flow (same pattern as change-request-detail). */
+  pendingActionRow = signal<ChangeRequestWithDocs | null>(null);
+  approveConfirmOpen = signal(false);
+  rejectModalOpen = signal(false);
+  rejectComment = signal('');
+  rejectError = signal('');
 
   ngOnInit(): void {
     this.load();
@@ -56,6 +53,24 @@ export class ChangeRequestsPendingComponent implements OnInit {
     return r.pending_item_type === 'OFF_PLAN_ACTIVITY' || r.pending_item_type === 'IN_PLAN_ACTIVITY_MOD';
   }
 
+  /** Unlock request at site level 1 step (111 / step 1) — reject requires a comment. */
+  isUnlockRequestL1Step(r: ChangeRequestWithDocs): boolean {
+    const step = r.validation_step;
+    return (
+      r.pending_item_type === 'CHANGE_REQUEST' &&
+      r.validation_mode === '111' &&
+      step !== 2 &&
+      (step === 1 || step == null)
+    );
+  }
+
+  /** Decline modal: reason required for activity validation and L1 unlock step only. */
+  rejectRowRequiresComment(): boolean {
+    const r = this.pendingActionRow();
+    if (!r) return false;
+    return this.isActivityValidationPendingRow(r) || this.isUnlockRequestL1Step(r);
+  }
+
   rowActionKey(r: ChangeRequestWithDocs): string {
     return r.id;
   }
@@ -66,101 +81,66 @@ export class ChangeRequestsPendingComponent implements OnInit {
     return r.entity_id ?? '';
   }
 
-  modalContextTitle(r: ChangeRequestWithDocs): string {
-    const site = r.plan_site_name ?? r.site_name ?? r.site_id ?? '–';
-    const year = r.plan_year ?? r.year ?? '';
-    let act = '';
-    if (r.activity_number || r.activity_title) {
-      act = ` · ${r.activity_number ?? ''} – ${r.activity_title ?? ''}`;
-    }
-    return `${site} – ${year}${act}`;
-  }
-
-  modalTypeLabelKey(r: ChangeRequestWithDocs): string {
-    if (this.isOffPlanRow(r)) return 'CHANGE_REQUEST.TYPE_OFF_PLAN';
-    if (r.pending_item_type === 'IN_PLAN_ACTIVITY_MOD') return 'CHANGE_REQUEST.TYPE_IN_PLAN_MOD';
-    return 'CHANGE_REQUEST.TYPE_CHANGE_REQUEST';
-  }
-
-  openActionsModal(r: ChangeRequestWithDocs): void {
-    this.selectedRequest.set(r);
-    this.modalRejectStep.set(false);
-    this.modalRejectComment.set('');
-    this.modalRejectError.set('');
-    this.showActionsModal.set(true);
-  }
-
-  closeActionsModal(): void {
-    this.showActionsModal.set(false);
-    this.selectedRequest.set(null);
-    this.modalRejectStep.set(false);
-    this.modalRejectComment.set('');
-    this.modalRejectError.set('');
-  }
-
-  openFromModal(): void {
-    const r = this.selectedRequest();
-    if (!r) return;
-    this.closeActionsModal();
+  /** Unlock / CR rows with a DB id open change request detail; synthetic activity rows open the plan. */
+  onPendingRowClick(r: ChangeRequestWithDocs, event: MouseEvent): void {
+    const el = event.target as HTMLElement | null;
+    if (el?.closest('button, a')) return;
     if (r.pending_item_type === 'CHANGE_REQUEST' && r.id) {
       void this.router.navigate(['/changes', r.id]);
-    } else if (r.plan_id) {
-      void this.router.navigate(['/csr-plans', r.plan_id]);
+      return;
     }
+    const pid = this.planLinkId(r);
+    if (pid) void this.router.navigate(['/csr-plans', pid]);
   }
 
-  canOpenFromModal(r: ChangeRequestWithDocs): boolean {
-    if (r.pending_item_type === 'CHANGE_REQUEST' && r.id) return true;
-    if ((this.isOffPlanRow(r) || r.pending_item_type === 'IN_PLAN_ACTIVITY_MOD') && r.plan_id) return true;
-    return false;
+  openApproveConfirm(r: ChangeRequestWithDocs): void {
+    this.pendingActionRow.set(r);
+    this.approveConfirmOpen.set(true);
   }
 
-  openButtonLabelKey(r: ChangeRequestWithDocs): string {
-    if (r.pending_item_type === 'CHANGE_REQUEST' && r.id) return 'CHANGE_REQUEST.DETAILS';
-    return 'CHANGE_REQUEST.VIEW_PLAN';
+  closeApproveConfirm(): void {
+    this.approveConfirmOpen.set(false);
+    this.pendingActionRow.set(null);
   }
 
-  startModalReject(): void {
-    this.modalRejectStep.set(true);
-    this.modalRejectComment.set('');
-    this.modalRejectError.set('');
-  }
-
-  backModalReject(): void {
-    this.modalRejectStep.set(false);
-    this.modalRejectComment.set('');
-    this.modalRejectError.set('');
-  }
-
-  approveFromModal(): void {
-    const r = this.selectedRequest();
+  confirmApprove(): void {
+    const r = this.pendingActionRow();
     if (!r) return;
-    this.executeApprove(r, () => this.closeActionsModal());
+    this.executeApprove(r, () => this.closeApproveConfirm());
   }
 
-  submitModalReject(): void {
-    const r = this.selectedRequest();
+  openRejectModal(r: ChangeRequestWithDocs): void {
+    this.pendingActionRow.set(r);
+    this.rejectComment.set('');
+    this.rejectError.set('');
+    this.rejectModalOpen.set(true);
+  }
+
+  closeRejectModal(): void {
+    this.rejectModalOpen.set(false);
+    this.rejectComment.set('');
+    this.rejectError.set('');
+    this.pendingActionRow.set(null);
+  }
+
+  confirmReject(): void {
+    const r = this.pendingActionRow();
     if (!r) return;
-    const c = this.modalRejectComment().trim();
-    if (this.isActivityValidationPendingRow(r)) {
+    const c = this.rejectComment().trim();
+    if (this.rejectRowRequiresComment()) {
       if (!c) {
-        this.modalRejectError.set(this.translate.instant('CHANGE_REQUEST.REJECT_COMMENT_REQUIRED'));
+        this.rejectError.set(this.translate.instant('CHANGE_REQUEST.REJECT_COMMENT_REQUIRED'));
         return;
       }
     }
-    this.modalRejectError.set('');
-    this.executeReject(r, c, () => this.closeActionsModal());
+    this.rejectError.set('');
+    this.executeReject(r, c, () => this.closeRejectModal());
   }
 
   private executeApprove(r: ChangeRequestWithDocs, onSuccess?: () => void): void {
     const key = this.rowActionKey(r);
     if (this.isActivityValidationPendingRow(r)) {
       if (!r.activity_id) return;
-      const confirmKey =
-        r.pending_item_type === 'IN_PLAN_ACTIVITY_MOD'
-          ? 'CHANGE_REQUEST.CONFIRM_APPROVE_IN_PLAN_MOD'
-          : 'CHANGE_REQUEST.CONFIRM_APPROVE_OFF_PLAN';
-      if (!confirm(this.translate.instant(confirmKey))) return;
       this.actionLoading.set(key);
       this.activitiesApi.approveOffPlan(r.activity_id).subscribe({
         next: () => {
@@ -172,7 +152,6 @@ export class ChangeRequestsPendingComponent implements OnInit {
       });
       return;
     }
-    if (!confirm(this.translate.instant('CHANGE_REQUEST.CONFIRM_APPROVE'))) return;
     this.actionLoading.set(key);
     this.api.approve(r.id).subscribe({
       next: () => {

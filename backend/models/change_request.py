@@ -49,6 +49,10 @@ class ChangeRequest(db.Model):
         db.String(10), nullable=True,
         comment="Mode de validation: 101 ou 111"
     )
+    validation_step = db.Column(
+        db.Integer, nullable=True,
+        comment="Étape déverrouillage: 1=niveau 1 site, 2=corporate (111); 101 => 2"
+    )
     reviewed_by = db.Column(
         CHAR(36, collation="utf8mb4_unicode_ci"), db.ForeignKey("users.id", ondelete="SET NULL"), nullable=True,
         comment="Relecteur corporate"

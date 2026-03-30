@@ -33,6 +33,13 @@ def _latest_login_iso(user_id: str):
     return session.created_at.isoformat() if session and session.created_at else None
 
 
+def _avatar_serve_url(user: User):
+    """Public API path for profile photo (requires auth via same-origin + JWT header)."""
+    if not user or not getattr(user, "avatar_url", None) or not user.avatar_url:
+        return None
+    return f"/api/documents/serve/{user.avatar_url}"
+
+
 def _profile_payload(user: User):
     """Build the full profile JSON (info, sites for SITE_USER, notification settings) to send to frontend."""
     data = {
@@ -53,7 +60,7 @@ def _profile_payload(user: User):
         "is_active": user.is_active,
         "last_login": _latest_login_iso(user.id),
         "created_at": user.created_at.isoformat() if user.created_at else None,
-        "avatar_url": f"/api/documents/serve/{user.avatar_url}" if getattr(user, "avatar_url", None) and user.avatar_url else None,
+        "avatar_url": _avatar_serve_url(user),
     }
 
     if user.role == "SITE_USER":
@@ -124,6 +131,9 @@ def login():
         "email": user.email,
         "role": user.role,
         "user_id": user.id,
+        "first_name": user.first_name,
+        "last_name": user.last_name,
+        "avatar_url": _avatar_serve_url(user),
         "expires_at": expires_at.isoformat(),
     })
 
@@ -178,6 +188,9 @@ def me():
         "user_id": user.id,
         "email": user.email,
         "role": user.role,
+        "first_name": user.first_name,
+        "last_name": user.last_name,
+        "avatar_url": _avatar_serve_url(user),
     })
 
 
@@ -272,8 +285,6 @@ def update_profile():
             user.notify_activity_validation = bool(notifications.get("activity_validation"))
         if "activity_reminders" in notifications:
             user.notify_activity_reminders = bool(notifications.get("activity_reminders"))
-        if "weekly_summary_email" in notifications:
-            user.notify_weekly_summary_email = bool(notifications.get("weekly_summary_email"))
 
     db.session.commit()
     return jsonify(_profile_payload(user))

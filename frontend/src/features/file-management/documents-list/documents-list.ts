@@ -1,20 +1,31 @@
-import { Component, OnInit, signal, computed, HostListener } from '@angular/core';
+import { ChangeDetectorRef, Component, OnInit, signal, computed, HostListener, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { HttpClient } from '@angular/common/http';
 import { TranslateModule } from '@ngx-translate/core';
+import { UserAvatarNameComponent } from '@shared/components/user-avatar-name/user-avatar-name';
 import { DocumentsApi } from '../api/documents-api';
 import { Document } from '../models/document.model';
 import { I18nService } from '@core/services/i18n.service';
+import {
+  FIXED_CONTEXT_MENU_GAP,
+  FIXED_CONTEXT_MENU_PAD,
+  initialFixedContextMenuLeft,
+  initialFixedContextMenuTopBelow,
+  scheduleFixedContextMenuPosition,
+} from '@core/utils/fixed-context-menu';
 
 @Component({
   selector: 'app-documents-list',
   standalone: true,
-  imports: [CommonModule, FormsModule, TranslateModule],
+  imports: [CommonModule, FormsModule, TranslateModule, UserAvatarNameComponent],
   templateUrl: './documents-list.html',
   styleUrl: './documents-list.css',
 })
 export class DocumentsListComponent implements OnInit {
+  private static readonly DOCUMENT_ACTIONS_MENU_HEIGHT_ESTIMATE = 200;
+
+  private cdr = inject(ChangeDetectorRef);
 
   documents = signal<Document[]>([]);
   loading = signal(true);
@@ -157,20 +168,58 @@ export class DocumentsListComponent implements OnInit {
   );
 
   // ── Menu 3 points ─────────────────────────────────────────────────────────
-  toggleMenu(doc: Document, event: MouseEvent) {
+  /** Prefer opening above the anchor for the last two rows (viewport clipping). */
+  documentMenuOpenAbove(doc: Document, section: 'recent' | 'pinned' | 'table'): boolean {
+    const list =
+      section === 'recent'
+        ? this.recentDocuments()
+        : section === 'pinned'
+          ? this.pinnedDocuments()
+          : this.filteredAndSortedDocuments();
+    const n = list.length;
+    if (n === 0) return false;
+    const idx = list.findIndex((d) => d.id === doc.id);
+    return idx >= 0 && idx >= n - 2;
+  }
+
+  toggleMenu(doc: Document, event: MouseEvent, openAbove: boolean) {
     event.stopPropagation();
     if (this.activeMenuId === doc.id) {
       this.closeMenu();
       return;
     }
     const btn = event.currentTarget as HTMLElement;
-    const rect = btn.getBoundingClientRect();
+    const btnRect = btn.getBoundingClientRect();
+    const menuWidth = 176;
+    const left = initialFixedContextMenuLeft(btnRect, menuWidth);
+    const initialTop = openAbove
+      ? Math.max(
+          FIXED_CONTEXT_MENU_PAD,
+          btnRect.top -
+            DocumentsListComponent.DOCUMENT_ACTIONS_MENU_HEIGHT_ESTIMATE -
+            FIXED_CONTEXT_MENU_GAP,
+        )
+      : initialFixedContextMenuTopBelow(btnRect);
     this.menuPosition = {
-      top: rect.bottom + 4,
-      left: rect.right - 176
+      top: initialTop,
+      left,
     };
     this.activeMenuId = doc.id;
     this.activeMenuDoc = doc;
+    const docId = doc.id;
+    this.cdr.markForCheck();
+    scheduleFixedContextMenuPosition({
+      menuSelector: '[data-documents-actions-menu]',
+      btnRect,
+      menuWidth,
+      openAbove,
+      initialLeft: left,
+      isAlive: () => this.activeMenuId === docId,
+      onApply: (top: number, l: number) => {
+        this.menuPosition = { top, left: l };
+        this.cdr.detectChanges();
+      },
+    });
   }
 
   closeMenu() {

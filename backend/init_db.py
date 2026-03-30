@@ -14,6 +14,7 @@ What it does:
 5. Assigns sites to users with validation grades (level_0, level_1, level_2)
 """
 from datetime import datetime
+from sqlalchemy import text
 
 from app import create_app
 from core.db import db
@@ -29,12 +30,19 @@ def init_db():
     # Create the Flask app so we can use db.create_all() and db.session
     app = create_app()
     with app.app_context():
-        # Drop all tables, then recreate them (fresh database)
-        db.drop_all()
-        print("✓ All tables dropped")
-        # Create all tables defined in models (users, sites, categories, etc.)
-        db.create_all()
-        print("✓ Database tables created")
+        # Drop/create with FK checks disabled (MySQL) to avoid ordering issues
+        # when schema names/constraints changed across iterations.
+        db.session.execute(text("SET FOREIGN_KEY_CHECKS=0"))
+        db.session.commit()
+        try:
+            db.drop_all()
+            print("✓ All tables dropped")
+            # Create all tables defined in models (users, sites, categories, etc.)
+            db.create_all()
+            print("✓ Database tables created")
+        finally:
+            db.session.execute(text("SET FOREIGN_KEY_CHECKS=1"))
+            db.session.commit()
 
         # Default CSR categories
         if Category.query.count() == 0:

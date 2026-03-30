@@ -1,6 +1,6 @@
-<div class="flex flex-col h-full">
+<div class="flex flex-col flex-1 min-h-0 h-full overflow-hidden">
   <!-- Header -->
-  <div class="flex items-center justify-between px-6 py-4 border-b border-gray-200 flex-shrink-0">
+  <div class="flex items-center justify-between gap-3 px-6 py-4 border-b border-gray-200 flex-shrink-0">
     <h2 class="text-lg font-bold text-gray-800">{{ 'ANNUAL_PLANS.NEW_PLAN' | translate }}</h2>
     <button type="button" (click)="close()"
       class="p-2 rounded-full text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
@@ -11,36 +11,36 @@
     </button>
   </div>
   <!-- Form -->
-  <form [formGroup]="planForm" (ngSubmit)="submit()" class="flex flex-col flex-1 overflow-hidden">
-    <div class="flex-1 overflow-auto px-6 py-6 space-y-5">
+  <form [formGroup]="planForm" (ngSubmit)="submit()" class="flex flex-col flex-1 min-h-0 overflow-hidden">
+    <div class="flex-1 min-h-0 overflow-y-auto px-6 py-6 space-y-5">
       <div *ngIf="loadingSites" class="py-8 text-center text-gray-500 text-sm">{{ 'PLAN_CREATE.LOADING_SITES' | translate }}</div>
       <ng-container *ngIf="!loadingSites">
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-1.5">{{ 'PLAN_CREATE.SITE_REQ' | translate }}</label>
           <select formControlName="site_id"
-            class="w-full pl-9 pr-10 py-2.5 bg-gray-100 border-0 rounded-xl text-sm text-gray-700 font-medium focus:ring-2 focus:ring-blue-500 focus:bg-white focus:outline-none transition-all appearance-none cursor-pointer hover:bg-gray-200"
+            class="w-full pl-4 pr-10 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none appearance-none cursor-pointer"
             [class.border]="planForm.get('site_id')?.touched && planForm.get('site_id')?.invalid"
             [class.border-red-400]="planForm.get('site_id')?.touched && planForm.get('site_id')?.invalid">
             <option value="">{{ 'PLAN_CREATE.CHOOSE_SITE' | translate }}</option>
             <option *ngFor="let site of sites" [value]="site.id">{{ site.name }} ({{ site.code }})</option>
           </select>
           <p class="text-xs text-red-500 mt-1" *ngIf="planForm.get('site_id')?.touched && planForm.get('site_id')?.invalid">
-            Le site est obligatoire
+            {{ 'PLAN_CREATE.SITE_REQUIRED' | translate }}
           </p>
         </div>
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-1.5">{{ 'PLAN_CREATE.YEAR_REQ' | translate }}</label>
           <input type="number" formControlName="year" min="2000" max="2100"
-            class="w-full px-4 py-2.5 border border-gray-300 rounded-xl text-sm text-gray-700 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+            class="w-full pl-4 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm text-gray-700 focus:ring-2 focus:ring-blue-500 focus:outline-none"
             [class.border-red-400]="planForm.get('year')?.touched && planForm.get('year')?.invalid"/>
           <p class="text-xs text-red-500 mt-1" *ngIf="planForm.get('year')?.touched && planForm.get('year')?.invalid">
-            Année invalide (2000–2100)
+            {{ 'PLAN_EDIT.YEAR_INVALID' | translate }}
           </p>
         </div>
-        <div>
+        <div *ngIf="!isCorporateUser()">
           <label class="block text-sm font-medium text-gray-700 mb-1.5">{{ 'PLAN_CREATE.VALIDATION_MODE' | translate }}</label>
           <select formControlName="validation_mode"
-            class="w-full pl-9 pr-10 py-2.5 bg-gray-100 border-0 rounded-xl text-sm text-gray-700 font-medium focus:ring-2 focus:ring-blue-500 focus:bg-white focus:outline-none transition-all appearance-none cursor-pointer hover:bg-gray-200">
+            class="w-full pl-4 pr-10 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none appearance-none cursor-pointer">
             <option value="101">{{ 'ANNUAL_PLANS.MODE.CORPORATE_ONLY' | translate }}</option>
             <option value="111">{{ 'ANNUAL_PLANS.MODE.ALL' | translate }}</option>
           </select>
@@ -48,7 +48,7 @@
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-1.5">{{ 'PLAN_CREATE.TOTAL_BUDGET' | translate }}</label>
           <input type="number" formControlName="total_budget" min="0" step="0.01" [attr.placeholder]="'COMMON.OPTIONAL' | translate"
-            class="w-full px-4 py-2.5 border border-gray-300 rounded-xl text-sm text-gray-700 focus:ring-2 focus:ring-blue-500 focus:outline-none"/>
+            class="w-full pl-4 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm text-gray-700 focus:ring-2 focus:ring-blue-500 focus:outline-none"/>
         </div>
       </ng-container>
     </div>
@@ -59,7 +59,7 @@
       </button>
       <button type="submit" [disabled]="loading || loadingSites || planForm.invalid"
         class="flex-1 px-4 py-2.5 rounded-xl bg-brand-900 hover:bg-brand-800 disabled:opacity-60 disabled:cursor-not-allowed text-white transition text-sm font-semibold">
-        {{ loading ? 'Création...' : 'Créer le plan' }}
+        {{ loading ? ('PLAN_CREATE.CREATING' | translate) : ('PLAN_CREATE.CREATE_BUTTON' | translate) }}
       </button>
     </div>
   </form>

@@ -52,7 +52,7 @@
       </div>
       <div class="min-w-0 flex-1">
         <div class="text-white text-sm font-medium truncate">{{ user()?.email }}</div>
-        <div class="text-gray-400 text-xs">{{ roleLabel(user()?.role) }}</div>
+        <div class="text-gray-400 text-xs truncate">{{ userDisplayName() }}</div>
       </div>
     </div>
     <div class="flex gap-2" [ngClass]="isCollapsed() ? 'flex-col' : 'flex-row'">

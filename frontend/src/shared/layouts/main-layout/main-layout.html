@@ -43,11 +43,12 @@
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
           </svg>
         </a>
+        <app-user-tasks-bell></app-user-tasks-bell>
         <app-notification-bell></app-notification-bell>
       </div>
     </header>
     <!-- Page content (smooth opacity transition on language change) -->
-    <div class="flex-1 bg-gray-50 p-4 overflow-auto i18n-content-transition"
+    <div #mainScroll class="flex-1 bg-gray-50 p-4 overflow-auto i18n-content-transition"
       [class.i18n-transitioning]="langTransitioning()">
       <router-outlet></router-outlet>
     </div>

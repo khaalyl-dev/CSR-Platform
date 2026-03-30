@@ -11,6 +11,8 @@ export interface CsrPlan {
   validation_mode: string;
   status: PlanStatus;
   total_budget: number | null;
+  total_realized_budget?: number | null;
+  total_estimated_budget?: number | null;
   rejected_comment?: string | null;
   /** IDs des activités à modifier (plusieurs possibles). */
   rejected_activity_ids?: string[] | null;
@@ -20,9 +22,16 @@ export interface CsrPlan {
   /** Date limite de modification (après approbation d'une demande de modification); après cette date le plan redevient verrouillé */
   unlock_until?: string | null;
   created_by: string | null;
+  /** User id who last submitted for validation (backend). */
+  submitted_by?: string | null;
+  /** Display name when status is SUBMITTED (first + last). */
+  submitted_by_name?: string | null;
+  submitted_by_avatar_url?: string | null;
   created_at: string;
   updated_at: string;
   activities_count?: number;
+  /** Planned activities that have at least one realization row (list API). */
+  activities_realized_count?: number;
   can_approve?: boolean;
   can_reject?: boolean;
 }

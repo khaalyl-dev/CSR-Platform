@@ -5,8 +5,12 @@ Used when a plan is validated, an activity is approved/rejected, etc. Keeps max 
 notifications per user. Respects user preferences (e.g. notify_csr_plan_validation).
 """
 import uuid
+from typing import List, Tuple
+
 from core import db
 from models import Notification, User, UserSite
+
+from .socketio_emit import emit_notification_to_user, emit_tasks_refresh_for_request_actor
 
 def _uuid():
     return str(uuid.uuid4())
@@ -75,6 +79,7 @@ def notify_user(
     )
     db.session.add(notif)
     db.session.commit()
+    emit_notification_to_user(str(user.id).strip(), notif)
 
 
 def notify_site_users(
@@ -104,8 +109,10 @@ def notify_site_users(
     )
 
     if not users:
+        emit_tasks_refresh_for_request_actor()
         return
 
+    pending: List[Tuple[str, Notification]] = []
     for user in users:
         if not _user_wants_notification(user, notification_category):
             continue
@@ -122,8 +129,12 @@ def notify_site_users(
             is_read=False,
         )
         db.session.add(notif)
+        pending.append((user.id, notif))
 
     db.session.commit()
+    for uid, notif in pending:
+        emit_notification_to_user(uid, notif)
+    emit_tasks_refresh_for_request_actor()
 
 
 def notify_corporate(
@@ -142,12 +153,12 @@ def notify_corporate(
     """
     corporate_users = User.query.filter_by(role="CORPORATE_USER", is_active=True).all()
 
+    pending: List[Tuple[str, Notification]] = []
     for user in corporate_users:
         if not _user_wants_notification(user, notification_category):
             continue
         _trim_user_notifications(user.id)
 
-        # Créer la nouvelle notification
         notif = Notification(
             id=_uuid(),
             user_id=user.id,
@@ -160,5 +171,9 @@ def notify_corporate(
             is_read=False,
         )
         db.session.add(notif)
-    
+        pending.append((user.id, notif))
+
     db.session.commit()
+    for uid, notif in pending:
+        emit_notification_to_user(uid, notif)
+    emit_tasks_refresh_for_request_actor()

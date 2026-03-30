@@ -11,124 +11,136 @@
   </div>
 
   <div *ngIf="!loading() && requests().length > 0" class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-x-auto">
-    <table class="w-full text-sm">
+    <table class="w-full text-sm border-collapse">
       <thead class="bg-gray-50 text-gray-600 uppercase text-xs">
         <tr>
-          <th class="p-4 text-left">{{ 'CHANGE_REQUEST.TYPE' | translate }}</th>
-          <th class="p-4 text-left">{{ 'CHANGE_REQUEST.PLAN_YEAR' | translate }}</th>
-          <th class="p-4 text-left">{{ 'CHANGE_REQUEST.REQUESTER' | translate }}</th>
-          <th class="p-4 text-left">{{ 'CHANGE_REQUEST.JUSTIFICATION' | translate }}</th>
-          <th class="p-4 text-left">{{ 'CHANGE_REQUEST.DATE' | translate }}</th>
-          <th class="p-4 text-right">{{ 'CHANGE_REQUEST.ACTIONS' | translate }}</th>
+          <th class="p-4 text-left align-top">{{ 'CHANGE_REQUEST.TYPE' | translate }}</th>
+          <th class="p-4 text-left align-top">{{ 'CHANGE_REQUEST.PLAN_YEAR' | translate }}</th>
+          <th class="p-4 text-left align-top">{{ 'CHANGE_REQUEST.REQUESTER' | translate }}</th>
+          <th class="p-4 text-left align-top">{{ 'CHANGE_REQUEST.JUSTIFICATION' | translate }}</th>
+          <th class="p-4 text-left align-top">{{ 'CHANGE_REQUEST.DATE' | translate }}</th>
+          <th class="p-4 text-right align-top">{{ 'CHANGE_REQUEST.ACTIONS' | translate }}</th>
         </tr>
       </thead>
       <tbody>
-        <tr *ngFor="let r of requests()" class="border-t hover:bg-gray-50">
-          <td class="p-4 align-top">
-            <span *ngIf="!isOffPlanRow(r) && r.pending_item_type !== 'IN_PLAN_ACTIVITY_MOD'" class="text-gray-700 text-xs font-medium uppercase tracking-wide">{{ 'CHANGE_REQUEST.TYPE_CHANGE_REQUEST' | translate }}</span>
-            <span *ngIf="isOffPlanRow(r)" class="text-gray-700 text-xs font-medium uppercase tracking-wide">{{ 'CHANGE_REQUEST.TYPE_OFF_PLAN' | translate }}</span>
-            <span *ngIf="r.pending_item_type === 'IN_PLAN_ACTIVITY_MOD'" class="text-gray-700 text-xs font-medium uppercase tracking-wide">{{ 'CHANGE_REQUEST.TYPE_IN_PLAN_MOD' | translate }}</span>
+        <tr *ngFor="let r of requests()" (click)="onPendingRowClick(r, $event)"
+          class="border-t border-gray-100 cursor-pointer transition-colors hover:bg-gray-100">
+          <td class="p-4 align-top text-left">
+            <span *ngIf="!isOffPlanRow(r) && r.pending_item_type !== 'IN_PLAN_ACTIVITY_MOD'" class="block text-gray-700 text-xs font-medium uppercase tracking-wide leading-snug">{{ 'CHANGE_REQUEST.TYPE_CHANGE_REQUEST' | translate }}</span>
+            <span *ngIf="isOffPlanRow(r)" class="block text-gray-700 text-xs font-medium uppercase tracking-wide leading-snug">{{ 'CHANGE_REQUEST.TYPE_OFF_PLAN' | translate }}</span>
+            <span *ngIf="r.pending_item_type === 'IN_PLAN_ACTIVITY_MOD'" class="block text-gray-700 text-xs font-medium uppercase tracking-wide leading-snug">{{ 'CHANGE_REQUEST.TYPE_IN_PLAN_MOD' | translate }}</span>
           </td>
-          <td class="p-4 font-medium">
-            <a [routerLink]="['/csr-plans', planLinkId(r)]" class="text-brand-700 hover:underline">
+          <td class="p-4 align-top text-left font-medium">
+            <a [routerLink]="['/csr-plans', planLinkId(r)]" (click)="$event.stopPropagation()"
+              class="block text-brand-700 hover:underline leading-snug break-words">
               {{ r.plan_site_name ?? r.site_name ?? r.site_id }} – {{ r.plan_year ?? r.year }}
               <ng-container *ngIf="(r.entity_type === 'ACTIVITY' || isOffPlanRow(r) || r.pending_item_type === 'IN_PLAN_ACTIVITY_MOD') && (r.activity_number || r.activity_title)"> ({{ r.activity_number }} – {{ r.activity_title }})</ng-container>
             </a>
           </td>
-          <td class="p-4 text-gray-600">{{ r.requested_by_name ?? '–' }}</td>
-          <td class="p-4 text-gray-600 align-top whitespace-normal break-words min-w-[14rem]">{{ r.reason }}</td>
-          <td class="p-4 text-gray-500 whitespace-nowrap">{{ r.created_at | date:'short' }}</td>
-          <td class="p-4 text-right whitespace-nowrap align-middle">
-            <button type="button" (click)="openActionsModal(r)"
-              [disabled]="actionLoading() === rowActionKey(r)"
-              class="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-brand-900 rounded-xl shadow-sm hover:opacity-90 active:opacity-95 disabled:opacity-50 disabled:cursor-not-allowed transition-all focus:outline-none focus:ring-2 focus:ring-brand-900 focus:ring-offset-2">
-              <i class="fas fa-sliders-h text-xs opacity-90" aria-hidden="true"></i>
-              {{ 'CHANGE_REQUEST.PENDING_HANDLE' | translate }}
-            </button>
+          <td class="p-4 align-top text-left leading-snug break-words">
+            <app-user-avatar-name
+              [displayName]="r.requested_by_name"
+              [avatarUrl]="r.requested_by_avatar_url"
+              [muted]="true" />
+          </td>
+          <td class="p-4 align-top text-left text-gray-600 leading-snug break-words">{{ r.reason }}</td>
+          <td class="p-4 align-top text-left text-gray-500 whitespace-nowrap tabular-nums">{{ r.created_at | date:'short' }}</td>
+          <td class="p-4 align-top text-right" (click)="$event.stopPropagation()">
+            <div class="flex flex-wrap gap-2 justify-end items-start">
+              <button type="button" (click)="openApproveConfirm(r)"
+                [disabled]="actionLoading() === rowActionKey(r)"
+                class="px-4 py-2 rounded-xl text-sm font-semibold text-white bg-brand-900 hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-opacity">
+                {{ 'CHANGE_REQUEST.APPROVE' | translate }}
+              </button>
+              <button type="button" (click)="openRejectModal(r)"
+                [disabled]="actionLoading() === rowActionKey(r)"
+                class="px-4 py-2 rounded-xl text-sm font-semibold bg-white text-brand-900 border-2 border-brand-900 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
+                {{ 'CHANGE_REQUEST.DECLINE' | translate }}
+              </button>
+            </div>
           </td>
         </tr>
       </tbody>
     </table>
   </div>
 
-  <!-- Actions modal -->
-  <div *ngIf="modalRow() as r" class="fixed inset-0 z-[9998] flex items-center justify-center p-4 bg-black/50 backdrop-blur-[2px]" (click)="closeActionsModal()" role="dialog" aria-modal="true">
+  <!-- Approve confirmation (same as change-request-detail) -->
+  <div *ngIf="approveConfirmOpen()" class="fixed inset-0 z-[9998] flex items-center justify-center p-4 bg-black/50 backdrop-blur-[2px] !mt-0"
+    (click)="closeApproveConfirm()" role="dialog" aria-modal="true" [attr.aria-labelledby]="'pending-approve-confirm-title'">
     <div class="relative w-full max-w-md bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden" (click)="$event.stopPropagation()">
       <div class="px-6 pt-6 pb-4 border-b border-gray-100 bg-gradient-to-br from-gray-50 to-white">
         <div class="flex items-start justify-between gap-3">
           <div>
-            <p class="text-[10px] font-bold uppercase tracking-wider text-brand-900/80">{{ modalTypeLabelKey(r) | translate }}</p>
-            <h2 class="text-lg font-bold text-gray-900 mt-1 leading-snug">{{ 'CHANGE_REQUEST.PENDING_MODAL_TITLE' | translate }}</h2>
-            <p class="text-sm text-gray-600 mt-1">{{ modalContextTitle(r) }}</p>
+            <p class="text-[10px] font-bold uppercase tracking-wider text-emerald-700/90">{{ 'CHANGE_REQUEST.APPROVE' | translate }}</p>
+            <h2 id="pending-approve-confirm-title" class="text-lg font-bold text-gray-900 mt-1 leading-snug">
+              {{ 'CHANGE_REQUEST.DETAIL_APPROVE_MODAL_TITLE' | translate }}
+            </h2>
           </div>
-          <button type="button" (click)="closeActionsModal()"
+          <button type="button" (click)="closeApproveConfirm()"
             class="shrink-0 w-9 h-9 flex items-center justify-center rounded-xl text-gray-500 hover:bg-gray-100 hover:text-gray-800 transition-colors"
             [attr.aria-label]="'COMMON.CLOSE' | translate">
             <i class="fas fa-times text-lg" aria-hidden="true"></i>
           </button>
         </div>
       </div>
-
       <div class="p-6">
-        <!-- Step: main actions -->
-        <div *ngIf="!modalRejectStep()" class="space-y-3">
-          <button *ngIf="canOpenFromModal(r)" type="button" (click)="openFromModal()"
-            class="w-full flex items-center gap-4 px-4 py-3.5 rounded-xl border-2 border-gray-200 bg-white text-left hover:border-brand-900/30 hover:bg-brand-900/[0.03] transition-all group">
-            <span class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gray-100 text-brand-900 group-hover:bg-brand-900 group-hover:text-white transition-colors">
-              <i class="fas fa-external-link-alt text-sm" aria-hidden="true"></i>
-            </span>
-            <span class="flex-1 min-w-0">
-              <span class="block text-sm font-semibold text-gray-900">{{ openButtonLabelKey(r) | translate }}</span>
-              <span class="block text-xs text-gray-500 mt-0.5">{{ 'CHANGE_REQUEST.PENDING_MODAL_OPEN_HINT' | translate }}</span>
-            </span>
-            <i class="fas fa-chevron-right text-gray-400 text-xs shrink-0" aria-hidden="true"></i>
+        <p class="text-sm text-gray-600 leading-relaxed">{{ 'CHANGE_REQUEST.CONFIRM_APPROVE' | translate }}</p>
+        <div class="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 pt-6">
+          <button type="button" (click)="closeApproveConfirm()" [disabled]="actionLoading()"
+            class="px-4 py-2.5 rounded-xl text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 transition-colors disabled:opacity-50">
+            {{ 'COMMON.CANCEL' | translate }}
           </button>
-
-          <button type="button" (click)="approveFromModal()" [disabled]="actionLoading() === rowActionKey(r)"
-            class="w-full flex items-center gap-4 px-4 py-3.5 rounded-xl border-2 border-emerald-200 bg-emerald-50/80 text-left hover:bg-emerald-100/90 transition-all disabled:opacity-50 disabled:cursor-not-allowed group">
-            <span class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-emerald-600 text-white shadow-sm">
-              <i class="fas fa-check text-sm" aria-hidden="true"></i>
-            </span>
-            <span class="flex-1 min-w-0">
-              <span class="block text-sm font-semibold text-emerald-900">{{ 'CHANGE_REQUEST.APPROVE' | translate }}</span>
-              <span class="block text-xs text-emerald-800/80 mt-0.5">{{ 'CHANGE_REQUEST.PENDING_MODAL_APPROVE_HINT' | translate }}</span>
-            </span>
-          </button>
-
-          <button type="button" (click)="startModalReject()" [disabled]="actionLoading() === rowActionKey(r)"
-            class="w-full flex items-center gap-4 px-4 py-3.5 rounded-xl border-2 border-rose-200 bg-rose-50/80 text-left hover:bg-rose-100/90 transition-all disabled:opacity-50 disabled:cursor-not-allowed group">
-            <span class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-rose-600 text-white shadow-sm">
-              <i class="fas fa-times text-sm" aria-hidden="true"></i>
-            </span>
-            <span class="flex-1 min-w-0">
-              <span class="block text-sm font-semibold text-rose-900">{{ 'CHANGE_REQUEST.REJECT' | translate }}</span>
-              <span class="block text-xs text-rose-800/80 mt-0.5">{{ 'CHANGE_REQUEST.PENDING_MODAL_REJECT_CARD_HINT' | translate }}</span>
-            </span>
+          <button type="button" (click)="confirmApprove()" [disabled]="actionLoading()"
+            class="px-4 py-2.5 rounded-xl text-sm font-semibold text-white bg-emerald-600 hover:bg-emerald-700 shadow-sm disabled:opacity-50 transition-colors">
+            {{ 'CHANGE_REQUEST.APPROVE_BUTTON' | translate }}
           </button>
         </div>
+      </div>
+    </div>
+  </div>
 
-        <!-- Step: reject form -->
-        <div *ngIf="modalRejectStep()" class="space-y-4">
-          <h3 class="text-base font-semibold text-gray-900">{{ 'CHANGE_REQUEST.PENDING_MODAL_REJECT_TITLE' | translate }}</h3>
-          <p class="text-xs text-gray-500">{{ 'CHANGE_REQUEST.PENDING_MODAL_REJECT_HINT' | translate }}</p>
+  <!-- Decline (same pattern as change-request-detail reject modal) -->
+  <div *ngIf="rejectModalOpen()" class="fixed inset-0 z-[9998] flex items-center justify-center p-4 bg-black/50 backdrop-blur-[2px] !mt-0"
+    (click)="closeRejectModal()" role="dialog" aria-modal="true" aria-labelledby="pending-reject-title">
+    <div class="relative w-full max-w-md bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden" (click)="$event.stopPropagation()">
+      <div class="px-6 pt-6 pb-4 border-b border-gray-100 bg-gradient-to-br from-gray-50 to-white">
+        <div class="flex items-start justify-between gap-3">
           <div>
-            <label for="pending-reject-comment" class="block text-sm font-medium text-gray-700 mb-1.5">{{ 'CHANGE_REQUEST.REJECT_REASON_LABEL' | translate }}</label>
-            <textarea id="pending-reject-comment" rows="4"
-              class="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-rose-500 focus:border-rose-500 resize-y min-h-[100px]"
-              [value]="modalRejectComment()" (input)="modalRejectComment.set($any($event.target).value)"
-              [placeholder]="'CHANGE_REQUEST.REJECT_REASON_PLACEHOLDER' | translate"></textarea>
+            <p class="text-[10px] font-bold uppercase tracking-wider text-rose-600/90">{{ 'CHANGE_REQUEST.PENDING_MODAL_REJECT_TITLE' | translate }}</p>
+            <h2 id="pending-reject-title" class="text-lg font-bold text-gray-900 mt-1 leading-snug">
+              {{ 'CHANGE_REQUEST.DETAIL_REJECT_MODAL_TITLE' | translate }}
+            </h2>
+            <p *ngIf="rejectRowRequiresComment()" class="text-sm text-gray-600 mt-2">{{ 'CHANGE_REQUEST.PENDING_MODAL_REJECT_HINT' | translate }}</p>
+            <p *ngIf="!rejectRowRequiresComment()" class="text-sm text-gray-600 mt-2">{{ 'CHANGE_REQUEST.CONFIRM_REJECT_WITHOUT_REASON' | translate }}</p>
           </div>
-          <p *ngIf="modalRejectError()" class="text-sm text-red-600">{{ modalRejectError() }}</p>
-          <div class="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 pt-2">
-            <button type="button" (click)="backModalReject()" [disabled]="actionLoading() === rowActionKey(r)"
-              class="px-4 py-2.5 rounded-xl text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 transition-colors disabled:opacity-50">
-              {{ 'CHANGE_REQUEST.PENDING_MODAL_REJECT_BACK' | translate }}
-            </button>
-            <button type="button" (click)="submitModalReject()" [disabled]="actionLoading() === rowActionKey(r)"
-              class="px-4 py-2.5 rounded-xl text-sm font-semibold text-white bg-rose-600 hover:bg-rose-700 shadow-sm disabled:opacity-50 transition-colors">
-              {{ 'CHANGE_REQUEST.PENDING_MODAL_REJECT_SUBMIT' | translate }}
-            </button>
-          </div>
+          <button type="button" (click)="closeRejectModal()"
+            class="shrink-0 w-9 h-9 flex items-center justify-center rounded-xl text-gray-500 hover:bg-gray-100 hover:text-gray-800 transition-colors"
+            [attr.aria-label]="'COMMON.CLOSE' | translate">
+            <i class="fas fa-times text-lg" aria-hidden="true"></i>
+          </button>
+        </div>
+      </div>
+      <div class="p-6 space-y-4">
+        <div *ngIf="rejectRowRequiresComment()">
+          <label for="pending-reject-comment" class="block text-sm font-medium text-gray-700 mb-1.5">
+            {{ 'CHANGE_REQUEST.REJECT_REASON_LABEL' | translate }}
+            <span class="text-red-500">*</span>
+          </label>
+          <textarea id="pending-reject-comment" rows="4"
+            class="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-rose-500 focus:border-rose-500 resize-y min-h-[100px]"
+            [value]="rejectComment()" (input)="rejectComment.set($any($event.target).value)"
+            [placeholder]="'CHANGE_REQUEST.REJECT_REASON_PLACEHOLDER' | translate"></textarea>
+        </div>
+        <p *ngIf="rejectError()" class="text-sm text-red-600">{{ rejectError() }}</p>
+        <div class="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 pt-2">
+          <button type="button" (click)="closeRejectModal()" [disabled]="actionLoading()"
+            class="px-4 py-2.5 rounded-xl text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 transition-colors disabled:opacity-50">
+            {{ 'COMMON.CANCEL' | translate }}
+          </button>
+          <button type="button" (click)="confirmReject()" [disabled]="actionLoading()"
+            class="px-4 py-2.5 rounded-xl text-sm font-semibold text-white bg-rose-600 hover:bg-rose-700 shadow-sm disabled:opacity-50 transition-colors">
+            {{ 'CHANGE_REQUEST.PENDING_MODAL_REJECT_SUBMIT' | translate }}
+          </button>
         </div>
       </div>
     </div>

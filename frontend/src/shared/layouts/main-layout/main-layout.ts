@@ -1,4 +1,4 @@
-import { Component, inject, signal, OnInit, OnDestroy, computed } from '@angular/core';
+import { Component, inject, signal, OnInit, OnDestroy, computed, effect, viewChild, ElementRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule, RouterOutlet, Router, NavigationEnd } from '@angular/router';
 import { Location } from '@angular/common';
@@ -9,8 +9,10 @@ import { BreadcrumbService } from '@core/services/breadcrumb.service';
 import { SidebarService } from '@core/services/sidebar.service';
 import { ThemeService } from '@core/services/theme.service';
 import { NotificationBellComponent } from '@features/notification-management/notification-bell/notification-bell';
+import { UserTasksBellComponent } from '@features/task-management/user-tasks-bell/user-tasks-bell';
 import { I18nService } from '@core/services/i18n.service';
 import { TranslateModule, TranslateService } from '@ngx-translate/core';
+import { NotificationSocketService } from '@core/services/notification-socket.service';
 
 /** Segment labels for breadcrumb (path segment -> display label). */
 const SEGMENT_LABELS: Record<string, string> = {
@@ -39,11 +41,12 @@ const SEGMENT_LABELS: Record<string, string> = {
 @Component({
   selector: 'app-main-layout',
   standalone: true,
-  imports: [CommonModule, RouterModule, Sidebar, NotificationBellComponent, TranslateModule],
+  imports: [CommonModule, RouterModule, Sidebar, UserTasksBellComponent, NotificationBellComponent, TranslateModule],
   templateUrl: './main-layout.html'
 })
 export class MainLayout implements OnInit, OnDestroy {
   private authStore = inject(AuthStore);
+  private notificationSocket = inject(NotificationSocketService);
   private router = inject(Router);
   private location = inject(Location);
   private breadcrumbService = inject(BreadcrumbService);
@@ -51,6 +54,9 @@ export class MainLayout implements OnInit, OnDestroy {
   private translate = inject(TranslateService);
   theme = inject(ThemeService);
   sidebarService = inject(SidebarService);
+
+  /** Scroll container for routed pages (`overflow-auto`); not the window. */
+  private mainScroll = viewChild<ElementRef<HTMLElement>>('mainScroll');
 
   isAuthenticated = this.authStore.isAuthenticated;
   /** Base breadcrumb from URL (without context) */
@@ -76,11 +82,20 @@ export class MainLayout implements OnInit, OnDestroy {
   /** Brief opacity fade when language changes for a smoother transition. */
   langTransitioning = signal(false);
 
+  constructor() {
+    effect(() => {
+      this.notificationSocket.syncAuthToken(this.authStore.token());
+    });
+  }
+
   ngOnInit(): void {
     this.updateBreadcrumb(this.router.url);
     this.sub = this.router.events
       .pipe(filter((e): e is NavigationEnd => e instanceof NavigationEnd))
-      .subscribe((e) => this.updateBreadcrumb(e.urlAfterRedirects || e.url));
+      .subscribe((e) => {
+        this.updateBreadcrumb(e.urlAfterRedirects || e.url);
+        this.scrollMainContentToTop();
+      });
     this.langSub = this.translate.onLangChange.subscribe(() => {
       this.updateBreadcrumb(this.router.url);
       this.langTransitioning.set(true);
@@ -91,6 +106,16 @@ export class MainLayout implements OnInit, OnDestroy {
   ngOnDestroy(): void {
     this.sub?.unsubscribe();
     this.langSub?.unsubscribe();
+    this.notificationSocket.syncAuthToken(null);
+  }
+
+  /** Reset scroll when switching routes; main content lives in `overflow-auto`, not `document`. */
+  private scrollMainContentToTop(): void {
+    requestAnimationFrame(() => {
+      const el = this.mainScroll()?.nativeElement;
+      if (el) el.scrollTop = 0;
+      window.scrollTo(0, 0);
+    });
   }
 
   private updateBreadcrumb(url: string): void {

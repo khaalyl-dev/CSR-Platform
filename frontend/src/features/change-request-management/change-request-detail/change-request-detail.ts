@@ -6,11 +6,12 @@ import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
 import { TranslateModule, TranslateService } from '@ngx-translate/core';
 import { ChangeRequestsApi, type ChangeRequestWithDocs } from '../api/change-requests-api';
 import { AuthStore } from '@core/services/auth-store';
+import { UserAvatarNameComponent } from '@shared/components/user-avatar-name/user-avatar-name';
 
 @Component({
   selector: 'app-change-request-detail',
   standalone: true,
-  imports: [CommonModule, RouterModule, TranslateModule],
+  imports: [CommonModule, RouterModule, TranslateModule, UserAvatarNameComponent],
   templateUrl: './change-request-detail.html',
 })
 export class ChangeRequestDetailComponent implements OnInit, OnDestroy {
@@ -33,6 +34,12 @@ export class ChangeRequestDetailComponent implements OnInit, OnDestroy {
   /** Sanitized URL for PDF iframe (Angular blocks raw blob in iframe) */
   previewSafeUrl = signal<SafeResourceUrl | null>(null);
   previewLoading = signal(false);
+  /** Reject: styled modal (same pattern as pending list) instead of browser prompt */
+  rejectModalOpen = signal(false);
+  rejectComment = signal('');
+  rejectSubmitError = signal('');
+  /** Approve: confirmation modal instead of browser confirm */
+  approveConfirmOpen = signal(false);
 
   get isCorporate(): boolean {
     return this.authStore.user()?.role === 'corporate';
@@ -72,6 +79,25 @@ export class ChangeRequestDetailComponent implements OnInit, OnDestroy {
     };
     const key = keyMap[s];
     return key ? this.translate.instant(key) : s;
+  }
+
+  /** Site L1 step (111, not yet corporate): API requires rejection comment. Corporate final reject does not. */
+  rejectRequiresComment(): boolean {
+    const r = this.request();
+    if (!r || r.status !== 'PENDING') return false;
+    const vm = String(r.validation_mode ?? '').trim();
+    const step = r.validation_step;
+    return vm === '111' && step !== 2;
+  }
+
+  /** Unlock request validation path (101 / 111); same wording as create form. */
+  validationModeLabel(): string {
+    const r = this.request();
+    if (!r) return '–';
+    const m = String(r.validation_mode ?? '').trim();
+    if (m === '101') return this.translate.instant('CHANGE_REQUEST.UNLOCK_MODE_CORPORATE_ONLY');
+    if (m === '111') return this.translate.instant('CHANGE_REQUEST.UNLOCK_MODE_SITE_THEN_CORPORATE');
+    return m || '–';
   }
 
   downloadDocument(filePath: string, fileName?: string): void {
@@ -135,15 +161,25 @@ export class ChangeRequestDetailComponent implements OnInit, OnDestroy {
     this.previewSafeUrl.set(null);
   }
 
-  approve(): void {
+  openApproveConfirm(): void {
     const r = this.request();
     if (!r || r.status !== 'PENDING') return;
-    if (!confirm('Approuver cette demande ? Le plan sera déverrouillé pour modification.')) return;
+    this.approveConfirmOpen.set(true);
+  }
+
+  closeApproveConfirm(): void {
+    this.approveConfirmOpen.set(false);
+  }
+
+  confirmApprove(): void {
+    const r = this.request();
+    if (!r || r.status !== 'PENDING') return;
     this.actionLoading.set(true);
     this.api.approve(r.id).subscribe({
       next: (updated) => {
         this.request.set(updated);
         this.actionLoading.set(false);
+        this.approveConfirmOpen.set(false);
       },
       error: (err) => {
         this.error.set(err.error?.message ?? 'Erreur');
@@ -152,16 +188,35 @@ export class ChangeRequestDetailComponent implements OnInit, OnDestroy {
     });
   }
 
-  reject(): void {
+  openRejectModal(): void {
     const r = this.request();
     if (!r || r.status !== 'PENDING') return;
-    const comment = prompt('Motif du rejet (optionnel) :');
-    if (comment === null) return;
+    this.rejectComment.set('');
+    this.rejectSubmitError.set('');
+    this.rejectModalOpen.set(true);
+  }
+
+  closeRejectModal(): void {
+    this.rejectModalOpen.set(false);
+    this.rejectComment.set('');
+    this.rejectSubmitError.set('');
+  }
+
+  confirmReject(): void {
+    const r = this.request();
+    if (!r || r.status !== 'PENDING') return;
+    const comment = this.rejectComment().trim();
+    if (this.rejectRequiresComment() && !comment) {
+      this.rejectSubmitError.set(this.translate.instant('CHANGE_REQUEST.REJECT_COMMENT_REQUIRED'));
+      return;
+    }
+    this.rejectSubmitError.set('');
     this.actionLoading.set(true);
-    this.api.reject(r.id, comment ?? undefined).subscribe({
+    this.api.reject(r.id, comment || undefined).subscribe({
       next: (updated) => {
         this.request.set(updated);
         this.actionLoading.set(false);
+        this.closeRejectModal();
       },
       error: (err) => {
         this.error.set(err.error?.message ?? 'Erreur');

@@ -25,6 +25,7 @@ backend/
     ├── user_management/
     ├── site_management/
     ├── csr_plan_management/
+    ├── planned_activity_management/
     ├── realized_activity_management/
     ├── validation_workflow_management/
     ├── change_request_management/

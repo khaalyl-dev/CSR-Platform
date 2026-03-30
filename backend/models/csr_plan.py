@@ -65,6 +65,10 @@ class CsrPlan(db.Model):
         CHAR(36, collation="utf8mb4_unicode_ci"), db.ForeignKey("users.id", ondelete="SET NULL"), nullable=True,
         comment="Créateur du plan"
     )
+    submitted_by = db.Column(
+        CHAR(36, collation="utf8mb4_unicode_ci"), db.ForeignKey("users.id", ondelete="SET NULL"), nullable=True,
+        comment="Dernier utilisateur ayant soumis le plan pour validation",
+    )
     created_at = db.Column(db.DateTime, default=db.func.now(), comment="Date de création")
     updated_at = db.Column(
         db.DateTime, default=db.func.now(), onupdate=db.func.now(),

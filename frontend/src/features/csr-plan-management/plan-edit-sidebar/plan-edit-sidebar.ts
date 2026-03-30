@@ -11,6 +11,7 @@ import { I18nService } from '@core/services/i18n.service';
   standalone: true,
   imports: [CommonModule, ReactiveFormsModule, TranslateModule],
   templateUrl: './plan-edit-sidebar.html',
+  host: { class: 'flex flex-col flex-1 min-h-0 overflow-hidden block w-full' },
 })
 export class PlanEditSidebarComponent implements OnInit {
   private fb = inject(FormBuilder);

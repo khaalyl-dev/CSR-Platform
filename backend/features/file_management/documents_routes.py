@@ -3,6 +3,7 @@ from flask import Blueprint, jsonify, send_from_directory, request
 from sqlalchemy import or_
 from config import get_media_folder
 from core import db, token_required
+from core.user_avatar import user_avatar_serve_url
 from models import Document, UserSite
 from datetime import datetime
 
@@ -27,6 +28,7 @@ def _document_to_json(doc: Document):
         "is_pinned": doc.is_pinned,
         "uploaded_by": doc.uploaded_by or "",
         "uploader_name": f"{doc.uploader.first_name} {doc.uploader.last_name}" if doc.uploader else "—",
+        "uploader_avatar_url": user_avatar_serve_url(doc.uploader) if doc.uploader else None,
         "uploaded_at": doc.uploaded_at.isoformat() if doc.uploaded_at else None,
         "updated_at": doc.updated_at.isoformat() if doc.updated_at else None,
     }

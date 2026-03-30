@@ -8,6 +8,7 @@ export interface Document {
   is_pinned: boolean;
   uploaded_by: string;
   uploader_name: string;
+  uploader_avatar_url?: string | null;
   uploaded_at: string | null;
   updated_at: string | null;
   change_request_id?: string | null;

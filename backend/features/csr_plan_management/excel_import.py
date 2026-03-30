@@ -207,21 +207,13 @@ def _validate_row_values(row: dict[str, Any], row_num: int) -> list[str]:
         errors.append(f"Activity {row_num}: édition invalide ({ed_err})")
 
     # Year handling:
-    # - Plan year is selected explicitly in the import flow (not inferred from start_year).
-    # - start_year is an activity field (edition/history context), not plan year.
-    year_raw = row.get("year")
+    # - Plan year is selected explicitly in the import flow (not inferred from Excel columns).
+    # - The optional Excel "Year" column is ignored for validation/import.
+    # - start_year is an optional activity field (edition/history context), independent from plan year.
     start_year_raw = row.get("start_year")
-
     start_year, start_year_err = _parse_int_or_error(start_year_raw)
     if start_year_raw not in (None, "") and start_year_err:
         errors.append(f"Activity {row_num}: start year invalide ({start_year_err})")
-
-    year, year_err = _parse_int_or_error(year_raw)
-    if year_raw not in (None, "") and year_err:
-        errors.append(f"Activity {row_num}: année invalide ({year_err})")
-
-    if year is not None and (year < 2000 or year > 2100):
-        errors.append(f"Activity {row_num}: année invalide {year}")
     if start_year is not None and (start_year < 1900 or start_year > 2100):
         errors.append(f"Activity {row_num}: start year invalide {start_year}")
 

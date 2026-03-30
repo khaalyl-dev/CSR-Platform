@@ -14,12 +14,16 @@ export interface ChangeRequestWithDocs extends ChangeRequest {
   activity_title?: string;
   activity_number?: string;
   requested_by_name?: string;
+  requested_by_avatar_url?: string | null;
   requested_duration?: string | null;
   reviewed_by_name?: string;
+  reviewed_by_avatar_url?: string | null;
   site_name?: string;
   pending_item_type?: 'CHANGE_REQUEST' | 'OFF_PLAN_ACTIVITY' | 'IN_PLAN_ACTIVITY_MOD';
   activity_id?: string;
   off_plan_validation_mode?: string | null;
+  validation_mode?: string | null;
+  validation_step?: number | null;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -28,7 +32,14 @@ export class ChangeRequestsApi {
 
   constructor(private http: HttpClient) {}
 
-  create(payload: { plan_id?: string; activity_id?: string; reason: string; requested_duration?: number }): Observable<ChangeRequestWithDocs> {
+  create(payload: {
+    plan_id?: string;
+    activity_id?: string;
+    reason: string;
+    requested_duration?: number;
+    /** Required for site level 0 (not level 1): 101 or 111 */
+    validation_mode?: '101' | '111';
+  }): Observable<ChangeRequestWithDocs> {
     return this.http.post<ChangeRequestWithDocs>(`${this.apiUrl}/change-requests`, payload);
   }
 

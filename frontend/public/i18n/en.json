@@ -16,7 +16,8 @@
     "LOADING_ARIA": "Loading",
     "EDIT": "Edit",
     "DELETE": "Delete",
-    "CONFIRM": "Confirm"
+    "CONFIRM": "Confirm",
+    "NONE": "None"
   },
   "PLAN_DETAIL": {
     "MODE": "Validation mode",
@@ -24,7 +25,7 @@
     "THEN_AUTO_LOCK": "— then auto-locks",
     "CHANGE_REQUEST_TITLE": "Request a change",
     "APPROVE": "Approve",
-    "REJECT": "Send back",
+    "REJECT": "Reject",
     "ADD_ACTIVITY": "Add an activity",
     "ADD_OFF_PLAN_ACTIVITY": "Add off-plan activity",
     "BADGE_OFF_PLAN": "Off plan",
@@ -40,10 +41,11 @@
     "ACTIVITIES_TO_MODIFY_OPTIONAL": "Activities to revise (optional)",
     "NO_ACTIVITIES_IN_PLAN": "No activities have been added to this plan yet.",
     "REJECT_PLAN_BUTTON": "Reject plan",
+    "REJECT_REASON_REQUIRED": "A rejection reason is required.",
     "STATUS_DRAFT": "Draft",
     "STATUS_SUBMITTED": "Awaiting review",
     "STATUS_VALIDATED": "Approved",
-    "STATUS_REJECTED": "Needs revision",
+    "STATUS_REJECTED": "Rejected",
     "STEP_PENDING_MANAGER": "Awaiting manager approval",
     "STEP_PENDING_CORPORATE": "Awaiting final corporate approval",
     "STEP_PENDING_CORPORATE_ONLY": "Awaiting corporate approval",
@@ -53,6 +55,14 @@
     "SUBMIT_ACTIVITY_FOR_REVIEW": "Submit activity changes for approval",
     "SUBMIT_FOR_VALIDATION": "Submit for approval",
     "ACTIVITIES_COUNT": "Activities",
+    "REALIZATION_COL": "Status",
+    "STATUS_OFF_PLAN_LEGEND": "Off plan (in Status)",
+    "REALIZATION_STATUS_PLANNED": "Planned",
+    "REALIZATION_STATUS_IN_PROGRESS": "In progress",
+    "REALIZATION_STATUS_COMPLETED": "Completed",
+    "REALIZATION_LEGEND_PLANNED": "Future-year plan, or plan in draft / rejected / awaiting approval",
+    "REALIZATION_LEGEND_IN_PROGRESS": "Approved plan — realization data still to enter",
+    "REALIZATION_LEGEND_COMPLETED": "Approved plan with realization data recorded",
     "TITLE": "Title",
     "DESCRIPTION": "Description",
     "BUDGET_PLANNED": "Planned budget",
@@ -76,6 +86,9 @@
     "TOTAL_HC": "Total HC",
     "PERCENTAGE_EMPLOYEES": "% employees",
     "NUMBER_EXTERNAL_PARTNERS": "No. external partners",
+    "APPROVE_CONFIRM_MODAL_TITLE": "Confirm approval",
+    "APPROVE_PLAN_CONFIRM_BODY": "Approve this plan? It will move forward in the validation workflow.",
+    "OFF_PLAN_APPROVE_CONFIRM_BODY": "Approve this activity? It will be marked as validated in the plan.",
     "OFF_PLAN_APPROVE": "Approve off-plan activity",
     "OFF_PLAN_REJECT": "Reject off-plan activity",
     "OFF_PLAN_RESUBMIT": "Resubmit for validation",
@@ -100,6 +113,27 @@
     "SETTINGS": "Settings",
     "TOGGLE_DARK": "Switch to dark mode",
     "TOGGLE_LIGHT": "Switch to light mode"
+  },
+  "USER_TASKS": {
+    "TITLE": "My tasks",
+    "SUBTITLE": "Actions waiting for you",
+    "ARIA": "Open task list",
+    "LOADING": "Loading…",
+    "EMPTY": "You're all set — nothing needs your attention right now.",
+    "LOAD_ERROR": "Could not load tasks.",
+    "KIND_APPROVE_PLAN": "Approve an annual plan",
+    "KIND_EDIT_PLAN_DRAFT": "Finish or update a plan",
+    "KIND_FIX_REJECTED_PLAN": "Update plan after rejection",
+    "KIND_APPROVE_ACTIVITY": "Validate an activity",
+    "KIND_RESUBMIT_ACTIVITY": "Fix a rejected activity",
+    "KIND_EDIT_UNLOCKED_ACTIVITY": "Update an activity (temporary edit access)",
+    "KIND_EDIT_UNLOCKED_PLAN": "Update a plan (temporary edit access)",
+    "KIND_REVIEW_CHANGE_REQUEST": "Review a change request",
+    "KIND_REVIEW_PENDING_CHANGES": "Pending change requests",
+    "META_PENDING_CHANGES": "Review items awaiting your decision",
+    "META_SITE_YEAR": "{{site}} · {{year}}",
+    "META_SITE_YEAR_ACTIVITY": "{{site}} · {{year}} · {{activity}}",
+    "META_PLAN_ACTIVITY": "{{activity}}"
   },
   "DASHBOARD": {
     "SUBTITLE": "Your corporate social responsibility impact at a glance",
@@ -261,7 +295,8 @@
     },
     "THEME": {
       "LIGHT": "Light",
-      "DARK": "Dark"
+      "DARK": "Dark",
+      "SYSTEM": "Match system"
     },
     "BUTTONS": {
       "UPLOADING": "Uploading...",
@@ -315,19 +350,7 @@
     "PHOTO_UPLOAD_ERROR": "Photo upload failed. Please try again.",
     "PASSWORD_MISMATCH": "The passwords don't match. Please try again.",
     "PASSWORD_CHANGE_SUCCESS": "Password updated successfully!",
-    "PASSWORD_CHANGE_ERROR": "Couldn't change your password. Please try again.",
-    "TABS": {
-      "PROFILE": "Profile",
-      "ACCOUNT": "Account",
-      "SECURITY": "Security",
-      "NOTIFICATIONS": "Notifications",
-      "PREFERENCES": "Preferences"
-    },
-    "THEME": {
-      "LIGHT": "Light",
-      "DARK": "Dark",
-      "SYSTEM": "Match system"
-    }
+    "PASSWORD_CHANGE_ERROR": "Couldn't change your password. Please try again."
   },
   "DOCUMENTS": {
     "TITLE": "Document Hub",
@@ -420,7 +443,7 @@
       "SUBMITTED": "Under review",
       "VALIDATED": "Approved",
       "UNLOCKED": "Unlocked",
-      "REJECTED": "Needs revision"
+      "REJECTED": "Rejected"
     },
     "TABLE": {
       "SITE": "Site",
@@ -428,6 +451,10 @@
       "YEAR": "Year",
       "VALIDATION_MODE": "Approval mode",
       "TOTAL_BUDGET": "Total budget",
+      "BUDGET_SPENT": "Budget spent",
+      "REALIZATION_PROGRESS": "Realization progress",
+      "PLANNED": "Planned",
+      "REALIZED_PERIOD": "Realized",
       "MODE": "Mode",
       "ACTIVITIES": "Activities",
       "CREATED_AT": "Created",
@@ -578,6 +605,7 @@
     "ACTION_REQUEST_MODIFICATION": "Change requested",
     "ENTITY_PLAN": "Plan",
     "ENTITY_ACTIVITY": "Activity",
+    "ENTITY_REALIZATION": "Realization",
     "FILTER_BUTTON": "Filter",
     "LOADING": "Loading audit log...",
     "EMPTY": "No audit entries found.",
@@ -587,11 +615,8 @@
     "SITE": "Site",
     "USER": "User",
     "DESCRIPTION": "Description",
-    "ACTIONS": "Actions",
+    "LINK": "Link",
     "VIEW": "View",
-    "RESTORE": "Restore",
-    "CONFIRM_ROLLBACK": "Restore this action? The previous state will be recovered.",
-    "ROLLBACK_ERROR": "Restore failed. Please try again.",
     "LOAD_ERROR": "Couldn't load the audit log.",
     "DESC_PLAN_VALIDATED": "Plan {{year}} approved",
     "DESC_PLAN_CREATED": "Plan {{year}} created",
@@ -606,7 +631,8 @@
     "DESC_CHANGE_REJECTED_REASON": "Change request rejected: {{reason}}",
     "DESC_ACTIVITY_CREATED": "Activity added: {{title}}",
     "DESC_ACTIVITY_UPDATED": "Activity updated: {{title}}",
-    "DESC_ACTIVITY_DELETED": "Activity removed: {{title}}"
+    "DESC_ACTIVITY_DELETED": "Activity removed: {{title}}",
+    "DESC_REALIZATION_DELETED": "Realization row removed: {{title}}"
   },
   "PLAN_VALIDATION": {
     "TITLE": "Plan approval",
@@ -615,22 +641,26 @@
     "EMPTY": "No plans are waiting for your approval. Check back later!",
     "SITE": "Site",
     "YEAR": "Year",
+    "SUBMITTED_BY": "Submitted by",
     "MODE": "Approval mode",
     "STEP": "Step",
     "BUDGET": "Budget",
     "ACTIONS": "Actions",
     "DETAILS": "Review",
     "APPROVE": "Approve",
-    "REJECT": "Send back",
-    "REJECT_TITLE": "Request revisions",
+    "REJECT": "Reject",
+    "REJECT_TITLE": "Reject plan",
     "REJECT_INSTRUCTIONS": "Explain what needs to be corrected, and flag any specific activities if needed.",
+    "REJECT_REASON_REQUIRED": "A rejection reason is required.",
     "LOADING_ACTIVITIES": "Loading activities...",
     "REJECT_REASON_LABEL": "Reason for rejection",
     "REJECT_REASON_PLACEHOLDER": "e.g. Budget not justified, description too vague...",
     "ACTIVITIES_TO_MODIFY": "Activities to revise (optional)",
     "NO_ACTIVITIES_IN_PLAN": "This plan has no activities yet.",
     "CANCEL": "Cancel",
-    "REJECT_PLAN": "Send back for revision",
+    "REJECT_PLAN": "Reject plan",
+    "APPROVE_CONFIRM_MODAL_TITLE": "Confirm approval",
+    "APPROVE_CONFIRM_BODY": "Approve this plan? It will move forward in the validation workflow and may be locked when fully approved.",
     "STEP_PENDING_MANAGER": "Awaiting manager approval",
     "STEP_PENDING_CORPORATE": "Awaiting final corporate sign-off",
     "STEP_PENDING_CORPORATE_ONLY": "Awaiting corporate approval",
@@ -747,9 +777,12 @@
     "LOADING_SITES": "Loading sites...",
     "SITE_REQ": "Site *",
     "CHOOSE_SITE": "Select a site",
+    "SITE_REQUIRED": "Please select a site",
     "YEAR_REQ": "Year *",
     "VALIDATION_MODE": "Approval mode",
-    "TOTAL_BUDGET": "Total budget (€)"
+    "TOTAL_BUDGET": "Total budget (€)",
+    "CREATING": "Creating plan...",
+    "CREATE_BUTTON": "Create plan"
   },
   "REALIZED_CREATE": {
     "TITLE": "Log a realization",
@@ -791,7 +824,9 @@
     "PLACEHOLDER_COMMENT": "Any additional notes...",
     "PLACEHOLDER_CONTACT_NAME": "Optional",
     "PLACEHOLDER_CONTACT_EMAIL": "Optional",
-    "REALIZED_SECTION_NUMBERED": "Realized data"
+    "REALIZED_SECTION_NUMBERED": "Realized data",
+    "ACTIVITY_REQUIRED": "Please select an activity",
+    "RECORDING": "Recording realization..."
   },
   "OFF_PLAN_SIDEBAR": {
     "TITLE": "Off-plan activity",
@@ -802,11 +837,12 @@
     "INTERNAL_PARTICIPANTS": "Number of internal participants",
     "PERCENT_ALL_EMPLOYEES": "Participants employees (%)",
     "ACTUAL_BUDGET_EUR": "Actual budget (€)",
-    "ACTION_IMPACT_NUMBERS": "Action impact (numeric value)",
+    "ACTION_IMPACT_NUMBERS": "Action impact",
     "ACTION_IMPACT_UNIT": "Action impact unit",
     "VALIDATION_MODE": "Validation mode",
     "REALIZED_ONLY_SECTION": "Realized data",
-    "SUBMIT": "Submit"
+    "SUBMIT": "Submit",
+    "INCLUDE_PLANNED_DETAILS": "Include planned activity details in this submission"
   },
   "PLANNED_ACTIVITY_CREATE": {
     "AMENDMENT_TITLE": "Add activity to the plan",
@@ -863,6 +899,7 @@
     "CONFIRM_APPROVE": "Approve this request? The plan or activity will be temporarily unlocked for editing.",
     "CONFIRM_APPROVE_OFF_PLAN": "Approve this off-plan activity? It will be marked as validated in the plan.",
     "CONFIRM_APPROVE_IN_PLAN_MOD": "Approve these changes to the planned activity? It will be marked as validated in the plan.",
+    "CONFIRM_REJECT_WITHOUT_REASON": "Reject this change request? The requester will be notified.",
     "REJECT_PROMPT": "Rejection comment (optional for unlock requests, required for activity validation):",
     "REJECT_COMMENT_REQUIRED": "A rejection reason is required for this activity.",
     "REJECT_REASON_LABEL": "Reason for rejection",
@@ -876,6 +913,7 @@
     "STATUS_PENDING": "Pending",
     "STATUS_APPROVED": "Approved",
     "STATUS_REJECTED": "Rejected",
+    "DETAIL_VALIDATION_MODE": "Validation mode",
     "VIEW_PLAN": "Open plan",
     "PLAN_YEAR": "Plan / Year",
     "REQUESTER": "Requested by",
@@ -900,7 +938,7 @@
     "PREVIEW_TITLE": "Document preview",
     "PDF_PREVIEW_TITLE": "PDF preview",
     "LIST_TITLE": "My change requests",
-    "LIST_SUBTITLE": "Request access to edit locked plans",
+    "LIST_SUBTITLE": "Unlock and change requests for your sites from level 0 and level 1 users",
     "LIST_EMPTY": "No change requests",
     "LIST_VIEW_PLANS": "View annual plans",
     "CREATE_BACK": "Back",
@@ -910,6 +948,10 @@
     "REQUEST_ACTIVITY_CHANGE": "Request change",
     "CREATE_ACCESS_HINT": "To request a change, open an approved plan and click the lock icon.",
     "CREATE_APPROVAL_HINT": "A corporate user must approve this request. Once approved, the plan will be temporarily unlocked for editing.",
+    "UNLOCK_VALIDATION_MODE_LABEL": "Approval path for this unlock request",
+    "UNLOCK_VALIDATION_MODE_HINT": "Corporate only: sent straight to corporate. Site then corporate: a level 1 manager must approve first, then corporate.",
+    "UNLOCK_MODE_CORPORATE_ONLY": "Corporate validation only (101)",
+    "UNLOCK_MODE_SITE_THEN_CORPORATE": "Site level 1, then corporate (111)",
     "JUSTIFICATION_LABEL": "Why are you requesting this change?",
     "DURATION_LABEL": "How long do you need access? (days)",
     "DURATION_HINT": "After approval, the plan will be editable for this many days (1–365), then lock again automatically.",
@@ -929,7 +971,11 @@
     "NO_DOCUMENTS_JOINED": "No documents attached.",
     "PREVIEW": "Preview",
     "DOWNLOAD": "Download",
+    "DETAIL_APPROVE_MODAL_TITLE": "Confirm approval",
+    "DETAIL_REJECT_MODAL_TITLE": "Decline this request",
+    "REJECT_OPTIONAL_HINT": "optional",
     "APPROVE_BUTTON": "Approve request",
+    "DECLINE": "Decline",
     "REJECT_BUTTON": "Decline request",
     "PREVIEW_LOADING": "Loading preview..."
   },
@@ -979,6 +1025,7 @@
     "EDIT": "Edit",
     "MODIFICATION_UNAVAILABLE": "Editing unavailable",
     "REALIZATION_INFO": "Realization details",
+    "CONTACT_SECTION": "Contact",
     "BUDGET_REALIZED": "Actual spend",
     "PARTICIPANTS": "Participants",
     "HEADCOUNT": "Headcount",
@@ -994,7 +1041,9 @@
     "CONTACT_NAME": "Contact — Name",
     "CONTACT_EMAIL": "Contact — Email",
     "ENTERED_ON": "Recorded on",
-    "REALIZATION_FALLBACK": "Realization"
+    "REALIZATION_FALLBACK": "Realization",
+    "DELETE_CONFIRM": "Permanently delete this realization? This action cannot be undone.",
+    "DELETE_ERROR": "Couldn't delete this realization. Please try again."
   },
   "REALIZED_EDIT": {
     "BACK_TITLE": "Back",
@@ -1055,7 +1104,9 @@
     "PLANNED_VOLUNTEERS": "Planned volunteers",
     "IMPACT_TARGET": "Impact target",
     "IMPACT_UNIT": "Impact unit",
+    "IMPACT_DURATION": "Impact duration",
     "COLLAB_NATURE": "Collaboration type",
+    "PERIODICITY": "Periodicity",
     "ORGANIZATION": "Organisation",
     "ORGANIZER": "Organizer",
     "REALIZED_DATA": "Realized data",
@@ -1163,7 +1214,9 @@
     "OFF_PLAN_LABEL": "Off plan",
     "VALIDATION_MODE": "Off-plan validation mode",
     "DELETE_CONFIRM": "Permanently delete this planned activity? This action cannot be undone.",
-    "DELETE_ERROR": "Couldn't delete this activity. Please try again."
+    "DELETE_ERROR": "Couldn't delete this activity. Please try again.",
+    "CONTEXT_SECTION": "Context",
+    "FIELD_COLUMN": "Field"
   },
   "PLANNED_ACTIVITY_LIST": {
     "DELETE_CONFIRM": "Permanently delete this planned activity? This cannot be undone."

@@ -9,12 +9,20 @@ import logging
 from typing import Optional, Tuple
 
 from flask import Blueprint, request, jsonify
+from sqlalchemy import distinct, func
 
 logger = logging.getLogger(__name__)
 
 from core import db, token_required
-from models import CsrPlan, Site, UserSite, Validation, ChangeRequest
+from core.user_avatar import user_avatar_serve_url
+from models import CsrPlan, Site, User, UserSite, Validation, ChangeRequest
+from features.change_request_management.change_requests_routes import (
+    _activity_has_off_plan_realization,
+    _activity_has_pending_level1_validation,
+    _latest_off_plan_realization,
+)
 from features.notification_management.notification_helper import notify_corporate, notify_site_users
+from features.notification_management.socketio_emit import emit_tasks_refresh_for_request_actor
 from features.audit_history_management.audit_helper import (
     audit_create,
     audit_update,
@@ -30,10 +38,27 @@ def _is_corporate(role: str) -> bool:
     return (role or "").upper() in ("CORPORATE_USER", "CORPORATE")
 
 
+def _plan_validation_mode_str(plan: CsrPlan) -> str:
+    """Normalized plan validation mode (101 / 111); strips whitespace so DB values like ' 111 ' still match."""
+    raw = getattr(plan, "validation_mode", None)
+    m = str(raw if raw is not None else "101").strip()
+    return m if m else "101"
+
+
+def _plan_validation_step_int(plan: CsrPlan) -> Optional[int]:
+    raw = getattr(plan, "validation_step", None)
+    if raw is None:
+        return None
+    try:
+        return int(raw)
+    except (TypeError, ValueError):
+        return None
+
+
 def _plan_validation_grade(plan: CsrPlan) -> str:
     """Grade (level_1 / level_2) for the current validation step."""
-    mode = plan.validation_mode or "101"
-    step = getattr(plan, "validation_step", None)
+    mode = _plan_validation_mode_str(plan)
+    step = _plan_validation_step_int(plan)
     if mode == "111" and step == 1:
         return "level_1"
     return "level_2"
@@ -55,6 +80,61 @@ def _get_or_create_plan_validation(plan_id: str, site_id: str, grade: str):
     )
     db.session.add(v)
     return v
+
+
+def _reset_plan_validation_row_pending(v: Validation) -> None:
+    """Clear a validation row so a new review cycle can start (e.g. resubmit after reject)."""
+    v.status = "PENDING"
+    v.comment = None
+    v.rejected_activity_ids = None
+    v.validated_by = None
+    v.validated_at = None
+
+
+def _configure_plan_validation_after_site_submit(plan: CsrPlan, user_id: str) -> None:
+    """
+    Set validation_step and Validation rows when a site user submits for review.
+
+    Mode 111: if the submitter has grade level_1 on the plan site, Level 1 is treated as already
+    done (same as manual L1 approve) — only corporate (Level 2) must approve.
+    Otherwise mode 111 stays at step 1 for a separate L1 approver.
+    Mode 101: step 2, corporate only (unchanged).
+    """
+    mode = _plan_validation_mode_str(plan)
+    now = datetime.utcnow()
+    if mode == "101":
+        plan.validation_step = 2
+        v2 = _get_or_create_plan_validation(plan.id, plan.site_id, "level_2")
+        _reset_plan_validation_row_pending(v2)
+        return
+    if mode == "111" and _user_has_grade(user_id, plan.site_id, "level_1"):
+        plan.validation_step = 2
+        v1 = _get_or_create_plan_validation(plan.id, plan.site_id, "level_1")
+        v1.status = "APPROVED"
+        v1.validated_by = user_id
+        v1.validated_at = now
+        v1.comment = None
+        v1.rejected_activity_ids = None
+        v2 = _get_or_create_plan_validation(plan.id, plan.site_id, "level_2")
+        _reset_plan_validation_row_pending(v2)
+        write_audit(
+            user_id,
+            plan.site_id,
+            "APPROVE",
+            "PLAN",
+            plan.id,
+            "Validation niveau 1 (Level 1) — soumission validateur niveau 1",
+        )
+        return
+    if mode == "111":
+        plan.validation_step = 1
+        v1 = _get_or_create_plan_validation(plan.id, plan.site_id, "level_1")
+        _reset_plan_validation_row_pending(v1)
+        return
+    # Unexpected mode: corporate-only flow (same as 101) so the plan is not stuck
+    plan.validation_step = 2
+    v2 = _get_or_create_plan_validation(plan.id, plan.site_id, "level_2")
+    _reset_plan_validation_row_pending(v2)
 
 
 def _parse_rejected_activity_ids(plan: CsrPlan):
@@ -90,12 +170,51 @@ def _plan_total_realized_budget(plan: CsrPlan):
     return float(total) if total is not None else None
 
 
+def _plan_activities_realized_count(plan_id: str) -> int:
+    """Distinct planned activities in this plan that have at least one realization row."""
+    from models import CsrActivity, RealizedCsr
+    n = (
+        db.session.query(func.count(distinct(RealizedCsr.activity_id)))
+        .select_from(RealizedCsr)
+        .join(CsrActivity, CsrActivity.id == RealizedCsr.activity_id)
+        .filter(CsrActivity.plan_id == plan_id)
+        .scalar()
+    )
+    return int(n or 0)
+
+
+def _submitter_user(plan: CsrPlan):
+    """User who submitted for validation (SUBMITTED only); legacy rows fall back to creator."""
+    if plan.status != "SUBMITTED":
+        return None
+    uid = getattr(plan, "submitted_by", None) or plan.created_by
+    if not uid:
+        return None
+    return User.query.get(uid)
+
+
+def _submitter_display_name(plan: CsrPlan) -> Optional[str]:
+    """First + last name of last submitter (SUBMITTED only); legacy rows use created_by."""
+    u = _submitter_user(plan)
+    if not u:
+        return None
+    parts = [(getattr(u, "first_name", None) or "").strip(), (getattr(u, "last_name", None) or "").strip()]
+    parts = [p for p in parts if p]
+    if parts:
+        return " ".join(parts)
+    return (getattr(u, "email", None) or "").strip() or None
+
+
 def _plan_to_json(plan: CsrPlan):
     """Serialize plan with budget fields.
 
-    - `total_budget`: explicit plan value when set (manual override from plan edit).
-      Fallback keeps legacy behavior (past year: realized sum, current/future: planned sum).
-    - `total_estimated_budget` / `total_realized_budget`: always computed from activities/realizations.
+    - If an explicit `plan.total_budget` is set in DB, always expose it as
+      `total_budget` (all years).
+    - If `plan.total_budget` is null:
+        * For past years, fallback to `total_realized_budget`.
+        * For current/future years, fallback to `total_estimated_budget`.
+    - `total_estimated_budget` / `total_realized_budget` are always computed from
+      activities/realizations.
     """
     current_year = datetime.utcnow().year
     total_estimated = _plan_total_budget_from_activities(plan)
@@ -103,9 +222,9 @@ def _plan_to_json(plan: CsrPlan):
     if getattr(plan, "total_budget", None) is not None:
         total_budget = float(plan.total_budget)
     elif plan.year < current_year:
-        total_budget = total_realized_budget  # old year: budget total = sum of realized
+        total_budget = total_realized_budget
     else:
-        total_budget = total_estimated  # current or future: budget total = sum of estimated
+        total_budget = total_estimated
     return {
         "id": plan.id,
         "site_id": plan.site_id,
@@ -114,7 +233,7 @@ def _plan_to_json(plan: CsrPlan):
         "site_region": plan.site.region if plan.site else None,
         "site_country": plan.site.country if plan.site else None,
         "year": plan.year,
-        "validation_mode": plan.validation_mode or "101",
+        "validation_mode": _plan_validation_mode_str(plan),
         "validation_step": getattr(plan, "validation_step", None),
         "status": plan.status,
         "total_budget": total_budget,
@@ -126,6 +245,9 @@ def _plan_to_json(plan: CsrPlan):
         "rejected_activity_ids": _parse_rejected_activity_ids(plan),
         "unlock_until": plan.unlock_until.isoformat() if getattr(plan, "unlock_until", None) else None,
         "created_by": plan.created_by,
+        "submitted_by": getattr(plan, "submitted_by", None),
+        "submitted_by_name": _submitter_display_name(plan),
+        "submitted_by_avatar_url": user_avatar_serve_url(_submitter_user(plan)),
         "created_at": plan.created_at.isoformat() if plan.created_at else None,
         "updated_at": plan.updated_at.isoformat() if plan.updated_at else None,
     }
@@ -139,19 +261,33 @@ def _user_can_access_site(user_id: str, site_id: str) -> bool:
 
 def _user_has_grade(user_id: str, site_id: str, grade: str) -> bool:
     us = UserSite.query.filter_by(user_id=user_id, site_id=site_id, is_active=True).first()
-    return us and (us.grade or "").lower() == grade.lower()
+    if not us:
+        return False
+    g = (us.grade or "").strip().lower()
+    return g == (grade or "").strip().lower()
 
 
 def _compute_can_approve(plan: CsrPlan, user_id: str, role: str) -> bool:
     """True si l'utilisateur courant peut approuver/rejeter ce plan (status SUBMITTED)."""
     if plan.status != "SUBMITTED":
         return False
-    step_raw = getattr(plan, "validation_step", None)
-    step = int(step_raw) if step_raw is not None else None
-    mode = str(plan.validation_mode or "101")
+    step = _plan_validation_step_int(plan)
+    mode = _plan_validation_mode_str(plan)
     if mode == "111" and step == 1:
         return _user_can_access_site(user_id, plan.site_id) and _user_has_grade(user_id, plan.site_id, "level_1")
     return role in ("CORPORATE_USER", "CORPORATE")
+
+
+def _plan_json_with_approval_flags(plan: CsrPlan, user_id: Optional[str], role: str) -> dict:
+    """Same as _plan_to_json plus can_approve/can_reject so PATCH responses do not leave stale flags on the client."""
+    out = _plan_to_json(plan)
+    uid = (user_id or "").strip()
+    r = (role or "").upper()
+    if uid:
+        out["can_approve"] = out["can_reject"] = _compute_can_approve(plan, uid, r)
+    else:
+        out["can_approve"] = out["can_reject"] = False
+    return out
 
 
 def _compute_can_approve_off_plan_activity(a, user_id: str, role: str) -> bool:
@@ -165,17 +301,51 @@ def _compute_can_approve_off_plan_activity(a, user_id: str, role: str) -> bool:
     plan = a.plan
     if not plan:
         return False
-    is_off = getattr(a, "is_off_plan", False)
+    is_off = _activity_has_off_plan_realization(a)
     if not is_off:
         if plan.status != "VALIDATED":
             return False
-    step_raw = getattr(a, "off_plan_validation_step", None)
+    off_r = _latest_off_plan_realization(a) if is_off else None
+    step_raw = (
+        getattr(off_r, "off_plan_validation_step", None)
+        if off_r is not None
+        else getattr(a, "off_plan_validation_step", None)
+    )
     step = int(step_raw) if step_raw is not None else None
-    mode = str(getattr(a, "off_plan_validation_mode", None) or "101")
+    raw_mode = (
+        getattr(off_r, "off_plan_validation_mode", None)
+        if off_r is not None
+        else getattr(a, "off_plan_validation_mode", None)
+    )
+    mode = str(raw_mode or _plan_validation_mode_str(plan) or "101").strip() or "101"
+    if mode not in ("101", "111"):
+        mode = "101"
     site_id = plan.site_id
-    if mode == "111" and step == 1:
-        return _user_can_access_site(user_id, site_id) and _user_has_grade(user_id, site_id, "level_1")
-    return role in ("CORPORATE_USER", "CORPORATE")
+    rupper = (role or "").upper()
+    corp = rupper in ("CORPORATE_USER", "CORPORATE")
+
+    if mode == "111":
+        if step == 1:
+            return (
+                _user_can_access_site(user_id, site_id)
+                and _user_has_grade(user_id, site_id, "level_1")
+                and _activity_has_pending_level1_validation(a.id)
+            )
+        if step is None:
+            v1 = Validation.query.filter_by(
+                entity_type="ACTIVITY", entity_id=a.id, grade="level_1", status="PENDING"
+            ).first()
+            if v1 is not None:
+                return _user_can_access_site(user_id, site_id) and _user_has_grade(user_id, site_id, "level_1")
+            if corp:
+                v2 = Validation.query.filter_by(
+                    entity_type="ACTIVITY", entity_id=a.id, grade="level_2", status="PENDING"
+                ).first()
+                return v2 is not None
+            return False
+        return corp
+
+    return corp
 
 
 @bp.get("")
@@ -212,6 +382,7 @@ def list_plans():
     for p in plans:
         obj = _plan_to_json(p)
         obj["activities_count"] = CsrActivity.query.filter_by(plan_id=p.id).count()
+        obj["activities_realized_count"] = _plan_activities_realized_count(p.id)
         if p.status == "SUBMITTED" and user_id:
             obj["can_approve"] = obj["can_reject"] = _compute_can_approve(p, user_id, role_str)
         else:
@@ -282,6 +453,7 @@ def create_plan():
         new_snapshot=snapshot_plan(plan),
     )
     db.session.commit()
+    emit_tasks_refresh_for_request_actor()
     return jsonify(_plan_to_json(plan)), 201
 
 
@@ -304,9 +476,8 @@ def _bulk_submit_plan(plan_id: str, user_id: str, role: str) -> Tuple[bool, Opti
     else:
         plan.status = "SUBMITTED"
         plan.submitted_at = now
-        plan.validation_step = 1 if (plan.validation_mode or "101") == "111" else 2
-        grade = _plan_validation_grade(plan)
-        _get_or_create_plan_validation(plan_id, plan.site_id, grade)
+        plan.submitted_by = user_id
+        _configure_plan_validation_after_site_submit(plan, user_id)
     return True, None
 
 
@@ -319,6 +490,15 @@ def _bulk_delete_plan(plan_id: str, user_id: str, role: str) -> Tuple[bool, Opti
         return False, f"Plan non modifiable (statut: {plan.status})"
     if role in ("SITE_USER", "SITE") and not _user_can_access_site(user_id, plan.site_id):
         return False, "Accès refusé"
+    old_snapshot = snapshot_plan(plan)
+    audit_delete(
+        user_id=user_id,
+        site_id=plan.site_id,
+        entity_type="PLAN",
+        entity_id=plan.id,
+        description=f"Suppression plan {plan.year}",
+        old_snapshot=old_snapshot,
+    )
     # Explicitly delete activities first to avoid SQLAlchemy nulling plan_id on flush.
     from models import CsrActivity
     db.session.query(CsrActivity).filter_by(plan_id=plan.id).delete(synchronize_session=False)
@@ -345,6 +525,7 @@ def bulk_submit_plans():
         ok, err = _bulk_submit_plan(pid, user_id, role)
         results.append({"plan_id": pid, "success": ok, "error": err})
     db.session.commit()
+    emit_tasks_refresh_for_request_actor()
 
     success_count = sum(1 for r in results if r["success"])
     errors = [r for r in results if not r["success"]]
@@ -375,6 +556,7 @@ def bulk_delete_plans():
         ok, err = _bulk_delete_plan(pid, user_id, role)
         results.append({"plan_id": pid, "success": ok, "error": err})
     db.session.commit()
+    emit_tasks_refresh_for_request_actor()
 
     success_count = sum(1 for r in results if r["success"])
     errors = [r for r in results if not r["success"]]
@@ -450,7 +632,8 @@ def update_plan(plan_id):
         new_snapshot=snapshot_plan(plan),
     )
     db.session.commit()
-    return jsonify(_plan_to_json(plan)), 200
+    emit_tasks_refresh_for_request_actor()
+    return jsonify(_plan_json_with_approval_flags(plan, request.user_id, getattr(request, "role", ""))), 200
 
 
 def _plan_is_editable(plan: CsrPlan, role: str = "") -> bool:
@@ -498,21 +681,31 @@ def get_plan(plan_id):
     out = _plan_to_json(plan)
     role_str = (getattr(request, "role", "") or "").upper()
     out["can_approve"] = out["can_reject"] = _compute_can_approve(plan, request.user_id, role_str)
+    if role_str in ("SITE_USER", "SITE"):
+        us = UserSite.query.filter_by(
+            user_id=request.user_id, site_id=plan.site_id, is_active=True
+        ).first()
+        g = (us.grade or "").strip().lower() if us else ""
+        out["viewer_site_grade"] = g if g else None
+    else:
+        out["viewer_site_grade"] = None
 
-    def _activity_is_editable(a):
+    def _activity_is_editable(a, is_off_plan_activity: bool):
         """True if activity can be edited: plan editable OR activity individually unlocked."""
-        if getattr(a, "is_off_plan", False) and a.status == "SUBMITTED":
-            return False
-        if not getattr(a, "is_off_plan", False) and a.status == "SUBMITTED":
-            return False
-        if getattr(a, "is_off_plan", False) and a.status == "REJECTED":
+        au = getattr(a, "unlock_until", None)
+        activity_unlock_active = au is not None and now <= au
+        # SUBMITTED = awaiting review; still editable if corporate approved an activity-level change request (unlock).
+        if is_off_plan_activity and a.status == "SUBMITTED":
+            return activity_unlock_active
+        if not is_off_plan_activity and a.status == "SUBMITTED":
+            return activity_unlock_active
+        if is_off_plan_activity and a.status == "REJECTED":
             return True
-        if not getattr(a, "is_off_plan", False) and a.status == "REJECTED":
+        if not is_off_plan_activity and a.status == "REJECTED":
             return True
         if _plan_is_editable(plan, role_str):
             return True
-        unlock_until = getattr(a, "unlock_until", None)
-        return unlock_until is not None and now <= unlock_until
+        return activity_unlock_active
 
     # Reference: timestamp when the change request was approved (validation approved) for this plan.
     # We compare this with each activity's created_at and updated_at from csr_activities.
@@ -558,39 +751,62 @@ def get_plan(plan_id):
             ):
                 modified_during_unlock = True
 
-        realizations = RealizedCsr.query.filter_by(activity_id=a.id).order_by(RealizedCsr.year.desc(), RealizedCsr.month.desc()).all()
+        # RealizedCsr no longer has year/month columns; order by realization_date (newest first),
+        # then by created_at as a fallback. MySQL/MariaDB do not support "NULLS LAST",
+        # so we emulate it by sorting on an IS NULL flag first (False before True),
+        # which pushes NULL realization_date rows to the end.
+        realizations = (
+            RealizedCsr.query.filter_by(activity_id=a.id)
+            .order_by(
+                RealizedCsr.realization_date.is_(None),
+                RealizedCsr.realization_date.desc(),
+                RealizedCsr.created_at.desc(),
+            )
+            .all()
+        )
         first_real = realizations[0] if realizations else None
+        has_realization = len(realizations) > 0
+        off_real = next((r for r in realizations if getattr(r, "is_off_plan", False)), None)
+        is_off_plan_activity = off_real is not None
         out["activities"].append({
             "id": a.id,
             "activity_number": a.activity_number or "",
+            "has_realization": has_realization,
+            "primary_realization_id": first_real.id if first_real else None,
             "title": a.title or "",
             "description": a.description or "",
             "status": a.status,
-            "is_off_plan": bool(getattr(a, "is_off_plan", False)),
+            "is_off_plan": is_off_plan_activity,
             "category_name": a.category.name if a.category else "",
             "collaboration_nature": a.collaboration_nature or "",
-            "organization": a.organization or "INTERNAL",
-            "contract_type": a.contract_type or "ONE_SHOT",
+            # Legacy fields retained in JSON for compatibility; underlying columns were removed.
+            "organization": getattr(a, "organization", None) or "INTERNAL",
+            "contract_type": getattr(a, "contract_type", None) or "ONE_SHOT",
             "organizer": a.organizer or "",
             "edition": a.edition,
             "start_year": a.start_year,
             "external_partner_name": a.external_partner.name if a.external_partner else None,
             "planned_budget": float(a.planned_budget) if a.planned_budget is not None else None,
-            "planned_volunteers": a.planned_volunteers,
+            "planned_volunteers": getattr(a, "planned_volunteers", None),
             "action_impact_target": float(a.action_impact_target) if a.action_impact_target is not None else None,
             "action_impact_unit": a.action_impact_unit or "",
             "realized_budget": float(first_real.realized_budget) if first_real and first_real.realized_budget is not None else None,
             "participants": first_real.participants if first_real else None,
             "total_hc": first_real.total_hc if first_real else None,
-            "percentage_employees": float(first_real.percentage_employees) if first_real and first_real.percentage_employees is not None else None,
-            "number_external_partners": first_real.number_external_partners if first_real else None,
+            # Legacy fields retained in JSON for compatibility; underlying columns may have been removed.
+            "percentage_employees": float(getattr(first_real, "percentage_employees", None)) if first_real and getattr(first_real, "percentage_employees", None) is not None else None,
+            "number_external_partners": getattr(first_real, "number_external_partners", None) if first_real else None,
             "action_impact_actual": float(first_real.action_impact_actual) if first_real and first_real.action_impact_actual is not None else None,
             "action_impact_unit_realized": first_real.action_impact_unit if first_real else "",
             "added_during_unlock": added_during_unlock,
             "modified_during_unlock": modified_during_unlock,
-            "activity_editable": _activity_is_editable(a),
-            "off_plan_validation_mode": getattr(a, "off_plan_validation_mode", None),
-            "off_plan_validation_step": getattr(a, "off_plan_validation_step", None),
+            "activity_editable": _activity_is_editable(a, is_off_plan_activity),
+            "off_plan_validation_mode": (
+                getattr(off_real, "off_plan_validation_mode", None) if off_real else None
+            ),
+            "off_plan_validation_step": (
+                getattr(off_real, "off_plan_validation_step", None) if off_real else None
+            ),
             "can_approve_off_plan": bool(
                 user_id and _compute_can_approve_off_plan_activity(a, user_id, role_str)
             ),
@@ -600,7 +816,7 @@ def get_plan(plan_id):
             "can_submit_modification_review": bool(
                 plan.status == "VALIDATED"
                 and not _plan_is_editable(plan, role_str)
-                and not getattr(a, "is_off_plan", False)
+                and not is_off_plan_activity
                 and a.status != "SUBMITTED"
                 and getattr(a, "unlock_until", None) is not None
                 and now <= getattr(a, "unlock_until"),
@@ -608,7 +824,7 @@ def get_plan(plan_id):
             "can_resubmit_modification_review": bool(
                 plan.status == "VALIDATED"
                 and not _plan_is_editable(plan, role_str)
-                and not getattr(a, "is_off_plan", False)
+                and not is_off_plan_activity
                 and a.status == "REJECTED"
             ),
         })
@@ -644,13 +860,10 @@ def submit_plan(plan_id):
     else:
         plan.status = "SUBMITTED"
         plan.submitted_at = now
+        plan.submitted_by = request.user_id
         # When re-submitting after change request, clear unlock_until so plan is not editable during validation
         plan.unlock_until = None
-        # Mode 111: Level 1 valide d'abord (step 1), puis Level 2 valide (step 2)
-        # Mode 101: Level 2 valide directement (step 2)
-        plan.validation_step = 1 if (plan.validation_mode or "101") == "111" else 2
-        grade = _plan_validation_grade(plan)
-        _get_or_create_plan_validation(plan_id, plan.site_id, grade)
+        _configure_plan_validation_after_site_submit(plan, request.user_id)
     db.session.commit()
          # ── Notification corporate ────────────────────────────────────────────
     site_name = plan.site.name if plan.site else "Site inconnu"
@@ -663,7 +876,7 @@ def submit_plan(plan_id):
         entity_id=plan.id,
         notification_category="csr_plan",
     )
-    return jsonify(_plan_to_json(plan)), 200
+    return jsonify(_plan_json_with_approval_flags(plan, request.user_id, getattr(request, "role", ""))), 200
 
 
 @bp.patch("/<string:plan_id>/approve")
@@ -681,8 +894,8 @@ def approve_plan(plan_id):
         return jsonify({"message": "Seuls les plans soumis peuvent être approuvés"}), 400
 
     role = (getattr(request, "role", "") or "").upper()
-    step = getattr(plan, "validation_step", None)
-    mode = plan.validation_mode or "101"
+    step = _plan_validation_step_int(plan)
+    mode = _plan_validation_mode_str(plan)
 
     grade = _plan_validation_grade(plan)
     v = _get_or_create_plan_validation(plan_id, plan.site_id, grade)
@@ -703,7 +916,8 @@ def approve_plan(plan_id):
             "Validation niveau 1 (Level 1)",
         )
         db.session.commit()
-        return jsonify(_plan_to_json(plan)), 200
+        emit_tasks_refresh_for_request_actor()
+        return jsonify(_plan_json_with_approval_flags(plan, request.user_id, getattr(request, "role", ""))), 200
 
     # Mode 111 step 2 ou Mode 101: Level 2 (corporate) valide
     if role not in ("CORPORATE_USER", "CORPORATE"):
@@ -731,7 +945,7 @@ def approve_plan(plan_id):
         entity_id=plan.id,
         notification_category="csr_plan",
     )
-    return jsonify(_plan_to_json(plan)), 200
+    return jsonify(_plan_json_with_approval_flags(plan, request.user_id, getattr(request, "role", ""))), 200
 
 
 @bp.patch("/<string:plan_id>/reject")
@@ -750,8 +964,8 @@ def reject_plan(plan_id):
         return jsonify({"message": "Seuls les plans soumis peuvent être rejetés"}), 400
 
     role = (getattr(request, "role", "") or "").upper()
-    step = getattr(plan, "validation_step", None)
-    mode = plan.validation_mode or "101"
+    step = _plan_validation_step_int(plan)
+    mode = _plan_validation_mode_str(plan)
 
     # Mode 111 step 1: Level 1 (site user avec grade level_1) peut rejeter
     if mode == "111" and step == 1:
@@ -810,7 +1024,7 @@ def reject_plan(plan_id):
         entity_id=plan.id,
         notification_category="csr_plan",
     )
-    return jsonify(_plan_to_json(plan)), 200
+    return jsonify(_plan_json_with_approval_flags(plan, request.user_id, getattr(request, "role", ""))), 200
 
 
 @bp.delete("/<string:plan_id>")
@@ -843,4 +1057,5 @@ def delete_plan(plan_id):
     db.session.query(CsrActivity).filter_by(plan_id=plan.id).delete(synchronize_session=False)
     db.session.delete(plan)
     db.session.commit()
+    emit_tasks_refresh_for_request_actor()
     return jsonify({"message": "Plan supprimé"}), 200

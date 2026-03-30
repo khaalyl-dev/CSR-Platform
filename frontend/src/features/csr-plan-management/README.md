@@ -12,8 +12,12 @@ Création et édition des plans annuels CSR par site.
 ## Structure
 
 - `annual-plans/` – Liste et pilotage des plans annuels
-- `models/` – CsrPlan, CsrActivity, ActivityKpi
-- `api/` – csr-plans-api, csr-activities-api
+- `plan-detail/`, `plan-edit/`, `plan-validation/` – Fiche plan, édition, validation
+- `plan-create-sidebar/`, `plan-edit-sidebar/` – Création / édition plan en panneau
+- `models/` – CsrPlan
+- `api/` – csr-plans-api
+
+Les activités planifiées (CRUD, hors plan, sidebars) sont dans **`planned-activity-management`**.
 
 ## À développer
 

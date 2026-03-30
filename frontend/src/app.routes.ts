@@ -20,9 +20,9 @@ import { RealizedDetailComponent } from '@features/realized-activity-management/
 import { PlanDetailComponent } from '@features/csr-plan-management/plan-detail/plan-detail';
 import { PlanEditComponent } from '@features/csr-plan-management/plan-edit/plan-edit';
 import { PlanValidationComponent } from '@features/csr-plan-management/plan-validation/plan-validation';
-import { PlannedActivityDetailComponent } from '@features/csr-plan-management/planned-activity-detail/planned-activity-detail';
-import { PlannedActivityEditComponent } from '@features/csr-plan-management/planned-activity-edit/planned-activity-edit';
-import { PlannedActivitiesListComponent } from '@features/csr-plan-management/planned-activities-list/planned-activities-list';
+import { PlannedActivityDetailComponent } from '@features/planned-activity-management/planned-activity-detail/planned-activity-detail';
+import { PlannedActivityEditComponent } from '@features/planned-activity-management/planned-activity-edit/planned-activity-edit';
+import { PlannedActivitiesListComponent } from '@features/planned-activity-management/planned-activities-list/planned-activities-list';
 import { RealizedEditComponent } from '@features/realized-activity-management/realized-edit/realized-edit';
 import { DocumentsListComponent } from '@features/file-management/documents-list/documents-list';
 import { CategoriesListComponent } from '@features/site-management/categories-list/categories-list';

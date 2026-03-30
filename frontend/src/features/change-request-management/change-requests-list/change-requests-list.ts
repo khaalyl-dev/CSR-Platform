@@ -3,11 +3,12 @@ import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
 import { TranslateModule, TranslateService } from '@ngx-translate/core';
 import { ChangeRequestsApi, type ChangeRequestWithDocs } from '../api/change-requests-api';
+import { UserAvatarNameComponent } from '@shared/components/user-avatar-name/user-avatar-name';
 
 @Component({
   selector: 'app-change-requests-list',
   standalone: true,
-  imports: [CommonModule, RouterModule, TranslateModule],
+  imports: [CommonModule, RouterModule, TranslateModule, UserAvatarNameComponent],
   templateUrl: './change-requests-list.html',
 })
 export class ChangeRequestsListComponent implements OnInit {
@@ -38,6 +39,14 @@ export class ChangeRequestsListComponent implements OnInit {
 
   isOffPlanRow(r: ChangeRequestWithDocs): boolean {
     return r.pending_item_type === 'OFF_PLAN_ACTIVITY';
+  }
+
+  isInPlanModRow(r: ChangeRequestWithDocs): boolean {
+    return r.pending_item_type === 'IN_PLAN_ACTIVITY_MOD';
+  }
+
+  isSyntheticActivityRow(r: ChangeRequestWithDocs): boolean {
+    return this.isOffPlanRow(r) || this.isInPlanModRow(r);
   }
 
   /** Plan detail route id (plan UUID), not activity id. */

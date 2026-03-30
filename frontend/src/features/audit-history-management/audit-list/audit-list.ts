@@ -21,7 +21,6 @@ export class AuditListComponent implements OnInit {
   logs = signal<AuditLog[]>([]);
   sites = signal<Site[]>([]);
   loading = signal(true);
-  rollbackLoading = signal<string | null>(null);
   error = signal<string | null>(null);
 
   filterAction = signal<string>('');
@@ -79,6 +78,7 @@ export class AuditListComponent implements OnInit {
   entityTypeLabel(et: string): string {
     if (et === 'PLAN') return this.translate.instant('AUDIT_LOG.ENTITY_PLAN');
     if (et === 'ACTIVITY') return this.translate.instant('AUDIT_LOG.ENTITY_ACTIVITY');
+    if (et === 'REALIZATION') return this.translate.instant('AUDIT_LOG.ENTITY_REALIZATION');
     return et;
   }
 
@@ -139,38 +139,19 @@ export class AuditListComponent implements OnInit {
     const activityDeleted = d.match(/^Suppression activité (.+)$/);
     if (activityDeleted) return this.translate.instant('AUDIT_LOG.DESC_ACTIVITY_DELETED', { title: activityDeleted[1].trim() });
 
+    const realizationDeleted = d.match(/^Suppression réalisation pour activité (.+)$/);
+    if (realizationDeleted) {
+      return this.translate.instant('AUDIT_LOG.DESC_REALIZATION_DELETED', { title: realizationDeleted[1].trim() });
+    }
+
     return d;
-  }
-
-  canRollback(log: AuditLog): boolean {
-    return !!log.entity_history_id;
-  }
-
-  rollback(log: AuditLog): void {
-    const id = log.entity_history_id;
-    if (!id) return;
-    const confirmed = window.confirm(
-      this.translate.instant('AUDIT_LOG.CONFIRM_ROLLBACK')
-    );
-    if (!confirmed) return;
-    this.error.set(null);
-    this.rollbackLoading.set(id);
-    this.auditApi.rollback(id).subscribe({
-      next: () => {
-        this.rollbackLoading.set(null);
-        this.logs.update((list) => list.filter((l) => l.id !== log.id));
-      },
-      error: (err) => {
-        this.error.set(err?.error?.message ?? this.translate.instant('AUDIT_LOG.ROLLBACK_ERROR'));
-        this.rollbackLoading.set(null);
-      },
-    });
   }
 
   entityLink(log: AuditLog): string | null {
     if (!log.entity_id) return null;
     if (log.entity_type === 'PLAN') return `/csr-plans/${log.entity_id}`;
     if (log.entity_type === 'ACTIVITY') return `/planned-activity/${log.entity_id}`;
+    if (log.entity_type === 'REALIZATION') return `/planned-activity/${log.entity_id}`;
     return null;
   }
 }

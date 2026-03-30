@@ -62,11 +62,26 @@ export class Sidebar implements OnDestroy {
   userInitials(): string {
     const u = this.authStore.user();
     if (!u?.email) return '?';
+    const fn = (u.first_name ?? '').trim();
+    const ln = (u.last_name ?? '').trim();
+    if (fn && ln) return (fn[0] + ln[0]).toUpperCase();
+    if (fn.length >= 2) return fn.slice(0, 2).toUpperCase();
+    if (fn) return fn.slice(0, 2).toUpperCase();
+    if (ln) return ln.slice(0, 2).toUpperCase();
     const local = u.email.split('@')[0] || '';
     return local.slice(0, 2).toUpperCase() || '?';
   }
 
-  roleLabel(role?: 'site' | 'corporate' | null): string {
+  /** First + last name when available; otherwise legacy role label (Site / Corporate user). */
+  userDisplayName(): string {
+    const u = this.authStore.user();
+    if (!u) return '';
+    const parts = [(u.first_name ?? '').trim(), (u.last_name ?? '').trim()].filter(Boolean);
+    if (parts.length) return parts.join(' ');
+    return this.roleLabel(u.role);
+  }
+
+  private roleLabel(role?: 'site' | 'corporate' | null): string {
     if (!role) return '';
     return role === 'corporate'
       ? this.translate.instant('PROFILE_SETTINGS.ACCOUNT.CORPORATE_USER')

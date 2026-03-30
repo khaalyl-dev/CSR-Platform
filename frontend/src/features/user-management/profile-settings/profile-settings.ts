@@ -166,6 +166,10 @@ export class ProfileSettingsComponent implements OnInit, OnDestroy {
       next: (p) => {
         try {
           this.profile.set(p);
+          this.authStore.patchUser({
+            first_name: p.first_name ?? undefined,
+            last_name: p.last_name ?? undefined,
+          });
           const fullPhone = p.phone || '';
           this.profileForm.patchValue({
             first_name: p.first_name ?? '',
@@ -220,6 +224,10 @@ export class ProfileSettingsComponent implements OnInit, OnDestroy {
     this.authApi.updateProfile(payload).subscribe({
       next: (updated) => {
         this.profile.set(updated);
+        this.authStore.patchUser({
+          first_name: updated.first_name ?? payload.first_name,
+          last_name: updated.last_name ?? payload.last_name,
+        });
         this.profileForm.patchValue({
           first_name: updated.first_name ?? payload.first_name,
           last_name: updated.last_name ?? payload.last_name,

@@ -16,6 +16,7 @@ const LOAD_TIMEOUT_MS = 8000;
   standalone: true,
   imports: [ReactiveFormsModule, CommonModule, TranslateModule],
   templateUrl: './plan-create-sidebar.html',
+  host: { class: 'flex flex-col flex-1 min-h-0 overflow-hidden block w-full' },
 })
 export class PlanCreateSidebarComponent implements OnInit {
   private fb = inject(FormBuilder);
@@ -33,6 +34,10 @@ export class PlanCreateSidebarComponent implements OnInit {
   loading = false;
   currentYear = new Date().getFullYear();
   loadingSites = true;
+
+  isCorporateUser(): boolean {
+    return this.authStore.userRole() === 'corporate';
+  }
 
   ngOnInit(): void {
     this.planForm = this.fb.group({
@@ -100,7 +105,8 @@ export class PlanCreateSidebarComponent implements OnInit {
     const payload: CreateCsrPlanPayload = {
       site_id: raw.site_id,
       year: Number(raw.year),
-      validation_mode: raw.validation_mode === '111' ? '111' : '101',
+      // Corporate user does not choose approval mode in plan creation.
+      validation_mode: this.isCorporateUser() ? '101' : (raw.validation_mode === '111' ? '111' : '101'),
       total_budget: raw.total_budget != null && raw.total_budget !== '' ? Number(raw.total_budget) : null,
     };
     this.csrPlansApi.create(payload).pipe(

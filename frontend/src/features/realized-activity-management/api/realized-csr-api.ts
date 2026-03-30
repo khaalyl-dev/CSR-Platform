@@ -21,14 +21,12 @@ export class RealizedCsrApi {
   }
 
   /**
-   * List realized CSR. Optional filters: activity_id, year, month.
+   * List realized CSR. Optional filters: activity_id.
    * SITE_USER only receives realized for their assigned sites' activities.
    */
-  list(params?: { activity_id?: string; year?: number; month?: number }): Observable<RealizedCsr[]> {
+  list(params?: { activity_id?: string }): Observable<RealizedCsr[]> {
     let httpParams = new HttpParams();
     if (params?.activity_id) httpParams = httpParams.set('activity_id', params.activity_id);
-    if (params?.year != null) httpParams = httpParams.set('year', params.year.toString());
-    if (params?.month != null) httpParams = httpParams.set('month', params.month.toString());
     return this.http.get<RealizedCsr[]>(`${this.apiUrl}/realized-csr`, { params: httpParams });
   }
 

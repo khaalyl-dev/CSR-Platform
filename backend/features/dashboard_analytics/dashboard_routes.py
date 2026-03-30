@@ -20,8 +20,10 @@ from models import (
     ChangeRequest,
 )
 from features.change_request_management.change_requests_routes import (
+    _change_request_awaiting_corporate_unlock,
     _in_plan_mod_awaits_corporate_validation,
     _off_plan_awaits_corporate_validation,
+    activity_has_off_plan_realization_sql,
 )
 
 
@@ -579,16 +581,19 @@ def dashboard_notifications():
             cr_q = cr_q.filter(ChangeRequest.site_id.in_(site_ids))
         else:
             cr_q = cr_q.filter(False)
-    pending_count = cr_q.count()
+    if role in ("CORPORATE_USER", "CORPORATE"):
+        pending_count = sum(1 for cr in cr_q.all() if _change_request_awaiting_corporate_unlock(cr))
+    else:
+        pending_count = cr_q.count()
     if role in ("CORPORATE_USER", "CORPORATE"):
         off_acts = CsrActivity.query.filter(
-            CsrActivity.is_off_plan.is_(True),
+            activity_has_off_plan_realization_sql,
             CsrActivity.status == "SUBMITTED",
         ).all()
         pending_count += sum(1 for a in off_acts if _off_plan_awaits_corporate_validation(a))
         in_mod_acts = (
             CsrActivity.query.options(joinedload(CsrActivity.plan))
-            .filter(CsrActivity.is_off_plan.is_(False), CsrActivity.status == "SUBMITTED")
+            .filter(~activity_has_off_plan_realization_sql, CsrActivity.status == "SUBMITTED")
             .all()
         )
         pending_count += sum(1 for a in in_mod_acts if _in_plan_mod_awaits_corporate_validation(a))
