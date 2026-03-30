@@ -738,12 +738,9 @@ def import_excel():
                     title=title,
                     description=_safe_str(row.get("description"), 2000),
                     planned_budget=_safe_float(row.get("planned_budget")),
-                    organization=_safe_str(row.get("organization"), 20) or "INTERNAL",
-                    contract_type=_safe_str(row.get("contract_type"), 30) or "ONE_SHOT",
                     collaboration_nature=collab,
                     organizer=_safe_str(row.get("organizer"), 255),
                     edition=_safe_int(row.get("edition")),
-                    planned_volunteers=_safe_int(row.get("planned_volunteers")),
                     action_impact_target=_safe_float(row.get("impact_target")),
                     action_impact_unit=_safe_str(row.get("impact_unit"), 100),
                     external_partner_id=ep.id if ep else None,
@@ -754,15 +751,12 @@ def import_excel():
                 activities_created += 1
                 activity_numbers_cache[plan.id][activity_number] = activity
             else:
-                # overwrite mode: update planned volunteers, impact target, impact unit, external partner.
+                # overwrite mode: update impact target, impact unit, external partner.
                 activity = existing_act
-                pv = _safe_int(row.get("planned_volunteers"))
                 it = _safe_float(row.get("impact_target"))
                 iu = _safe_str(row.get("impact_unit"), 100)
                 ep_name = _safe_str(row.get("external_partner"), 255)
-                if pv is not None or it is not None or iu is not None or ep_name is not None:
-                    if pv is not None:
-                        activity.planned_volunteers = pv
+                if it is not None or iu is not None or ep_name is not None:
                     if it is not None:
                         activity.action_impact_target = it
                     if iu is not None:
